@@ -1,0 +1,11 @@
+futag/**
+build/**
+libs4test
+docs/Docker/Ubuntu18/futag
+docs/Docker/Ubuntu18/tools
+docs/Docker/Ubuntu20/futag
+docs/Docker/Ubuntu20/tools
+llvm-project/**
+llvm-project
+.vscode
+docs/How-to-use-Futag.docx

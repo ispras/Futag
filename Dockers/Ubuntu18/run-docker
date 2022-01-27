@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+docker run -it --rm --privileged --network host  -v `pwd`:/host --name futag_document18 futag_document18 /bin/bash

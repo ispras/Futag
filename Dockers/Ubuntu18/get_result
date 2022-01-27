@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+docker create -it --rm --privileged --name futag_document18 futag_document18 /bin/bash
+docker cp futag_document18:/home/futag/curl-7.79.1/build/local-install/futag.svres .
+docker rm -f futag_document18
