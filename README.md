@@ -162,13 +162,13 @@ apt install libssl-dev zlib1g-dev wget libpsl-dev libgsasl7-dev libldap-dev
 ~/curl-7.79.1$ mkdir build/local-install
 ~/curl-7.79.1$ cd build
 ~/curl-7.79.1/build$
-~/curl-7.79.1/build$ ../configure --with-openssl --prefix=/home/futag/curl7.79.1/build/local-install CC=/home/futag/futag/bin/clang CFLAGS="-fsanitize=address -fprofile-instrgenerate -fcoverage-mapping -g -O0" LDFLAGS="-fsanitize=address -g -O0"
+~/curl-7.79.1/build$ ../configure --with-openssl --prefix=/home/futag/curl7.79.1/build/local-install CC=CC=/path/to/futag/bin/clang CFLAGS="-fsanitize=address -fprofile-instrgenerate -fcoverage-mapping -g -O0" LDFLAGS="-fsanitize=address -g -O0"
 ~/curl-7.79.1/build$ make && make install
 ```
 
 - Copy folder futag and python script tools/futag-run to ~/curl-7.79.1/build/local-install and run:
 ```
-~/curl-7.79.1/build/local-install $ python3 futag-run.py  -i ". include include/curl" -a "lib" -o targetscurl -s "-lgsasl -lpsl -lssl -lcrypto
+~/curl-7.79.1/build/local-install $ python3 /path/to/futag/tools/futag-run.py  -i ". include include/curl" -a "lib" -o targetscurl -s "-lgsasl -lpsl -lssl -lcrypto
 -lssl -lcrypto -lldap -llber -lz" -tt 300 -f 4 -m 8000 include/curl/curl.h
 ```
 
