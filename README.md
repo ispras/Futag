@@ -38,7 +38,7 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 
 - Clone the project with submodule llvm-project:
 ```
-~$ git clone --recurse-submodules git@github.com:ispras/futag.git
+~$ git clone --recurse-submodules git@github.com:ispras/Futag.git
 ```
 - Create build folder and copy build.bash script to build folder then change to build folder and run the build.bash script:
 ```
