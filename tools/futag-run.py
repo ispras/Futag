@@ -1,6 +1,6 @@
 #===-- futag-run.py -------*- Python script -*-===//
 #
-// This file is distributed under the GPL v3 license (https://www.gnu.org/licenses/gpl-3.0.en.html).
+# This file is distributed under the GPL v3 license (https://www.gnu.org/licenses/gpl-3.0.en.html).
 #
 
 import sys

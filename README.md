@@ -11,13 +11,12 @@
 
 # 1. About <a name = "about"></a>
 Futag is an instrument for automated generating fuzz targets of software libraries. Futag uses clang static analysis to find dependencies of entities (data types, functions, structures, etc.) in the library's source code and generates fuzz targets for functions. The instrument then compiles the fuzz targets with sanitizers and executes them for checking errors. The crashes are collected and saved in a file of SVRES format, the user can import this file to SVACE system for viewing, analyzing. The instrument works on Linux systems.
-License: Based on llvm-project, this project is under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
+License: This project is under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
 
 # 2. Quick start with Dockers <a name = "quick_start"></a>
-The Dockers directory contains Dockerfiles of Ubuntu18 and Ubuntu20, which will help you quickly get acquainted with Futag. To build and run the Dockerfile, please place the futag directory along with Dockerfile.
+The Dockers directory contains Dockerfiles of Ubuntu18 and Ubuntu20, which will help you quickly build Futag:
 - build-docker: the script for building Docker
 - run-docker: the script for running Docker
-- get_result: the script for copying the futag.svres file from the Docker to the current directory of the host.  
 
 # 3. Build instruction <a name = "build_instruction"></a>
 
@@ -162,7 +161,7 @@ apt install libssl-dev zlib1g-dev wget libpsl-dev libgsasl7-dev libldap-dev
 ~/curl-7.79.1$ mkdir build/local-install
 ~/curl-7.79.1$ cd build
 ~/curl-7.79.1/build$
-~/curl-7.79.1/build$ ../configure --with-openssl --prefix=/home/futag/curl7.79.1/build/local-install CC=CC=/path/to/futag/bin/clang CFLAGS="-fsanitize=address -fprofile-instrgenerate -fcoverage-mapping -g -O0" LDFLAGS="-fsanitize=address -g -O0"
+~/curl-7.79.1/build$ ../configure --with-openssl --prefix=/home/futag/curl7.79.1/build/local-install CC=/path/to/futag/bin/clang CFLAGS="-fsanitize=address -fprofile-instr-generate -fcoverage-mapping -g -O0" LDFLAGS="-fsanitize=address -g -O0"
 ~/curl-7.79.1/build$ make && make install
 ```
 
