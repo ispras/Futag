@@ -10,7 +10,8 @@
 - 8. [References](#refs)
 
 # 1. About <a name = "about"></a>
-Futag is an instrument for automated generating fuzz targets of software libraries. Futag uses clang static analysis to find dependencies of entities (data types, functions, structures, etc.) in the library's source code and generates fuzz targets for functions. The instrument then compiles the fuzz targets with sanitizers and executes them for checking errors. The crashes are collected and saved in a file of SVRES format, the user can import this file to SVACE system for viewing, analyzing. The instrument works on Linux systems.
+Futag is an instrument for automated generating fuzz targets of software libraries. Currently Futag generates libFuzzer targets and targets for ["Crusher"](https://github.com/ispras/crusher).
+Futag uses clang static analysis to find dependencies of entities (data types, functions, structures, etc.) in the library's source code and generates fuzz targets for functions. The instrument then compiles the fuzz targets with sanitizers and executes them for checking errors. The crashes are collected and saved in a file of SVRES format, the user can import this file to SVACE system for viewing, analyzing. The instrument works on Linux systems.
 License: This project is under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
 
 # 2. Quick start with Dockers <a name = "quick_start"></a>
@@ -111,6 +112,9 @@ optional arguments:
   -p PACKAGE, --package PACKAGE
                         path to futag, by default futag is in the same folder
                         of this script
+  -x TARGET, --target TARGET
+                        type of targets for generating (libFuzzer or Crusher),
+                        default is libFuzzer
   -i INCLUDE, --include INCLUDE
                         paths for including when compiling
   -a STATIC_PATH, --static_path STATIC_PATH
@@ -145,33 +149,36 @@ The results of testing are presented in 2 types:
 - file of SVRES format for importing in SVACE system (a system for static analysis of ISP RAS) for viewing.
 
 # 6. Example of usage <a name = "example"></a>
-You can run the Dockerfiles for examples, however in the following, we introduce how to run Futag with library CURL manually. 
+In the following, we introduce how to run Futag with library CURL manually. 
 
 - Install packages for curl:
 ```
 apt install libssl-dev zlib1g-dev wget libpsl-dev libgsasl7-dev libldap-dev
 ```
 
-- Download and install curl:
+- Extract and install curl:
 ```
-~$ wget https://github.com/curl/curl/releases/download/curl-7_79_1/curl7.79.1.tar.gz
-~$ tar -xf curl-7.79.1.tar.gz
-~$ cd curl-7.79.1/
-~/curl-7.79.1$ mkdir build
-~/curl-7.79.1$ mkdir build/local-install
-~/curl-7.79.1$ cd build
-~/curl-7.79.1/build$
-~/curl-7.79.1/build$ ../configure --with-openssl --prefix=/home/futag/curl7.79.1/build/local-install CC=/path/to/futag/bin/clang CFLAGS="-fsanitize=address -fprofile-instr-generate -fcoverage-mapping -g -O0" LDFLAGS="-fsanitize=address -g -O0"
-~/curl-7.79.1/build$ make && make install
+~$ tar -xf curl.tar.gz
+~$ cd curl/
+~/curl$ mkdir build
+~/curl$ mkdir build/local-install
+~/curl$ cd build
+~/curl/build$
+~/curl/build$ ../configure --with-openssl --prefix=/home/futag/curl7.79.1/build/local-install CC=/path/to/futag/bin/clang CFLAGS="-fsanitize=address -fprofile-instr-generate -fcoverage-mapping -g -O0" LDFLAGS="-fsanitize=address -g -O0"
+~/curl/build$ make && make install
 ```
 
-- Copy folder futag and python script tools/futag-run to ~/curl-7.79.1/build/local-install and run:
+- Copy folder of futag (following 3.2) and run python script tools/futag-run.py in folder ~/curl/build/local-install:
 ```
-~/curl-7.79.1/build/local-install $ python3 /path/to/futag/tools/futag-run.py  -i ". include include/curl" -a "lib" -o targetscurl -s "-lgsasl -lpsl -lssl -lcrypto
+~/curl/build/local-install $ python3 /path/to/futag/tools/futag-run.py  -i ". include include/curl" -a "lib" -o targetscurl -s "-lgsasl -lpsl -lssl -lcrypto
 -lssl -lcrypto -lldap -llber -lz" -tt 300 -f 4 -m 8000 include/curl/curl.h
 ```
-
-- All the generated fuzz targets and log files are saved in folder targetscurl.
+By default Futag generates libFuzzer targets, all of these targets and log files are saved in folder targetscurl.
+To generate targets for Crusher, please specify with option -x:
+```
+~/curl/build/local-install $ python3 /path/to/futag/tools/futag-run.py  -x Crusher -i ". include include/curl" -a "lib" -o targetscurl -s "-lgsasl -lpsl -lssl -lcrypto
+-lssl -lcrypto -lldap -llber -lz" -tt 300 -f 4 -m 8000 include/curl/curl.h
+```
 
 # 7. Authors <a name = "authors"></a>
 - Thien Tran (thientc@ispras.ru)
