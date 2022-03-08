@@ -1,6 +1,7 @@
 //===-- Basic.cpp -------*- C++ -*-===//
 //
-// This file is distributed under the GPL v3 license (https://www.gnu.org/licenses/gpl-3.0.en.html).
+// This file is distributed under the GPL v3 license
+// (https://www.gnu.org/licenses/gpl-3.0.en.html).
 //
 
 /***********************************************/
@@ -60,10 +61,10 @@ typedef struct {
   GenType generator_type;
   bool is_pointer = false;
   uint64_t array_size;
-  string gen_var_function = "";  // save the function name for generating if
-                                 // generator_type == GEN_FUNCTION
-  string gen_var_struct = "";    // save the function name for generating if
-                                 // generator_type == GEN_STRUCT
+  string gen_var_function = ""; // save the function name for generating if
+                                // generator_type == GEN_FUNCTION
+  string gen_var_struct = "";   // save the function name for generating if
+                                // generator_type == GEN_STRUCT
 } QualTypeDetail;
 
 typedef struct {
@@ -85,6 +86,7 @@ typedef struct {
   string name;
   bool genok;
   futag::TypeSequence return_type;
+  QualType return_qualtype;
   vector<futag::TypeSequence> params;
 } FunctionDetail;
 
@@ -113,8 +115,8 @@ typedef struct {
   vector<string> args_list;
   vector<string> free_vars;
   string function_name;
+  QualType return_qualtype;
   int cstring_count;
-
 } genstruct;
 
 struct argu {
@@ -139,22 +141,26 @@ string trim(string str);
 
 vector<string> explode(string line, char delimiter);
 
-vector<FunctionDetail> searchInReturnType(
-    QualTypeDetail type_detail, vector<FunctionDetail> funcdecl_list,
-    vector<futag::StructDetail> struct_decl_list);
-FunctionDetail *searchParamInReturnType(
-    futag::TypeSequence *param, vector<FunctionDetail> *funcdecl_list,
-    vector<futag::StructDetail> *struct_decl_list);
-FunctionDetail *searchParamTypeInReturnType(
-    futag::QualTypeDetail *paramType, vector<FunctionDetail> *funcdecl_list,
-    vector<futag::StructDetail> *struct_decl_list);
+vector<FunctionDetail>
+searchInReturnType(QualTypeDetail type_detail,
+                   vector<FunctionDetail> funcdecl_list,
+                   vector<futag::StructDetail> struct_decl_list);
+FunctionDetail *
+searchParamInReturnType(futag::TypeSequence *param,
+                        vector<FunctionDetail> *funcdecl_list,
+                        vector<futag::StructDetail> *struct_decl_list);
+FunctionDetail *
+searchParamTypeInReturnType(futag::QualTypeDetail *paramType,
+                            vector<FunctionDetail> *funcdecl_list,
+                            vector<futag::StructDetail> *struct_decl_list);
 
-futag::QualTypeDetail *findTypeDetailByName(
-    string type_name, vector<futag::QualTypeDetail> type_list);
+futag::QualTypeDetail *
+findTypeDetailByName(string type_name, vector<futag::QualTypeDetail> type_list);
 
-futag::QualTypeDetail *findTypeDetailInTypedef(
-    futag::QualTypeDetail type, vector<futag::TypedefDetail> typedefdecl_list,
-    vector<futag::QualTypeDetail> type_list);
+futag::QualTypeDetail *
+findTypeDetailInTypedef(futag::QualTypeDetail type,
+                        vector<futag::TypedefDetail> typedefdecl_list,
+                        vector<futag::QualTypeDetail> type_list);
 
 QualTypeDetail getQualTypeDetail(QualType type);
 
@@ -176,7 +182,7 @@ void gen_string(string var_name, QualTypeDetail type,
                 futag::genstruct *generator);
 
 void gen_string_4Crusher(string var_name, QualTypeDetail type,
-                futag::genstruct *generator);
+                         futag::genstruct *generator);
 
 void gen_enum(string var_name, QualTypeDetail type,
               vector<futag::EnumDetail> *enumdecl_list,
@@ -196,6 +202,6 @@ void gen_struct_by_name(string var_name, string struct_name,
                         vector<futag::StructDetail> *struct_decl_list,
                         vector<futag::EnumDetail> *enumdecl_list,
                         futag::genstruct *generator);
-}  // namespace futag
+} // namespace futag
 
-#endif  // FUTAG_BASIC_H
+#endif // FUTAG_BASIC_H

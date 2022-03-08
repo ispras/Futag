@@ -1,6 +1,7 @@
 //===-- Basic.cpp -------*- C++ -*-===//
 //
-// This file is distributed under the GPL v3 license (https://www.gnu.org/licenses/gpl-3.0.en.html).
+// This file is distributed under the GPL v3 license
+// (https://www.gnu.org/licenses/gpl-3.0.en.html).
 //
 
 /***********************************************/
@@ -23,9 +24,9 @@
 #include <fstream>
 #include <string>
 
+#include "futag/Basic.h"
 #include "clang/AST/Type.h"
 #include "clang/Tooling/Tooling.h"
-#include "futag/Basic.h"
 
 using namespace std;
 using namespace llvm;
@@ -35,6 +36,19 @@ using namespace futag;
 namespace futag {
 void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
                             futag::genstruct *generator) {
+
+  unsigned char count = 0;
+  string total_size = "";
+  for (auto s : generator->size_limit) {
+    total_size += s;
+    count++;
+    if (count < generator->size_limit.size()) {
+      total_size += " + ";
+    }
+  }
+  if (!total_size.length())
+    return;
+
   *fuzz_file << "#include <stdint.h>\n";
   *fuzz_file << "#include <stddef.h>\n";
   *fuzz_file << "#include <string.h>\n";
@@ -49,18 +63,7 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
   *fuzz_file << "extern \"C\" int LLVMFuzzerTestOneInput(const uint8_t *Data, "
                 "size_t Size) {\n";
 
-  *fuzz_file << "    if(Size <= ";
-  unsigned char count = 0;
-  string total_size = "";
-  for (auto s : generator->size_limit) {
-    total_size += s;
-    count++;
-    if (count < generator->size_limit.size()) {
-      total_size += " + ";
-    }
-  }
-  *fuzz_file << total_size;
-  *fuzz_file << ") return 0;\n";
+  *fuzz_file << "    if(Size <= " + total_size + ") return 0;\n";
   *fuzz_file << "    uint8_t * pos = (uint8_t *) Data;\n\n";
   vector<string>::iterator l;
 
@@ -75,7 +78,12 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
     *fuzz_file << "    " << *l;
   }
 
-  *fuzz_file << "    " + generator->function_name + "(";
+  if (generator->return_qualtype.getAsString() != "void") {
+    *fuzz_file << "    " << generator->return_qualtype.getAsString()
+               << " fuzz_target = " + generator->function_name + "(";
+  } else {
+    *fuzz_file << "    " + generator->function_name + "(";
+  }
 
   count = 0;
   for (l = generator->args_list.begin(); l != generator->args_list.end(); l++) {
@@ -90,7 +98,23 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
   for (l = generator->free_vars.begin(); l != generator->free_vars.end(); l++) {
     *fuzz_file << "    " << *l;
   }
-  *fuzz_file << "    return 0;\n}\n";
+  if (generator->return_qualtype.getAsString() != "void") {
+
+    *fuzz_file << "    if(fuzz_target) {\n";
+
+    if (generator->return_qualtype->isPointerType()) {
+      *fuzz_file << "        free(fuzz_target);\n";
+    }
+    *fuzz_file << "        return 0;\n";
+    *fuzz_file << "    } else {\n";
+    *fuzz_file << "        return 1;\n";
+    *fuzz_file << "    }\n";
+
+  } else {
+    *fuzz_file << "    return 0;\n";
+  }
+  *fuzz_file << "}\n";
+
   return;
 }
-}  // namespace futag
+} // namespace futag

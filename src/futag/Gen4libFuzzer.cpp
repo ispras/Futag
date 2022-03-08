@@ -92,6 +92,7 @@ class Futag4libFuzzerVisitor
     func_detail.genok = false;
     func_detail.name = func->getNameAsString();
     QualType return_qual_type = func->getReturnType();
+    func_detail.return_qualtype = return_qual_type;
     func_detail.return_type =
         futag::getTypeSequenceFromQualType(return_qual_type);
     ;
@@ -524,6 +525,7 @@ int main(int argc, const char **argv) {
     futag::genstruct *generator = new futag::genstruct;
     generator->cstring_count = 0;
     generator->function_name = f_iter->name;
+    generator->return_qualtype = f_iter->return_qualtype;
     string var_name = "var";
     string last_var_name = "";
     for (vector<futag::TypeSequence>::iterator p_iter = f_iter->params.begin();
