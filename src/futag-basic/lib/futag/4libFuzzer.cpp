@@ -49,6 +49,8 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
   if (!total_size.length())
     return;
 
+  *fuzz_file << "#include <stdio.h>\n";
+  *fuzz_file << "#include <stdlib.h>\n";
   *fuzz_file << "#include <stdint.h>\n";
   *fuzz_file << "#include <stddef.h>\n";
   *fuzz_file << "#include <string.h>\n";
