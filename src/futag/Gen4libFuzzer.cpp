@@ -1,6 +1,7 @@
 //===-- GenTargets.cpp -------*- C++ -*-===//
 //
-// This file is distributed under the GPL v3 license (https://www.gnu.org/licenses/gpl-3.0.en.html).
+// This file is distributed under the GPL v3 license
+// (https://www.gnu.org/licenses/gpl-3.0.en.html).
 //
 
 /***********************************************/
@@ -20,14 +21,14 @@
 #include <algorithm>
 #include <string>
 
+#include "futag/4libFuzzer.h"
+#include "futag/Basic.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Frontend/ASTConsumers.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/CommonOptionsParser.h"
-#include "futag/4libFuzzer.h"
-#include "futag/Basic.h"
 
 using namespace std;
 using namespace llvm;
@@ -63,13 +64,13 @@ vector<QualType> qualtype_list;
 
 class Futag4libFuzzerVisitor
     : public RecursiveASTVisitor<Futag4libFuzzerVisitor> {
- private:
-  ASTContext *astContext;  // used for getting additional AST info
+private:
+  ASTContext *astContext; // used for getting additional AST info
 
- public:
+public:
   // ostream create_fuzz_target(string file_path);
   explicit Futag4libFuzzerVisitor(CompilerInstance *CI)
-      : astContext(&(CI->getASTContext()))  // initialize private members
+      : astContext(&(CI->getASTContext())) // initialize private members
   {
     rewriter.setSourceMgr(astContext->getSourceManager(),
                           astContext->getLangOpts());
@@ -190,7 +191,8 @@ class Futag4libFuzzerVisitor
             for (vector<futag::StructDetail>::iterator s_iter =
                      struct_decl_list.begin();
                  s_iter != struct_decl_list.end(); ++s_iter) {
-              if (type_split[1] != s_iter->name) continue;
+              if (type_split[1] != s_iter->name)
+                continue;
               found_struct_decl = true;
               if (s_iter->incomplete) {
                 struct_detail.incomplete = true;
@@ -278,7 +280,8 @@ class Futag4libFuzzerVisitor
             for (vector<futag::StructDetail>::iterator s_iter =
                      struct_decl_list.begin();
                  s_iter != struct_decl_list.end(); ++s_iter) {
-              if (type_split[1] != s_iter->name) continue;
+              if (type_split[1] != s_iter->name)
+                continue;
               found_struct_decl = true;
               if (s_iter->incomplete) {
                 struct_detail.incomplete = true;
@@ -326,10 +329,10 @@ class Futag4libFuzzerVisitor
 };
 
 class Futag4libFuzzerASTConsumer : public ASTConsumer {
- private:
-  Futag4libFuzzerVisitor *visitor;  // doesn't have to be private
+private:
+  Futag4libFuzzerVisitor *visitor; // doesn't have to be private
 
- public:
+public:
   explicit Futag4libFuzzerASTConsumer(CompilerInstance *CI)
       : visitor(new Futag4libFuzzerVisitor(CI)) {}
   virtual void HandleTranslationUnit(ASTContext &Context) {
@@ -338,9 +341,9 @@ class Futag4libFuzzerASTConsumer : public ASTConsumer {
 };
 
 class Futag4libFuzzerFrontendAction : public ASTFrontendAction {
- public:
-  virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
-      clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
+public:
+  virtual std::unique_ptr<clang::ASTConsumer>
+  CreateASTConsumer(clang::CompilerInstance &Compiler, llvm::StringRef InFile) {
     return std::unique_ptr<clang::ASTConsumer>(
         new Futag4libFuzzerASTConsumer(&Compiler));
   }
@@ -423,7 +426,8 @@ int main(int argc, const char **argv) {
                 for (vector<futag::StructDetail>::iterator s_iter =
                          struct_decl_list.begin();
                      s_iter != struct_decl_list.end(); ++s_iter) {
-                  if (struct_name != s_iter->name) continue;
+                  if (struct_name != s_iter->name)
+                    continue;
                   if (!s_iter->incomplete) {
                     gen_this_param = true;
                     qt_iter->generator_type = futag::GEN_STRUCT;
@@ -448,7 +452,8 @@ int main(int argc, const char **argv) {
             for (vector<futag::StructDetail>::iterator s_iter =
                      struct_decl_list.begin();
                  s_iter != struct_decl_list.end(); ++s_iter) {
-              if (struct_name != s_iter->name) continue;
+              if (struct_name != s_iter->name)
+                continue;
               if (!s_iter->incomplete) {
                 gen_this_param = true;
                 qt_iter->gen_var_struct = struct_name;
@@ -506,12 +511,12 @@ int main(int argc, const char **argv) {
       if (!gen_this_function) {
         break;
       }
-    }  // end params list
+    } // end params list
     if (gen_this_function) {
       count_targets++;
       f_iter->genok = true;
     }
-  }  // End function_decl_list
+  } // End function_decl_list
   llvm::outs() << "Total generated function: " << count_targets << "\n";
 
   // Begin generating for function
@@ -588,10 +593,16 @@ int main(int argc, const char **argv) {
           }
         }
       }
-      generator->args_list.insert(generator->args_list.end(), last_var_name);
-      index++;
+      if (last_var_name != "") {
+        generator->args_list.insert(generator->args_list.end(), last_var_name);
+        index++;
+      } else {
+        f_iter->genok = false;
+      }
     }
-
+    if (!f_iter->genok) {
+      continue;
+    }
     // Create directory for fuzz targets
     futag::create_target_dir(output_folder);
     const char *function_filename = f_iter->name.c_str();

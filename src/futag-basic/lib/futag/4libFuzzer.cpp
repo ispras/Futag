@@ -100,12 +100,25 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
   for (l = generator->free_vars.begin(); l != generator->free_vars.end(); l++) {
     *fuzz_file << "    " << *l;
   }
-  if (generator->return_qualtype.getAsString() != "void") {
+  if (generator->return_qualtype.getAsString() != "void" &&
+      futag::getQualTypeDetail(generator->return_qualtype).generator_type !=
+          GEN_STRUCT) {
 
     *fuzz_file << "    if(fuzz_target) {\n";
 
     if (generator->return_qualtype->isPointerType()) {
-      *fuzz_file << "        free(fuzz_target);\n";
+      if (generator->return_qualtype->getPointeeType().hasLocalQualifiers()) {
+        std::string rt_str = generator->return_qualtype.getAsString();
+        std::string qualifier = generator->return_qualtype->getPointeeType()
+                                    .getLocalQualifiers()
+                                    .getAsString();
+        size_t index = 0;
+        index = rt_str.find(qualifier, index);
+        rt_str.replace(index, qualifier.length(), "");
+        *fuzz_file << "        free( (" + rt_str + ") fuzz_target);\n";
+      } else {
+        *fuzz_file << "        free(fuzz_target);\n";
+      }
     }
     *fuzz_file << "        return 0;\n";
     *fuzz_file << "    } else {\n";
