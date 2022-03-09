@@ -100,9 +100,13 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
   for (l = generator->free_vars.begin(); l != generator->free_vars.end(); l++) {
     *fuzz_file << "    " << *l;
   }
-  if (generator->return_qualtype.getAsString() != "void" &&
-      futag::getQualTypeDetail(generator->return_qualtype).generator_type !=
-          GEN_STRUCT) {
+  if (generator->return_qualtype.getAsString() == "void" ||
+      futag::getQualTypeDetail(generator->return_qualtype).generator_type ==
+          GEN_STRUCT ||
+      futag::getQualTypeDetail(generator->return_qualtype).generator_type ==
+          GEN_ENUM) {
+    *fuzz_file << "    return 0;\n";
+  } else {
 
     *fuzz_file << "    if(fuzz_target) {\n";
 
@@ -124,9 +128,6 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
     *fuzz_file << "    } else {\n";
     *fuzz_file << "        return 1;\n";
     *fuzz_file << "    }\n";
-
-  } else {
-    *fuzz_file << "    return 0;\n";
   }
   *fuzz_file << "}\n";
 
