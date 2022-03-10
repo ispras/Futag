@@ -24,9 +24,9 @@
 #include <fstream>
 #include <string>
 
-#include "futag/Basic.h"
 #include "clang/AST/Type.h"
 #include "clang/Tooling/Tooling.h"
+#include "futag/Basic.h"
 
 using namespace std;
 using namespace llvm;
@@ -36,7 +36,6 @@ using namespace futag;
 namespace futag {
 void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
                             futag::genstruct *generator) {
-
   unsigned char count = 0;
   string total_size = "";
   for (auto s : generator->size_limit) {
@@ -46,8 +45,7 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
       total_size += " + ";
     }
   }
-  if (!total_size.length())
-    return;
+  if (!total_size.length()) return;
 
   *fuzz_file << "#include <stdio.h>\n";
   *fuzz_file << "#include <stdlib.h>\n";
@@ -103,11 +101,10 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
   if (generator->return_qualtype.getAsString() == "void" ||
       futag::getQualTypeDetail(generator->return_qualtype).generator_type ==
           GEN_STRUCT ||
-      futag::getQualTypeDetail(generator->return_qualtype).generator_type ==
-          GEN_ENUM) {
+      futag::check_enumtype(generator->return_qualtype,
+                            generator->typedefdecl_list)) {
     *fuzz_file << "    return 0;\n";
   } else {
-
     *fuzz_file << "    if(fuzz_target) {\n";
 
     if (generator->return_qualtype->isPointerType()) {
@@ -133,4 +130,4 @@ void gen_wrapper_4libFuzzer(ofstream *fuzz_file, vector<string> include_headers,
 
   return;
 }
-} // namespace futag
+}  // namespace futag

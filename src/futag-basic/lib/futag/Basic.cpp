@@ -154,10 +154,10 @@ vector<string> explode(string line, char delimiter) {
   return result;
 }
 
-vector<futag::FunctionDetail>
-searchInReturnType(futag::QualTypeDetail type_detail,
-                   vector<futag::FunctionDetail> funcdecl_list,
-                   vector<futag::StructDetail> struct_decl_list) {
+vector<futag::FunctionDetail> searchInReturnType(
+    futag::QualTypeDetail type_detail,
+    vector<futag::FunctionDetail> funcdecl_list,
+    vector<futag::StructDetail> struct_decl_list) {
   vector<futag::FunctionDetail> result_list;
   for (vector<futag::FunctionDetail>::iterator f_iter = funcdecl_list.begin();
        f_iter != funcdecl_list.end(); ++f_iter) {
@@ -187,8 +187,7 @@ searchInReturnType(futag::QualTypeDetail type_detail,
         for (vector<futag::StructDetail>::iterator s_iter =
                  struct_decl_list.begin();
              s_iter != struct_decl_list.end(); ++s_iter) {
-          if (type_split[1] != s_iter->name)
-            continue;
+          if (type_split[1] != s_iter->name) continue;
 
           if (!s_iter->incomplete) {
             found = false;
@@ -203,10 +202,10 @@ searchInReturnType(futag::QualTypeDetail type_detail,
   return result_list;
 }
 
-FunctionDetail *
-searchParamTypeInReturnType(futag::QualTypeDetail *paramType,
-                            vector<futag::FunctionDetail> *funcdecl_list,
-                            vector<futag::StructDetail> *struct_decl_list) {
+FunctionDetail *searchParamTypeInReturnType(
+    futag::QualTypeDetail *paramType,
+    vector<futag::FunctionDetail> *funcdecl_list,
+    vector<futag::StructDetail> *struct_decl_list) {
   for (vector<futag::FunctionDetail>::iterator f_iter = funcdecl_list->begin();
        f_iter != funcdecl_list->end(); ++f_iter) {
     if (paramType->type_name == f_iter->return_type.sequence[0].type_name &&
@@ -229,8 +228,7 @@ searchParamTypeInReturnType(futag::QualTypeDetail *paramType,
           for (vector<futag::StructDetail>::iterator s_iter =
                    struct_decl_list->begin();
                s_iter != struct_decl_list->end(); ++s_iter) {
-            if (type_split[1] != s_iter->name)
-              continue;
+            if (type_split[1] != s_iter->name) continue;
             if (s_iter->incomplete) {
               genok = false;
             } else {
@@ -251,9 +249,8 @@ searchParamTypeInReturnType(futag::QualTypeDetail *paramType,
   return NULL;
 }
 
-futag::QualTypeDetail *
-findTypeDetailByName(string type_name,
-                     vector<futag::QualTypeDetail> type_list) {
+futag::QualTypeDetail *findTypeDetailByName(
+    string type_name, vector<futag::QualTypeDetail> type_list) {
   for (vector<futag::QualTypeDetail>::iterator t_iter = type_list.begin();
        t_iter != type_list.end(); ++t_iter) {
     if (t_iter->type_name == type_name) {
@@ -263,10 +260,9 @@ findTypeDetailByName(string type_name,
   return nullptr;
 }
 
-futag::QualTypeDetail *
-findTypeDetailInTypedef(futag::QualTypeDetail type,
-                        vector<futag::TypedefDetail> typedefdecl_list,
-                        vector<futag::QualTypeDetail> type_list) {
+futag::QualTypeDetail *findTypeDetailInTypedef(
+    futag::QualTypeDetail type, vector<futag::TypedefDetail> typedefdecl_list,
+    vector<futag::QualTypeDetail> type_list) {
   for (vector<futag::TypedefDetail>::iterator td_iter =
            typedefdecl_list.begin();
        td_iter != typedefdecl_list.end(); ++td_iter) {
@@ -423,50 +419,50 @@ void printQualTypeSequence(futag::TypeSequence qd) {
        qt_iter != qd.sequence.end(); ++qt_iter) {
     llvm::outs() << " type \"" << qt_iter->type_name << "\", partition: ";
     switch (qt_iter->partition) {
-    case futag::FUNCTION_TYPE:
-      llvm::outs() << "FUNCTION_TYPE";
-      break;
-    case futag::INCOMPLETE_TYPE:
-      llvm::outs() << "INCOMPLETE_TYPE";
-      break;
-    case futag::OBJECT_TYPE:
-      llvm::outs() << "OBJECT_TYPE";
-      break;
+      case futag::FUNCTION_TYPE:
+        llvm::outs() << "FUNCTION_TYPE";
+        break;
+      case futag::INCOMPLETE_TYPE:
+        llvm::outs() << "INCOMPLETE_TYPE";
+        break;
+      case futag::OBJECT_TYPE:
+        llvm::outs() << "OBJECT_TYPE";
+        break;
     }
     llvm::outs() << ", ";
 
     switch (qt_iter->generator_type) {
-    case futag::GEN_BUILTIN:
-      llvm::outs() << "GEN_BUILTIN";
-      break;
-    case futag::GEN_STRING:
-      llvm::outs() << "GEN_STRING";
-      break;
-    case futag::GEN_ENUM:
-      llvm::outs() << "GEN_ENUM";
-      break;
-    case futag::GEN_VOID:
-      llvm::outs() << "GEN_VOID";
-      break;
-    case futag::GEN_QUALIFIER:
-      llvm::outs() << "GEN_QUALIFIER";
-      break;
-    case futag::GEN_POINTER:
-      llvm::outs() << "GEN_POINTER";
-      break;
-    case futag::GEN_STRUCT:
-      llvm::outs() << "GEN_STRUCT";
-      break;
-    case futag::GEN_INCOMPLETE:
-      llvm::outs() << "GEN_INCOMPLETE";
-      break;
-    case futag::GEN_FUNCTION:
-    case futag::GEN_UNKNOWN:
-      llvm::outs() << "GEN_UNKNOWN";
-      break;
-    case futag::GEN_ARRAY:
-      llvm::outs() << "GEN_ARRAY";
-      break;
+      case futag::GEN_BUILTIN:
+        llvm::outs() << "GEN_BUILTIN";
+        break;
+      case futag::GEN_STRING:
+        llvm::outs() << "GEN_STRING";
+        break;
+      case futag::GEN_ENUM:
+        llvm::outs() << "GEN_ENUM";
+        break;
+      case futag::GEN_VOID:
+        llvm::outs() << "GEN_VOID";
+        break;
+      case futag::GEN_QUALIFIER:
+        llvm::outs() << "GEN_QUALIFIER";
+        break;
+      case futag::GEN_POINTER:
+        llvm::outs() << "GEN_POINTER";
+        break;
+      case futag::GEN_STRUCT:
+        llvm::outs() << "GEN_STRUCT";
+        break;
+      case futag::GEN_INCOMPLETE:
+        llvm::outs() << "GEN_INCOMPLETE";
+        break;
+      case futag::GEN_FUNCTION:
+      case futag::GEN_UNKNOWN:
+        llvm::outs() << "GEN_UNKNOWN";
+        break;
+      case futag::GEN_ARRAY:
+        llvm::outs() << "GEN_ARRAY";
+        break;
     }
     llvm::outs() << ", " << qt_iter->parent_qualifier << "; ";
   }
@@ -529,14 +525,32 @@ void gen_var_function_by_name(string var_name, string function_name,
                     " = " + fd->name + "(" + arg_lines + "); \n";
 
   generator->gen4types.insert(generator->gen4types.end(), gen_line);
+
   if (fd->return_type.sequence[0].is_pointer) {
-    gen_line = " if(!" + var_name + "){\n";
-    for (vector<string>::iterator l = generator->free_vars.begin(); l != generator->free_vars.end();
-         l++) {
+    gen_line = "if(!" + var_name + "){\n";
+    // while (generator->free_vars.size() > 0) {
+    //   gen_line +=
+    //       "    " + generator->free_vars[generator->free_vars.size() - 1] + "\n";
+    //   generator->free_vars.pop_back();
+    // }
+    for (vector<string>::iterator l = generator->free_vars.begin();
+         l != generator->free_vars.end(); l++) {
       gen_line += "    " + *l + "\n";
     }
-    gen_line += "    return 1;}\n";
+    gen_line += "        return 1;\n    }\n";
     generator->gen4types.insert(generator->gen4types.end(), gen_line);
+
+    if (fd->return_type.sequence[0].generator_type == futag::GEN_QUALIFIER) {
+      std::string rt_str = fd->return_type.sequence[0].type_name;
+      std::string qualifier = fd->return_type.sequence[0].parent_qualifier;
+      size_t index = 0;
+      index = rt_str.find(qualifier, index);
+      rt_str.replace(index, qualifier.length(), "");
+      gen_line =  "free( (" + rt_str + ") " + var_name + ");\n";
+    } else {
+      gen_line = "free(" + var_name + ");\n";
+    }
+    generator->free_vars.push_back(gen_line);
   }
 }
 
@@ -719,9 +733,9 @@ void gen_array(string var_name, QualTypeDetail type,
 
   gen_line = "pos += " + to_string(type.array_size) + "*sizeof(" +
              type.type_name + ");\n";
-  generator->size_limit.insert(generator->size_limit.end(),
-                               to_string(type.array_size) + "*sizeof(" +
-                                   type.type_name + ")");
+  generator->size_limit.insert(
+      generator->size_limit.end(),
+      to_string(type.array_size) + "*sizeof(" + type.type_name + ")");
   generator->gen4types.insert(generator->gen4types.end(), gen_line);
 }
 
@@ -784,4 +798,17 @@ void gen_struct_by_name(string var_name, string struct_name,
   }
 }
 
-} // namespace futag
+bool check_enumtype(QualType qt,
+                    vector<futag::TypedefDetail> typedefdecl_list) {
+  for (auto td : typedefdecl_list) {
+    if (td.name == qt.getAsString()) {
+      vector<string> type_split = futag::explode(td.decl_name, ' ');
+      if (std::find(type_split.begin(), type_split.end(), "enum") !=
+          type_split.end()) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+}  // namespace futag

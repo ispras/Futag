@@ -61,10 +61,10 @@ typedef struct {
   GenType generator_type;
   bool is_pointer = false;
   uint64_t array_size;
-  string gen_var_function = ""; // save the function name for generating if
-                                // generator_type == GEN_FUNCTION
-  string gen_var_struct = "";   // save the function name for generating if
-                                // generator_type == GEN_STRUCT
+  string gen_var_function = "";  // save the function name for generating if
+                                 // generator_type == GEN_FUNCTION
+  string gen_var_struct = "";    // save the function name for generating if
+                                 // generator_type == GEN_STRUCT
 } QualTypeDetail;
 
 typedef struct {
@@ -110,6 +110,7 @@ typedef struct {
 } FutagTaget;
 
 typedef struct {
+  vector<TypedefDetail> typedefdecl_list;
   vector<string> gen4types;
   vector<string> size_limit;
   vector<string> args_list;
@@ -141,26 +142,22 @@ string trim(string str);
 
 vector<string> explode(string line, char delimiter);
 
-vector<FunctionDetail>
-searchInReturnType(QualTypeDetail type_detail,
-                   vector<FunctionDetail> funcdecl_list,
-                   vector<futag::StructDetail> struct_decl_list);
-FunctionDetail *
-searchParamInReturnType(futag::TypeSequence *param,
-                        vector<FunctionDetail> *funcdecl_list,
-                        vector<futag::StructDetail> *struct_decl_list);
-FunctionDetail *
-searchParamTypeInReturnType(futag::QualTypeDetail *paramType,
-                            vector<FunctionDetail> *funcdecl_list,
-                            vector<futag::StructDetail> *struct_decl_list);
+vector<FunctionDetail> searchInReturnType(
+    QualTypeDetail type_detail, vector<FunctionDetail> funcdecl_list,
+    vector<futag::StructDetail> struct_decl_list);
+FunctionDetail *searchParamInReturnType(
+    futag::TypeSequence *param, vector<FunctionDetail> *funcdecl_list,
+    vector<futag::StructDetail> *struct_decl_list);
+FunctionDetail *searchParamTypeInReturnType(
+    futag::QualTypeDetail *paramType, vector<FunctionDetail> *funcdecl_list,
+    vector<futag::StructDetail> *struct_decl_list);
 
-futag::QualTypeDetail *
-findTypeDetailByName(string type_name, vector<futag::QualTypeDetail> type_list);
+futag::QualTypeDetail *findTypeDetailByName(
+    string type_name, vector<futag::QualTypeDetail> type_list);
 
-futag::QualTypeDetail *
-findTypeDetailInTypedef(futag::QualTypeDetail type,
-                        vector<futag::TypedefDetail> typedefdecl_list,
-                        vector<futag::QualTypeDetail> type_list);
+futag::QualTypeDetail *findTypeDetailInTypedef(
+    futag::QualTypeDetail type, vector<futag::TypedefDetail> typedefdecl_list,
+    vector<futag::QualTypeDetail> type_list);
 
 QualTypeDetail getQualTypeDetail(QualType type);
 
@@ -202,6 +199,7 @@ void gen_struct_by_name(string var_name, string struct_name,
                         vector<futag::StructDetail> *struct_decl_list,
                         vector<futag::EnumDetail> *enumdecl_list,
                         futag::genstruct *generator);
-} // namespace futag
+bool check_enumtype(QualType qt, vector<futag::TypedefDetail> typedefdecl_list);
+}  // namespace futag
 
-#endif // FUTAG_BASIC_H
+#endif  // FUTAG_BASIC_H

@@ -383,6 +383,9 @@ int main(int argc, const char **argv) {
 
   llvm::outs() << "Found " << typedefdecl_list.size()
                << " typedef declaration(s) \n";
+//   for (auto td : typedefdecl_list){
+//     llvm::outs() << "name: "<< td.name <<", defined:" <<td.decl_name<< "\n";
+//   }
   llvm::outs() << "Found " << struct_decl_list.size()
                << " struct declaration(s) \n";
   llvm::outs() << "Found " << enumdecl_list.size() << " enum declaration(s) \n";
@@ -528,6 +531,7 @@ int main(int argc, const char **argv) {
       continue;
     }
     futag::genstruct *generator = new futag::genstruct;
+    generator->typedefdecl_list = typedefdecl_list;
     generator->cstring_count = 0;
     generator->function_name = f_iter->name;
     generator->return_qualtype = f_iter->return_qualtype;
