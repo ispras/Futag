@@ -1,188 +1,167 @@
 # Table of Contents
 
-- 1. [About](#about)
-- 2. [Quick start with Dockers](#quick_start)
-- 3. [Build instruction](#build_instruction)
-- 4. [Usage](#usage)
-- 5. [Result](#result)
-- 6. [Example of usage](#example)
-- 7. [Authors](#authors)
-- 8. [References](#refs)
+- [Table of Contents](#table-of-contents)
+  - [1. About](#1-about)
+  - [2. Build instruction](#2-build-instruction)
+    - [2.1. Prerequisites](#21-prerequisites)
+    - [2.2. Build and install](#22-build-and-install)
+  - [3. Example usage](#3-example-usage)
+  - [4. Authors](#4-authors)
+  - [5. References](#5-references)
 
-# 1. About <a name = "about"></a>
-Futag is an instrument for automated generating fuzz targets of software libraries. Currently Futag generates libFuzzer targets and targets for ["Crusher"](https://github.com/ispras/crusher).
-Futag uses clang static analysis to find dependencies of entities (data types, functions, structures, etc.) in the library's source code and generates fuzz targets for functions. The instrument then compiles the fuzz targets with sanitizers and executes them for checking errors. The crashes are collected and saved in a file of SVRES format, the user can import this file to SVACE system for viewing, analyzing. The instrument works on Linux systems.
-License: This project is under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
+## 1. About
 
-# 2. Quick start with Dockers <a name = "quick_start"></a>
-The Dockers directory contains Dockerfiles of Ubuntu18 and Ubuntu20, which will help you quickly build Futag:
-- build-docker: the script for building Docker
-- run-docker: the script for running Docker
+Futag is an automated instrument to generate fuzz targets for software libraries.
+Unlike the standalone program, software library may not contain an entry point so that generating fuzz target for it remains a challenge.
+Futag uses static analysis to find:
 
-# 3. Build instruction <a name = "build_instruction"></a>
+- Entities dependencies (data types, functions, structures, etc.) in the source code of target library.
+- Library usage contexts.
+The information then is used for generating fuzz targets.
+
+This project is based on llvm-project with Clang statistic analysis, LLVM lto and is distributed under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
+
+## 2. Build instruction
 
 This instruction will get you a copy of the project and running on a Unix-liked system. FUTAG uses LLVM clang and clang tools as front end to analyze and generate the fuzzing targets.
 
-## 3.1. Prerequisites
+### 2.1. Prerequisites
 
 Futag is based on [llvm-project](https://llvm.org/). For compiling the project, these packages must be installed on your system:
-- [CMake](https://cmake.org/) >=3.13.4 (https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) -	Makefile/workspace generator
-- [GCC](https://gcc.gnu.org/)>=5.1.0	    C/C++ compiler1
-- [python](https://www.python.org/) >=3.6	    Automated test suite2
-- [zlib](http://zlib.net/) >=1.2.3.4	Compression library3
-- [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1	Makefile/build processor
+
+- [CMake](https://cmake.org/) >=3.13.4 [cmake-3.19.3-Linux-x86_64.sh](https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) - Makefile/workspace generator
+- [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler1
+- [python](https://www.python.org/) >=3.6 Automated test suite2
+- [zlib](http://zlib.net/) >=1.2.3.4 Compression library3
+- [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1 Makefile/build processor
 
 Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirements) on official website of LLVM for more detail.
 
-## 3.2. Build and install
+### 2.2. Build and install
 
 - Clone the project with submodule llvm-project:
-```
-~$ git clone --recurse-submodules git@github.com:ispras/Futag.git
-```
-- Create build folder and copy build.bash script to build folder then change to build folder and run the build.bash script:
-```
-~/futag$ cp build.bash build
-~/futag$ cd build
-~/futag/build$ ./build.bash
-```
-- After all, the instrument will be installed in folder futag 
 
-# 4. Usage <a name="usage"></a>
+  ```bash
+  ~$ git clone --recurse-submodules <link-to-this-project>
+  ```
 
-## 4.1. Prerequisites
-You can execute the instrument on other Linux systems (Futag has been tested on Ubuntu 18.04 and Ubuntu 20.04) with these packages installed:
-- for Ubuntu 18.04:
-```
-libncurses5 make gdb binutils libgcc-5-dev
-```
-- for Ubuntu 20.04:
-```
-libncurses5 make gdb binutils gcc-multilib g++ 
-```
-## 4.2. Preparing
-- The testing library should be configured with sanitizer and installed in a custom folder. Examples of config script: 
-```
-~/library-source$ configure --with-openssl --prefix=/home/futag/library-source/local-install CC=/path/to/futag/bin/clang CFLAGS="-fsanitize=address -fprofile-instr-generate -fcoverage-mapping -g -O0" LDFLAGS="-fsanitize=address -fprofile-instr-generate -fcoverage-mapping -g -O0"
-~/library-source$ make && make install
-```
-- or for Cmake:
-```
-~/library-source$ cmake -G "Unix Makefiles" -DCMAKE_C_FLAGS="-fsanitize=address -fprofile-instr-generate -fcoverage-mapping -g -O0" -DCMAKE_C_COMPILER="/path/to/futag/bin/clang" -DCMAKE_INSTALL_PREFIX=local-install ..
-~/library-source$ make && make install
-```
-- /path/to/futag is the path to folder futag received in the stage [Build instruction](#build_instruction)
+- Create build folder and copy build.sh script to build folder then change to build folder and run the build.sh script:
 
-## 4.3. Fuzzing
-The script "tools/futag-run.py" helps to generate, compile and execute fuzzing targets of the testing library.
-- Execute the script "tools/futag-run.py" on the header file that you want to test:
-```
-~/library-source/local-install$python3 tools/futag-run.py -a "lib" -i ". include include/curl" -o targetscurl  -s "-lgsasl -lpsl -lssl -lcrypto -lssl -lcrypto -lldap -llber -lz" -tt 120 -f 4 -m 8000 include/curl/curl.h
-```
-- Options of the futag-run.py:
-```
-$ python3 futag-run.py --help
-************************************************
-*      ______  __  __  ______  ___     ______  *
-*     / ____/ / / / / /_  __/ /   |   / ____/  *
-*    / /_    / / / /   / /   / /| |  / / __    *
-*   / __/   / /_/ /   / /   / ___ | / /_/ /    *
-*  /_/      \____/   /_/   /_/  |_| \____/     *
-*                                              *
-*     Fuzzing target Automated Generator       *
-*             a tool of ISP RAS                *
-*                                              *
-************************************************
-* This script is used for running fuzz targets *
-************************************************
+  ```bash
+  ~/futag$ cp build.sh build && cd build
+  ~/futag/build$ ./build.sh
+  ```
 
-usage: futag-run.py [-h] [-p PACKAGE] [-i INCLUDE] [-a STATIC_PATH] [-asan]
-                    [-s SYSLIBS] [-so OBJECTS] [-gdb] [-d] [-f FORK]
-                    [-to TIMEOUT] [-tt MAX_TOTAL_TIME] [-o OUTPUT]
-                    [-m MEMLIMIT] [-k] [-0c] [-0f] [-c]
-                    header
+- After all, the instrument will be installed in folder futag-public-package
 
-[Futag]-- [futag] Script for auto compiling,debugging and gathering result.
+## 3. Example usage
 
-positional arguments:
-  header                Header file for fuzzing
+Execute futag for test/c_examples/multifile_project
 
-optional arguments:
-  -h, --help            show this help message and exit
-  -p PACKAGE, --package PACKAGE
-                        path to futag, by default futag is in the same folder
-                        of this script
-  -x TARGET, --target TARGET
-                        type of targets for generating (libFuzzer or Crusher),
-                        default is libFuzzer
-  -i INCLUDE, --include INCLUDE
-                        paths for including when compiling
-  -a STATIC_PATH, --static_path STATIC_PATH
-                        path to folder of installed libraries
-  -asan, --futag_asan   Compile with futag ASAN
-  -s SYSLIBS, --syslibs SYSLIBS
-                        list of system libs for compiling
-  -so OBJECTS, --objects OBJECTS
-                        list of object files for compiling
-  -gdb, --gdb_debug     Option for debugging with gdb
-  -d, --debug           Option for viewing debugging info while compiling
-  -f FORK, --fork FORK  Fork option for libFuzzer
-  -to TIMEOUT, --timeout TIMEOUT
-                        Time out for fuzzing
-  -tt MAX_TOTAL_TIME, --max_total_time MAX_TOTAL_TIME
-                        Max total time out for fuzzing
-  -o OUTPUT, --output OUTPUT
-                        Folder for generating fuzz-targets
-  -m MEMLIMIT, --memlimit MEMLIMIT
-                        Memory limit for fuzzing
-  -k, --makefile        Option for exporting list of compiling commands to
-                        Makefile.futag
-  -0c, --nocompiling    Option for fuzzing without compiling
-  -0f, --nofuzzing      Option for executing without fuzzing
-  -c, --coverage        Option for counting coverage
-```
-For more detail, you can read the documentation of using Futag at [docs/How to use Futag.pdf](#)
+- Run checker
 
-# 5. Result <a name = "result"></a>
-The results of testing are presented in 2 types:
-- log files in the output folder of futag-run
-- file of SVRES format for importing in SVACE system (a system for static analysis of ISP RAS) for viewing.
+  ```bash
+  <path to futag package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-function-analyzer-reports -enable-checker futag make -j 16
+  ```
 
-# 6. Example of usage <a name = "example"></a>
-In the following, we introduce how to run Futag with library CURL manually. 
+- Compile to a static library (for more info check corresponding Makefile)
 
-- Install packages for curl:
-```
-apt install libssl-dev zlib1g-dev wget libpsl-dev libgsasl7-dev libldap-dev
-```
+  ```bash
+  EXTRA_C_FLAGS=-fsanitize=fuzzer-no-link make archive -j16 
+  ```
 
-- Extract and install curl:
-```
-~$ tar -xf curl.tar.gz
-~$ cd curl/
-~/curl$ mkdir build
-~/curl$ mkdir build/local-install
-~/curl$ cd build
-~/curl/build$
-~/curl/build$ ../configure --with-openssl --prefix=/home/futag/curl7.79.1/build/local-install CC=/path/to/futag/bin/clang CFLAGS="-fsanitize=address -fprofile-instr-generate -fcoverage-mapping -g -O0" LDFLAGS="-fsanitize=address -g -O0"
-~/curl/build$ make && make install
-```
+- Merge results
 
-- Copy folder of futag (following 3.2) and run python script tools/futag-run.py in folder ~/curl/build/local-install:
-```
-~/curl/build/local-install $ python3 /path/to/futag/tools/futag-run.py  -i ". include include/curl" -a "lib" -o targetscurl -s "-lgsasl -lpsl -lssl -lcrypto
--lssl -lcrypto -lldap -llber -lz" -tt 300 -f 4 -m 8000 include/curl/curl.h
-```
-By default Futag generates libFuzzer targets, all of these targets and log files are saved in folder targetscurl.
-To generate targets for Crusher, please specify with option -x:
-```
-~/curl/build/local-install $ python3 /path/to/futag/tools/futag-run.py  -x Crusher -i ". include include/curl" -a "lib" -o targetscurl -s "-lgsasl -lpsl -lssl -lcrypto
--lssl -lcrypto -lldap -llber -lz" -tt 300 -f 4 -m 8000 include/curl/curl.h
-```
+  ```bash
+  cd futag-function-analyzer-reports
+  python3 <path to futag package>/tools/analyzer/analypar.py .
+  ```
 
-# 7. Authors <a name = "authors"></a>
+- Generate drivers and compile them
+
+  ```python
+  # package futag must be already installed
+
+  from futag.generator import *
+
+  g = Generator(
+    "fuzz-drivers", 
+    "/path/to/futag-analysis-result.json", 
+    "/path/to/multifile_project.a", # path to the compiled archive
+    "/path/to/futag/package/", # path to the futag-package
+    "/path/to/library/multifile_project/" # library root
+  )
+
+  # Genearate fuzz drivers
+  g.gen_targets()
+
+  # Compile fuzz drivers
+  g.compile_targets()
+  ```
+
+- You can find successfully compiled targets in the fuzz-drivers directory. Each driver is located inside its subfolder.
+
+Execute futag for json-c
+
+- Build library
+
+  ```bash
+  cd json-c-sources
+  mkdir build && cd build
+  CC=<path-to-futag-package>/bin/clang ../configure --prefix=`pwd`/install CFLAGS="-fsanitize=fuzzer-no-link -Wno-error=implicit-const-int-float-conversion"
+  make -j16 && make install
+  ```
+
+  After this step you can find compiled version of the library here: `<path-to-json-c-sources>/build/install/lib/libjson-c.a`
+
+- Cleanup and configuration
+
+  ```bash
+  make clean
+  ../configure --prefix=`pwd`/install
+  ```
+
+- Run checker
+
+  ```bash
+  <path-to-futag-package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-result -enable-checker futag -disable-checker core.CallAndMessage -disable-checker core.DivideZero -disable-checker core.NonNullParamChecker -disable-checker core.NullDereference -disable-checker core.StackAddressEscape -disable-checker core.UndefinedBinaryOperatorResult -disable-checker core.VLASize -disable-checker core.uninitialized.ArraySubscript -disable-checker core.uninitialized.Assign -disable-checker core.uninitialized.Branch -disable-checker core.uninitialized.CapturedBlockVariable -disable-checker core.uninitialized.UndefReturn -disable-checker cplusplus.InnerPointer -disable-checker cplusplus.Move -disable-checker cplusplus.NewDelete -disable-checker cplusplus.NewDeleteLeaks -disable-checker cplusplus.PlacementNew -disable-checker cplusplus.PureVirtualCall -disable-checker deadcode.DeadStores -disable-checker nullability.NullPassedToNonnull -disable-checker nullability.NullReturnedFromNonnull -disable-checker security.insecureAPI.UncheckedReturn -disable-checker security.insecureAPI.getpw -disable-checker security.insecureAPI.gets -disable-checker security.insecureAPI.mkstemp -disable-checker security.insecureAPI.mktemp -disable-checker security.insecureAPI.vfork -disable-checker unix.API -disable-checker unix.Malloc -disable-checker unix.MallocSizeof -disable-checker unix.MismatchedDeallocator -disable-checker unix.Vfork -disable-checker unix.cstring.BadSizeArg -disable-checker unix.cstring.NullArg make -j 16
+  ```
+
+- Merge results
+
+  ```bash
+  cd futag-result
+  python3 <path to futag package>/tools/analyzer/analypar.py .
+  ```
+
+- Generate drivers and compile them
+
+  ```python
+  # package futag must be already installed
+
+  from futag.generator import *
+
+  g = Generator(
+    "fuzz-drivers", 
+    "/path/to/futag-analysis-result.json", 
+    "/path/to/libjson-c.a", # path to the compiled archive
+    "/path/to/futag/package/", # path to the futag-package
+    "/path/to/json-c-root/" # library root
+  )
+
+  # Genearate fuzz drivers
+  g.gen_targets()
+
+  # Compile fuzz drivers
+  g.compile_targets()
+  ```
+
+## 4. Authors
+
 - Thien Tran (thientc@ispras.ru)
 - Shamil Kurmangaleev (kursh@ispras.ru)
+- Theodor Arsenij Larionov-Trichkin (tlarionov@ispras.ru)
 
-# 8. References <a name = "refs"></a>
-- Updating...
+## 5. References
+
+- C. T. Tran and S. Kurmangaleev, ["Futag: Automated fuzz target generator for testing software libraries"](https://ieeexplore.ieee.org/document/9693749) 2021 Ivannikov Memorial Workshop (IVMEM), 2021, pp. 80-85, doi: 10.1109/IVMEM53963.2021.00021.
