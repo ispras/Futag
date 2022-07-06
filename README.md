@@ -87,7 +87,6 @@ Execute futag for test/c_examples/multifile_project
   g = Generator(
     "fuzz-drivers", 
     "/path/to/futag-analysis-result.json", 
-    "/path/to/multifile_project.a", # path to the compiled archive
     "/path/to/futag/package/", # path to the futag-package
     "/path/to/library/multifile_project/" # library root
   )
@@ -144,7 +143,6 @@ Execute futag for json-c
   g = Generator(
     "fuzz-drivers", 
     "/path/to/futag-analysis-result.json", 
-    "/path/to/libjson-c.a", # path to the compiled archive
     "/path/to/futag/package/", # path to the futag-package
     "/path/to/json-c-root/" # library root
   )
