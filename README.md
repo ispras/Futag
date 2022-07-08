@@ -1,83 +1,91 @@
-# Table of Contents
+# Оглавление
 
-- [Table of Contents](#table-of-contents)
-  - [1. About](#1-about)
-  - [2. Build instruction](#2-build-instruction)
-    - [2.1. Prerequisites](#21-prerequisites)
-    - [2.2. Build and install](#22-build-and-install)
-  - [3. Example usage](#3-example-usage)
-  - [4. Authors](#4-authors)
-  - [5. References](#5-references)
+- [Оглавление](#оглавление)
+  - [1. Описание](#1-описание)
+  - [2. Инструкция по сборке](#2-инструкция-по-сборке)
+    - [2.1. Зависимости](#21-зависимости)
+    - [2.2. Сборка и установка](#22-сборка-и-установка)
+  - [3. Примеры использования](#3-примеры-использования)
+  - [4. Авторы](#4-авторы)
+  - [5. Статьи](#5-статьи)
 
-## 1. About
+## 1. Описание
 
-Futag is an automated instrument to generate fuzz targets for software libraries.
-Unlike the standalone program, software library may not contain an entry point so that generating fuzz target for it remains a challenge.
-Futag uses static analysis to find:
+Futag — это автоматизированный инструмент генерации фаззинг-целей для программных библиотек.
+В отличие от обычных программ, программная библиотека может не содержать точки входа и не принимать входные данные, поэтому создание вручную фаззинг-цели для анализа программных библиотек остается проблемой и требует ресурсов. Одним из решением данной проблемы является автоматизация процесса создания фаззинг-целей, что уменьшает количество затрачиваемых ресурсов.
+Futag во время работы использует статический анализ для поиска:
 
-- Entities dependencies (data types, functions, structures, etc.) in the source code of target library.
-- Library usage contexts.
-The information then is used for generating fuzz targets.
+- Зависимостей сущностей (типы данных, функции, структуры и т.д.) в исходном коде целевой библиотеки.
+- Контекста использования библиотеки.
 
-This project is based on llvm-project with Clang statistic analysis, LLVM lto and is distributed under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
+Далее информация, полученная по результатам статического анализа, используется для генерации фаззинг-целей.
 
-## 2. Build instruction
+Данный проект основан на LLVM со статистическим анализом Clang, а также LLVM lto и распространяется под лицензией ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
 
-This instruction will get you a copy of the project and running on a Unix-liked system. FUTAG uses LLVM clang and clang tools as front end to analyze and generate the fuzzing targets.
+## 2. Инструкция по сборке
 
-### 2.1. Prerequisites
+Данная инструкция позволяет собрать копию проекта и запустит её в Unix-подобной системе. Futag использует инструменты Clang и Clang LLVM в качестве внешнего интерфейса для анализа библиотек и генерации фаззинг-целей.
 
-Futag is based on [llvm-project](https://llvm.org/). For compiling the project, these packages must be installed on your system:
+### 2.1. Зависимости
+
+Инструмент Futag основан на [LLVM-project](https://llvm.org/). Для компиляции проекта необходимо, чтобы следующие пакеты были установлены в вашей системе:
 
 - [CMake](https://cmake.org/) >=3.13.4 [cmake-3.19.3-Linux-x86_64.sh](https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) - Makefile/workspace generator
 - [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler1
-- [python](https://www.python.org/) >=3.6 Automated test suite2
-- [zlib](http://zlib.net/) >=1.2.3.4 Compression library3
+- [Python](https://www.python.org/) >=3.6 Automated test suite2
+- [Zlib](http://zlib.net/) >=1.2.3.4 Compression library3
 - [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1 Makefile/build processor
 
-Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirements) on official website of LLVM for more detail.
+Для получения более детальной информации о зависимостях, необходимых для сборки LLVM, вы можете ознакомиться с документацией по указанной [ссылке](https://llvm.org/docs/GettingStarted.html#requirements)
 
-### 2.2. Build and install
+### 2.2. Сборка и установка
 
-- Clone the project with submodule llvm-project:
+- Склонируйте проект с подмодулями LLVM:
 
   ```bash
   ~$ git clone --recurse-submodules <link-to-this-project>
   ```
 
-- Create build folder and copy build.sh script to build folder then change to build folder and run the build.sh script:
+- Создайте директорию для сборки инструмента. Затем скопируйте в неё скрипт build.sh и запустите в ней скопированный скрипт:
 
   ```bash
-  ~/futag$ cp build.sh build && cd build
+  ~/futag$ mkdir build
+  ~/futag$ cp build.sh build/ && cd build
   ~/futag/build$ ./build.sh
   ```
 
-- After all, the instrument will be installed in folder futag-public-package
+- В результате инструмент будет установлен в директорию ../../futag-public-package
 
-## 3. Example usage
+- Для корректной работы инструмента необходимо также установить в python пакет "futag":
 
-Execute futag for test/c_examples/multifile_project
-
-- Run checker
-
-  ```bash
-  <path to futag package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-function-analyzer-reports -enable-checker futag make -j 16
+ ```bash
+  ~$ pip install /path/to/futag-public-package/python/futag-package/dist/futag-0.1.tar.gz
   ```
 
-- Compile to a static library (for more info check corresponding Makefile)
+## 3. Примеры использования
+
+Использование Futag на тестовом примере test/c_examples/multifile_project:
+
+- Запуск проверки
 
   ```bash
-  EXTRA_C_FLAGS=-fsanitize=fuzzer-no-link make archive -j16 
+  /path/to/futag-public-package/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-function-analyzer-reports -enable-checker futag make -j$(nproc)
   ```
 
-- Merge results
+- Компиляция статической библиотеки (для получения дополнительной информации проверьте соответствующий Makefile)
+
+  ```bash
+  EXTRA_C_FLAGS=-fsanitize=fuzzer-no-link make archive -j$(nproc)
+  ```
+
+- Объединение результатов
 
   ```bash
   cd futag-function-analyzer-reports
-  python3 <path to futag package>/tools/analyzer/analypar.py .
+  python3 /path/to/futag-public-package/python/tools/analyzer/analypar.py .
   ```
 
-- Generate drivers and compile them
+- Генерация и компиляция драйверов
 
   ```python
   # package futag must be already installed
@@ -87,53 +95,55 @@ Execute futag for test/c_examples/multifile_project
   g = Generator(
     "fuzz-drivers", 
     "/path/to/futag-analysis-result.json", 
+    "/path/to/multifile_project.a", # path to the compiled archive
     "/path/to/futag/package/", # path to the futag-package
     "/path/to/library/multifile_project/" # library root
   )
 
-  # Genearate fuzz drivers
+  # Generate fuzz drivers
   g.gen_targets()
 
   # Compile fuzz drivers
   g.compile_targets()
   ```
 
-- You can find successfully compiled targets in the fuzz-drivers directory. Each driver is located inside its subfolder.
+- Вы можете найти успешно скомпилированные цели в каталоге fuzz-drivers. Каждый драйвер находится внутри своей поддиректории.
 
-Execute futag for json-c
 
-- Build library
+Использование Futag на примере библиотеки json-c:
+
+- Сборка библиотеки
 
   ```bash
   cd json-c-sources
   mkdir build && cd build
-  CC=<path-to-futag-package>/bin/clang ../configure --prefix=`pwd`/install CFLAGS="-fsanitize=fuzzer-no-link -Wno-error=implicit-const-int-float-conversion"
-  make -j16 && make install
+  CC=<path-to-futag-public-package>/bin/clang ../configure --prefix=`pwd`/install CFLAGS="-fsanitize=fuzzer-no-link -Wno-error=implicit-const-int-float-conversion"
+  make -j$(nproc) && make install
   ```
 
-  After this step you can find compiled version of the library here: `<path-to-json-c-sources>/build/install/lib/libjson-c.a`
+  После этого вы можете найти скомпилированную версию библиотеки здесь: `<path-to-json-c-sources>/build/install/lib/libjson-c.a`
 
-- Cleanup and configuration
+- Очистка и настройка
 
   ```bash
   make clean
   ../configure --prefix=`pwd`/install
   ```
 
-- Run checker
+- Запуск проверки
 
   ```bash
-  <path-to-futag-package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-result -enable-checker futag -disable-checker core.CallAndMessage -disable-checker core.DivideZero -disable-checker core.NonNullParamChecker -disable-checker core.NullDereference -disable-checker core.StackAddressEscape -disable-checker core.UndefinedBinaryOperatorResult -disable-checker core.VLASize -disable-checker core.uninitialized.ArraySubscript -disable-checker core.uninitialized.Assign -disable-checker core.uninitialized.Branch -disable-checker core.uninitialized.CapturedBlockVariable -disable-checker core.uninitialized.UndefReturn -disable-checker cplusplus.InnerPointer -disable-checker cplusplus.Move -disable-checker cplusplus.NewDelete -disable-checker cplusplus.NewDeleteLeaks -disable-checker cplusplus.PlacementNew -disable-checker cplusplus.PureVirtualCall -disable-checker deadcode.DeadStores -disable-checker nullability.NullPassedToNonnull -disable-checker nullability.NullReturnedFromNonnull -disable-checker security.insecureAPI.UncheckedReturn -disable-checker security.insecureAPI.getpw -disable-checker security.insecureAPI.gets -disable-checker security.insecureAPI.mkstemp -disable-checker security.insecureAPI.mktemp -disable-checker security.insecureAPI.vfork -disable-checker unix.API -disable-checker unix.Malloc -disable-checker unix.MallocSizeof -disable-checker unix.MismatchedDeallocator -disable-checker unix.Vfork -disable-checker unix.cstring.BadSizeArg -disable-checker unix.cstring.NullArg make -j 16
+  <path-to-futag-public-package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-result -enable-checker futag  make -j$(nproc)
   ```
 
-- Merge results
+- Объединение результатов
 
   ```bash
   cd futag-result
-  python3 <path to futag package>/tools/analyzer/analypar.py .
+  python3 /path/to/futag-public-package/python/tools/analyzer/analypar.py .
   ```
 
-- Generate drivers and compile them
+- Генерация и компиляция драйверов
 
   ```python
   # package futag must be already installed
@@ -143,23 +153,25 @@ Execute futag for json-c
   g = Generator(
     "fuzz-drivers", 
     "/path/to/futag-analysis-result.json", 
+    "/path/to/libjson-c.a", # path to the compiled archive
     "/path/to/futag/package/", # path to the futag-package
     "/path/to/json-c-root/" # library root
   )
 
-  # Genearate fuzz drivers
+  # Generate fuzz drivers
   g.gen_targets()
 
   # Compile fuzz drivers
   g.compile_targets()
   ```
+- Успешно скомпилированные цели находятся в каталоге fuzz-drivers. Каждый драйвер находится внутри своей поддиректории.
 
-## 4. Authors
+## 4. Авторы
 
 - Thien Tran (thientc@ispras.ru)
 - Shamil Kurmangaleev (kursh@ispras.ru)
 - Theodor Arsenij Larionov-Trichkin (tlarionov@ispras.ru)
 
-## 5. References
+## 5. Статьи
 
 - C. T. Tran and S. Kurmangaleev, ["Futag: Automated fuzz target generator for testing software libraries"](https://ieeexplore.ieee.org/document/9693749) 2021 Ivannikov Memorial Workshop (IVMEM), 2021, pp. 80-85, doi: 10.1109/IVMEM53963.2021.00021.

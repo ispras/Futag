@@ -41,11 +41,6 @@ class Generator:
         self.buf_size_arr = []
         self.dyn_size = 0
 
-        # if pathlib.Path(self.target_project_archive).exists():
-        #     self.target_project_archive = pathlib.Path(self.target_project_archive).absolute()
-        # else:
-        #     raise ValueError('Incorrect path to compiled target project')
-
         if pathlib.Path(self.futag_package_path).exists():
             self.futag_package_path = pathlib.Path(self.futag_package_path).absolute()
         else:
