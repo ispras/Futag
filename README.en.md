@@ -52,7 +52,7 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
   ~/futag/build$ ./build.sh
   ```
 
-- After this stage, the instrument will be installed in folder futag-public-package
+- After this stage, the instrument will be installed in folder futag-package
 
 - Install python package of Futag:
 
