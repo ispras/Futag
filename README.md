@@ -59,7 +59,7 @@ FUTAG во время работы использует статический �
 - Для корректной работы инструмента необходимо также установить в python пакет "futag":
 
  ```bash
-  ~$ pip install /path/to/futag-package/python/futag-package/dist/futag-0.1.tar.gz
+  ~$ pip install /path/to/python/futag-package/dist/futag-0.1.tar.gz
   ```
 
 ## 3. Примеры использования
@@ -69,7 +69,7 @@ FUTAG во время работы использует статический �
 - Запуск проверки
 
   ```bash
-  /path/to/futag-public-package/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-function-analyzer-reports -enable-checker futag make -j$(nproc)
+  /path/to/futag-package/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-function-analyzer-reports -enable-checker futag make -j$(nproc)
   ```
 
 - Компиляция статической библиотеки (для получения дополнительной информации проверьте соответствующий Makefile)
@@ -82,7 +82,7 @@ FUTAG во время работы использует статический �
 
   ```bash
   cd futag-function-analyzer-reports
-  python3 /path/to/futag-public-package/python/tools/analyzer/analypar.py .
+  python3 /path/to/futag-package/python/tools/analyzer/analypar.py .
   ```
 
 - Генерация и компиляция драйверов
@@ -117,7 +117,7 @@ FUTAG во время работы использует статический �
   ```bash
   cd json-c-sources
   mkdir build && cd build
-  CC=<path-to-futag-public-package>/bin/clang ../configure --prefix=`pwd`/install CFLAGS="-fsanitize=fuzzer-no-link -Wno-error=implicit-const-int-float-conversion"
+  CC=<path-to-futag-package>/bin/clang ../configure --prefix=`pwd`/install CFLAGS="-fsanitize=fuzzer-no-link -Wno-error=implicit-const-int-float-conversion"
   make -j$(nproc) && make install
   ```
 
@@ -133,14 +133,14 @@ FUTAG во время работы использует статический �
 - Запуск проверки
 
   ```bash
-  <path-to-futag-public-package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-result -enable-checker futag  make -j$(nproc)
+  <path-to-futag-package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-result -enable-checker futag  make -j$(nproc)
   ```
 
 - Объединение результатов
 
   ```bash
   cd futag-result
-  python3 /path/to/futag-public-package/python/tools/analyzer/analypar.py .
+  python3 /path/to/futag-package/python/tools/analyzer/analypar.py .
   ```
 
 - Генерация и компиляция драйверов

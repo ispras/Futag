@@ -57,7 +57,7 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 - Install python package of Futag:
 
  ```bash
-  ~$ pip install /path/to/futag-package/python/futag-package/dist/futag-0.1.tar.gz
+  ~$ pip install /path/to/python/futag-package/dist/futag-0.1.tar.gz
   ```
 
 ## 3. Example usage
