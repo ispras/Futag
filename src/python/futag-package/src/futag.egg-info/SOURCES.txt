@@ -1,0 +1,14 @@
+LICENSE
+README.md
+pyproject.toml
+setup.cfg
+setup.py
+src/futag/__init__.py
+src/futag/generator.py
+src/futag/preprocessor.py
+src/futag/sysmsg.py
+src/futag.egg-info/PKG-INFO
+src/futag.egg-info/SOURCES.txt
+src/futag.egg-info/dependency_links.txt
+src/futag.egg-info/requires.txt
+src/futag.egg-info/top_level.txt

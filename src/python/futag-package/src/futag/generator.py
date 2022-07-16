@@ -1,7 +1,24 @@
+"""
+**************************************************
+**      ______  __  __  ______  ___     ______  **
+**     / ____/ / / / / /_  __/ /   |   / ____/  **
+**    / /_    / / / /   / /   / /| |  / / __    **
+**   / __/   / /_/ /   / /   / ___ | / /_/ /    **
+**  /_/      \____/   /_/   /_/  |_| \____/     **
+**                                              **
+**     Fuzzing target Automated Generator       **
+**             a tool of ISP RAS                **
+**************************************************
+** This module is for generating, compiling     **
+** fuzz-drivers of functions in library         **
+**************************************************
+"""
+
 import json
 import pathlib
 import copy
-import os
+from futag.sysmsg import *
+from futag.preprocessor import *
 
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
@@ -11,27 +28,29 @@ from typing import List
 class Generator:
     """Futag Generator"""
 
-    # def __init__(self, output_path: str, json_file: str, target_project_archive: str, futag_package_path: str, library_root: str):
-    def __init__(self, output_path: str, json_file: str, futag_package_path: str, library_root: str):
+    def __init__(self, json_file: str, futag_llvm_package: str, library_root: str, output_path = FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH):
         """
         Parameters
         ----------
-        output_path : str
-            where to save fuzz-drivers
         json_file: str
             path to the futag-analysis-result.json file
         target_project_archive: str
             path to the compiled and packed project
-        futag_package_path: str
-            path to the futag package (with binaries, scripts, etc)
+        futag_llvm_package: str
+            path to the futag llvm package (with binaries, scripts, etc)
         library_root: str
             path to the library root
+        output_path : str
+            where to save fuzz-drivers, default to "futag-fuzz-drivers"
+        build_path: str
+            path to the build directory. Be careful, this directory will be deleted and create again.
+        install_path: str
+            path to the install directory. Be careful, this directory will be deleted and create again.
         """
 
         self.output_path = None  # Path for saving fuzzing drivers
         self.json_file = json_file
-        # self.target_project_archive = target_project_archive
-        self.futag_package_path = futag_package_path
+        self.futag_llvm_package = futag_llvm_package
         self.library_root = library_root
         self.target_library = None
 
@@ -41,8 +60,8 @@ class Generator:
         self.buf_size_arr = []
         self.dyn_size = 0
 
-        if pathlib.Path(self.futag_package_path).exists():
-            self.futag_package_path = pathlib.Path(self.futag_package_path).absolute()
+        if pathlib.Path(self.futag_llvm_package).exists():
+            self.futag_llvm_package = pathlib.Path(self.futag_llvm_package).absolute()
         else:
             raise ValueError('Incorrect path to FUTAG package')
 
@@ -58,10 +77,19 @@ class Generator:
                 self.target_library = json.load(f)
 
             # create directory for function targets if not exists
-            if not pathlib.Path(output_path).exists():
-                (pathlib.Path(".") / output_path).mkdir(parents=True, exist_ok=True)
+            if pathlib.Path(output_path).exists():
+                delete_folder(pathlib.Path(output_path))
+            
+            (self.library_root / output_path).mkdir(parents=True, exist_ok=True)
+            self.output_path = self.library_root / output_path
+        
+        if not (self.library_root / build_path).exists():
+            raise ValueError(INVALID_BUILPATH)
+        self.build_path = self.library_root / build_path
 
-            self.output_path = pathlib.Path(output_path).absolute()
+        if not (self.library_root / install_path).exists():
+            raise ValueError(INVALID_INSTALLPATH)
+        self.install_path = self.library_root / install_path
 
     def gen_header(self, target_function_fname):
         header = [
@@ -188,13 +216,6 @@ class Generator:
             "gen_free": []
         }
 
-    # def gen_incomplete(type_name, var_buf, var_size, ):
-    #     # find in
-    #     return {
-    #         "gen_lines": [],
-    #         "free_line": []
-    #     }
-
     def gen_input_file(self, var_name):
         return {
             "gen_lines": [
@@ -205,22 +226,6 @@ class Generator:
                 "fwrite(pos, 1, dyn_size, fp);\n",
                 "fclose(fp);\n",
                 "pos += dyn_size;\n"
-            ],
-            "gen_free": []
-        }
-
-    def gen_output_file(self, var_name):
-        return {
-            "gen_lines": [
-                "//GEN_OUTPUT_FILE\n"
-            ],
-            "gen_free": []
-        }
-
-    def gen_function(type_name, var_buf, var_size, ):
-        return {
-            "gen_lines": [
-                "//GEN_FUNCTION\n"
             ],
             "gen_free": []
         }
@@ -242,11 +247,14 @@ class Generator:
             param_list.append("f_" + arg["param_name"])
             if arg["generator_type"] == 0:
                 if arg["param_usage"] == "SIZE_FIELD":
-                    print("GEN_SIZE")
+                    # print("GEN_SIZE")
                     var_curr_gen = self.gen_size(
                         arg["param_type"], "f_" + arg["param_name"])
                 else:
-                    print("GEN_BUILTIN")
+                    # if arg["param_usage"] == "FILE_DESCRIPTOR":
+                    #     FILE_DESCRIPTOR
+                    # else:
+                    # print("GEN_BUILTIN")
                     var_curr_gen = self.gen_builtin(
                         arg["param_type"], "f_" + arg["param_name"])
                 if not var_curr_gen:
@@ -256,8 +264,8 @@ class Generator:
                 curr_buf_size_arr.append("sizeof(" + arg["param_type"]+")")
 
             if arg["generator_type"] == 1:
-                if(arg["param_usage"] == "FILE_PATH"):
-                    print("GEN_FILE_PATH")
+                if(arg["param_usage"] == "FILE_PATH" or arg["param_usage"] == "FILE_PATH_READ" or arg["param_usage"] == "FILE_PATH_WRITE" or arg["param_usage"] == "FILE_PATH_RW"):
+                    # print("GEN_FILE_PATH")
                     var_curr_gen = self.gen_input_file(
                         "f_" + arg["param_name"])
                     curr_dyn_size += 1
@@ -268,7 +276,7 @@ class Generator:
                     curr_buf_size_arr.append("sizeof(" + arg["param_type"]+")")
                     # self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
                 else:
-                    print("GEN_STRING")
+                    # print("GEN_STRING")
                     var_curr_gen = self.gen_string(
                         arg["param_type"],
                         "f_" + arg["param_name"],
@@ -293,8 +301,10 @@ class Generator:
             "buf_size_arr": curr_buf_size_arr,
         }
 
-    def gen_target_function(self, func, param_id):
+    def gen_target_function(self, func, param_id) -> bool:
         if param_id == len(func['params']):
+            if not self.gen_this_function:
+                return False
             # generate file name
             file_index = 0
             # A short tale how I tried to debug "undefined reference to" for 4
@@ -305,29 +315,23 @@ class Generator:
             # God, I love C!
             file_name = func["func_name"] + ".c"
 
-            # if not (self.output_path / func["func_name"]).exist():
             if not (self.output_path / func["func_name"]).exists():
                 (self.output_path / func["func_name"]
                  ).mkdir(parents=True, exist_ok=True)
             while (self.output_path / func["func_name"] / file_name).exists():
                 file_name = func["func_name"] + str(file_index) + ".c"
                 file_index += 1
-            print("-- Generate function \"" + func["func_name"] + "\": ...")
+            # print("-- Generate function \"" + func["func_name"] + "\": ...")
             curr_buffer_size = 0
             full_path = (self.output_path /
                          func["func_name"] / file_name).as_posix()
             f = open(full_path, 'w')
             if f.closed:
-                return None
+                return False
 
             for line in self.gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
-
-            # target_func_types = ','.join([param['param_type'] for param in func['params']])
-            # f.write(
-            #     f"extern \"C\" {func['return_type']} {func['func_name']}({target_func_types});\n\n"
-            # )
 
             f.write(
                 "int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size)\n")
@@ -358,14 +362,14 @@ class Generator:
             # generate function call
             if func["return_type"] != "void":
                 f.write("    " + func["return_type"] +
-                        " futag_target = " + func["func_name"] + "(")
+                        "     futag_target = " + func["func_name"] + "(")
                 param_list = []
                 for arg in func["params"]:
                     param_list.append(arg["param_name"] + " ")
                 f.write(",".join(param_list))
                 f.write(");\n")
             else:
-                f.write("futag_target = " + func["func_name"] + "(")
+                f.write("    futag_target = " + func["func_name"] + "(")
                 param_list = []
                 for arg in func["params"]:
                     param_list.append(arg["param_name"] + " ")
@@ -381,17 +385,17 @@ class Generator:
             f.write("    return 0;\n")
             f.write("}")
             f.close()
-            return None
+            return True
 
         curr_param = func["params"][param_id]
 
-        if curr_param["generator_type"] == 0:  # GEN_BUILTIN
+        if curr_param["generator_type"] == GEN_BUILTIN: 
             if curr_param["param_usage"] == "SIZE_FIELD":
-                print("GEN_SIZE")
+                # print("GEN_SIZE")
                 curr_gen = self.gen_size(
                     curr_param["param_type"], curr_param["param_name"])
             else:
-                print("GEN_BUILTIN")
+                # print("GEN_BUILTIN")
                 curr_gen = self.gen_builtin(
                     curr_param["param_type"], curr_param["param_name"])
             if not curr_gen:
@@ -405,9 +409,9 @@ class Generator:
             param_id += 1
             self.gen_target_function(func, param_id)
 
-        if curr_param["generator_type"] == 1:  # GEN_STRING
-            if(curr_param["param_usage"] == "FILE_PATH" or curr_param["param_name"] == "filename"):
-                print("GEN_FILE_PATH")
+        if curr_param["generator_type"] == 1:
+            if(curr_param["param_usage"] == "FILE_PATH" or curr_param["param_usage"] == "FILE_PATH_READ" or curr_param["param_usage"] == "FILE_PATH_WRITE" or curr_param["param_usage"] == "FILE_PATH_RW" or curr_param["param_name"] == "filename"):
+                # print("GEN_FILE_PATH")
                 curr_gen = self.gen_input_file(curr_param["param_name"])
                 self.dyn_size += 1
                 if not curr_gen:
@@ -417,7 +421,7 @@ class Generator:
                 self.gen_free += curr_gen["gen_free"]
                 # self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
             else:
-                print("GEN_STRING")
+                # print("GEN_STRING")
                 curr_gen = self.gen_string(
                     curr_param["param_type"],
                     curr_param["param_name"],
@@ -433,8 +437,8 @@ class Generator:
             self.gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == 2:  # GEN_ENUM
-
-            print("GEN_ENUM")
+            self.gen_this_function = False
+            # print("GEN_ENUM")
             curr_gen = self.gen_enum(
                 curr_param["param_type"], curr_param["param_name"])
             if not curr_gen:
@@ -447,7 +451,8 @@ class Generator:
             self.gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == 3:  # GEN_ARRAY
-            print("GEN_ARRAY")
+            # print("GEN_ARRAY")
+            self.gen_this_function = False
             curr_gen = self.gen_array(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
@@ -459,8 +464,9 @@ class Generator:
             param_id += 1
             self.gen_target_function(func, param_id)
 
-        if curr_param["generator_type"] == 4:  # GEN_VOID
-            print("GEN_VOID")
+        if curr_param["generator_type"] == GEN_VOID: 
+            # print("GEN_VOID")
+            self.gen_this_function = False
             curr_gen = self.gen_void(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
@@ -472,8 +478,8 @@ class Generator:
             param_id += 1
             self.gen_target_function(func, param_id)
 
-        if curr_param["generator_type"] == 5:  # GEN_QUALIFIER
-            print("GEN_QUALIFIER")
+        if curr_param["generator_type"] == GEN_QUALIFIER:
+            # print("GEN_QUALIFIER")
             curr_gen = self.gen_qualifier(
                 curr_param["param_type"],
                 curr_param["param_name"],
@@ -488,8 +494,8 @@ class Generator:
             param_id += 1
             self.gen_target_function(func, param_id)
 
-        if curr_param["generator_type"] == 6:  # GEN_POINTER
-            print("GEN_POINTER")
+        if curr_param["generator_type"] == GEN_POINTER:
+            # print("GEN_POINTER")
             curr_gen = self.gen_pointer(
                 curr_param["param_type"],
                 curr_param["param_name"],
@@ -504,9 +510,9 @@ class Generator:
             param_id += 1
             self.gen_target_function(func, param_id)
 
-        if curr_param["generator_type"] == 7:  # GEN_STRUCT
-            print("GEN_STRUCT")
-            curr_gen = self.gen_struct(curr_param["param_name"])
+        if curr_param["generator_type"] == GEN_STRUCT:
+            # print("GEN_STRUCT")
+            curr_gen = self.gen_struct(curr_param["param_name"], curr_param["param_type"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -517,8 +523,8 @@ class Generator:
             param_id += 1
             self.gen_target_function(func, param_id)
 
-        if curr_param["generator_type"] == 8:  # GEN_INCOMPLETE
-            print("GEN_INCOMPLETE")
+        if curr_param["generator_type"] == GEN_INCOMPLETE:
+            # print("GEN_INCOMPLETE")
             # iterate all possible variants for generating
             old_func_params = copy.copy(self.gen_func_params)
             old_gen_free = copy.copy(self.gen_free)
@@ -556,8 +562,9 @@ class Generator:
             if not curr_gen:
                 self.gen_this_function = False
 
-        if curr_param["generator_type"] == 9:  # GEN_FUNCTION
-            print("GEN_FUNCTION")
+        if curr_param["generator_type"] == GEN_FUNCTION:
+            self.gen_this_function = False
+            # print("GEN_FUNCTION")
             # return null pointer to function?
             curr_gen = self.gen_function(curr_param["param_name"])
             if not curr_gen:
@@ -570,65 +577,41 @@ class Generator:
             param_id += 1
             self.gen_target_function(func, param_id)
 
-        if curr_param["generator_type"] == 10:  # GEN_INPUT_FILE
-            print("GEN_INPUT_FILE")
-            curr_gen = self.gen_input_file(curr_param["param_name"])
-            self.dyn_size += 1
-            if not curr_gen:
-                self.gen_this_function = False
-
-            self.gen_func_params += curr_gen["gen_lines"]
-            self.gen_free += curr_gen["gen_free"]
-            self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
-
-            param_id += 1
-            self.gen_target_function(func, param_id)
-
-        if curr_param["generator_type"] == 11:  # GEN_OUTPUT_FILE
-            print("GEN_OUTPUT_FILE")
-            curr_gen = self.gen_output_file(curr_param["param_name"])
-            if not curr_gen:
-                self.gen_this_function = False
-
-            self.gen_func_params += curr_gen["gen_lines"]
-            self.gen_free += curr_gen["gen_free"]
-            self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
-
-            param_id += 1
-            self.gen_target_function(func, param_id)
-
-        if curr_param["generator_type"] == 12:  # GEN_UNKNOWN
-            print("GEN_UNKNOWN")
+        if curr_param["generator_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
+            # print("GEN_UNKNOWN")
             self.gen_this_function = False
             return None
 
     def gen_targets(self):
         for func in self.target_library["functions"]:
             if(func["fuzz_it"]):
+                # TODO: prepare for generating, search for str and len in params
                 self.gen_func_params = []
                 self.gen_free = []
                 self.gen_this_function = True
                 self.buf_size_arr = []
                 self.dyn_size = 0
-                print("Generating fuzz-driver for function: " +
-                      func["func_name"])
+                
                 self.gen_target_function(func, 0)
+                if self.gen_this_function:
+                    print("-- [Futag] Fuzz-driver for function: ",func["func_name"], " generated!")
 
     def compile_targets(self):
         '''Tries to compile all fuzz-drivers inside targets directory
         '''
         include_subdir: List[pathlib.Path] = [x for x in (self.library_root).iterdir() if x.is_dir()]
         include_subdir = include_subdir + \
-            [x for x in (self.library_root / "build").iterdir() if x.is_dir()]
+            [x for x in (self.build_path).iterdir() if x.is_dir()]
         include_subdir = include_subdir + \
-            [x for x in (self.library_root / "build/install").iterdir() if x.is_dir()]
+            [x for x in (self.install_path).iterdir() if x.is_dir()]
         include_subdir = include_subdir + \
-            [x for x in (self.library_root / "build/install/include").iterdir() if x.is_dir()]
+            [x for x in (self.install_path / "include" ).iterdir() if x.is_dir()]
         generated_functions = [x for x in self.output_path.iterdir() if x.is_dir()]
-
+        generated_targets = 0
+        compiled_targets = 0
         for dir in generated_functions:
             # Extract compiler cwd, to resolve relative includes
-            compilation_cwd = pathlib.Path(self.target_library['cwd'])
+            # compilation_cwd = pathlib.Path(self.target_library['cwd'])
             current_func = [f for f in self.target_library['functions'] if f['func_name'] == dir.name][0]
             current_func_compilation_opts = current_func['compiler_opts'].split(' ')
             # Extract all include locations from compilation options
@@ -645,14 +628,15 @@ class Generator:
                     resolved_include_paths.append(include_path)
                 else:
                     # Resolve relative include paths (e.g. in this case: -I.. -I.)
-                    resolved_include_paths.append((compilation_cwd / include_path).resolve())
+                    resolved_include_paths.append(pathlib.Path(include_path).absolute())
 
             for target_src in [t for t in dir.glob("*.c") if t.is_file()]:
-                compiler_path = self.futag_package_path / "bin/clang"
+                generated_targets += 1
+                compiler_path = self.futag_llvm_package / "bin/clang"
 
                 compiler_flags = [
                     compiler_path.as_posix(),
-                    "-fsanitize=fuzzer",
+                    "-fsanitize=address,fuzzer",
                     target_src.as_posix()
                 ]
                 for i in include_subdir:
@@ -663,21 +647,25 @@ class Generator:
                 compiler_flags.append("-o")
                 compiler_flags.append(dir.as_posix() + "/" + target_src.stem + ".out")
                 compiler_flags.append("-Wl,--start-group")
-                for target_lib in [u for u in (self.library_root / "build/install/lib").glob("*.a") if u.is_file()]:
+                for target_lib in [u for u in (self.library_root / INSTALL_PATH / "lib").glob("*.a") if u.is_file()]:
                     compiler_flags.append(target_lib.as_posix())
                 compiler_flags.append("-Wl,--end-group")
 
                 # TODO: multiprocess compilation
                 p = Popen(
                     compiler_flags,
-                    # stdout=PIPE,
-                    # stderr=PIPE,
+                    stdout=PIPE,
+                    stderr=PIPE,
                     universal_newlines=True,
                 )
-                print(format(p.args))
-                exit_code = p.wait()
-
-                if exit_code == 0:
-                    print(f'Target: {target_src.stem} compiled successfully')
-                else:
+                output, errors = p.communicate()
+                # exit_code = p.wait()
+                if p.returncode:
+                    print(" ".join(p.args))
+                    print(errors)
                     print(f'Compilation failed for target: {target_src.stem}')
+                else:
+                    print(f'Target: {target_src.stem} compiled successfully')
+                    compiled_targets += 1
+                    
+        print(f"Result of compiling: {str(compiled_targets)} of {str(generated_targets)} fuzz-driver(s)")

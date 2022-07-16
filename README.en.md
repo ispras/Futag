@@ -62,103 +62,35 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 
 ## 3. Example usage
 
-Execute futag for test/c_examples/multifile_project
+Example of execution Futag
 
-- Run checker
+```python
+# package futag must be already installed
+from futag.preprocessor import *
 
-  ```bash
-  <path to futag package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-function-analyzer-reports -enable-checker futag make -j 16
-  ```
+json0_13 = Builder("../../futag-llvm-package", "json-c-json-c-0.13.1-20180305")
+json0_13.auto_build()
+json0_13.analyze()
+```
 
-- Compile to a static library (for more info check corresponding Makefile)
+- Generate and compile fuzz-drivers
 
-  ```bash
-  EXTRA_C_FLAGS=-fsanitize=fuzzer-no-link make archive -j16 
-  ```
+```python
+# package futag must be already installed
+from futag.generator import *
 
-- Merge results
+g = Generator(
+"/path/to/futag-analysis-result.json", 
+"/path/to/futag/package/", # path to the futag-package
+"/path/to/json-c-root/" # library root
+)
 
-  ```bash
-  cd futag-function-analyzer-reports
-  python3 <path to futag package>/tools/analyzer/analypar.py .
-  ```
+# Generate fuzz drivers
+g.gen_targets()
 
-- Generate drivers and compile them
-
-  ```python
-  # package futag must be already installed
-
-  from futag.generator import *
-
-  g = Generator(
-    "fuzz-drivers", 
-    "/path/to/futag-analysis-result.json", 
-    "/path/to/futag/package/", # path to the futag-package
-    "/path/to/library/multifile_project/" # library root
-  )
-
-  # Genearate fuzz drivers
-  g.gen_targets()
-
-  # Compile fuzz drivers
-  g.compile_targets()
-  ```
-
-- You can find successfully compiled targets in the fuzz-drivers directory. Each driver is located inside its subfolder.
-
-Execute futag for json-c
-
-- Build library
-
-  ```bash
-  cd json-c-sources
-  mkdir build && cd build
-  CC=<path-to-futag-package>/bin/clang ../configure --prefix=`pwd`/install CFLAGS="-fsanitize=fuzzer-no-link -Wno-error=implicit-const-int-float-conversion"
-  make -j16 && make install
-  ```
-
-  After this step you can find compiled version of the library here: `<path-to-json-c-sources>/build/install/lib/libjson-c.a`
-
-- Cleanup and configuration
-
-  ```bash
-  make clean
-  ../configure --prefix=`pwd`/install
-  ```
-
-- Run checker
-
-  ```bash
-  <path-to-futag-package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-result -enable-checker futag make -j 16
-  ```
-
-- Merge results
-
-  ```bash
-  cd futag-result
-  python3 <path to futag package>/tools/analyzer/analypar.py .
-  ```
-
-- Generate drivers and compile them
-
-  ```python
-  # package futag must be already installed
-
-  from futag.generator import *
-
-  g = Generator(
-    "fuzz-drivers", 
-    "/path/to/futag-analysis-result.json", 
-    "/path/to/futag/package/", # path to the futag-package
-    "/path/to/json-c-root/" # library root
-  )
-
-  # Genearate fuzz drivers
-  g.gen_targets()
-
-  # Compile fuzz drivers
-  g.compile_targets()
-  ```
+# Compile fuzz drivers
+g.compile_targets()
+```
 
 ## 4. Authors
 

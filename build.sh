@@ -36,24 +36,24 @@ cp -r ../src/clang/lib/clang/ASTMatchFinder.cpp ../llvm-project/clang/lib/ASTMat
 
 
 # create futag installation folder
-if ! [ -d "../../futag-package" ]
+if ! [ -d "../../futag-llvm-package" ]
 then
-    mkdir ../../futag-package
+    mkdir ../../futag-llvm-package
 fi
 # cp ../tools/svace.svres.tmpl ../futag
 
 #configure
-cmake -G "Unix Makefiles" ../llvm-project/llvm -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../futag-package -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;compiler-rt"
+cmake -G "Unix Makefiles" ../llvm-project/llvm -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../../futag-llvm-package -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;compiler-rt"
 
 #make && make install
 make -j16 && make -j16 install
 
-if ! [ -d "../../futag-package/tools" ]
+if ! [ -d "../../futag-llvm-package/tools" ]
 then
-    mkdir ../../futag-package/tools
+    mkdir ../../futag-llvm-package/tools
 fi
 
-cp -r ../src/python ../../futag-package/
+cp -r ../src/python ../../futag-llvm-package/
 
 echo ""
 echo "======== End of install script for FUTAG - a fuzzing target automated generator ========"

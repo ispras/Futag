@@ -221,18 +221,7 @@ void FutagMatchCallExprCallBack::run(const MatchFinder::MatchResult &Result) {
       if (const auto *arg =
               dyn_cast<DeclRefExpr>(implicitArg->IgnoreParenImpCasts())) {
         HandleDeclRefExpr(arg, currArgumentContext);
-      } else if (HandleLiterals(implicitArg->IgnoreParenImpCasts(),
-                                currArgumentContext)) {
-      } else {
-        // llvm::outs()
-        //     << "Not implemented for type: "
-        //     << implicitArg->IgnoreParenImpCasts()->getType().getAsString()
-        //     << " (" << implicitArg->IgnoreParenImpCasts()->getStmtClassName()
-        //     << ")\n";
       }
-    } else {
-      //   llvm::outs() << "Not implemented for: "
-      //                << callExpr->getArg(i)->getStmtClassName() << "\n";
     }
 
     currentCallContext["args_desc"].push_back(currArgumentContext);

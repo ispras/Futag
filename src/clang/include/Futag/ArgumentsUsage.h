@@ -25,7 +25,7 @@ public:
     // @TODO: Probably it's much better, to move it to separate enum
     // and work with the file flags from the generator
     // @TODO: Currently we are ignoreing specific open modes (e.g. append)
-    FILE_PATH_UNKNOWN,
+    FILE_PATH,
     FILE_PATH_READ,
     FILE_PATH_WRITE,
     FILE_PATH_RW,
@@ -46,7 +46,7 @@ public:
     FILE_PATH_READ = 0,
     FILE_PATH_RW,
     FILE_PATH_WRITE,
-    FILE_PATH_UNKNOWN,
+    FILE_PATH,
 
     FILE_DESCRIPTOR,
     SIZE_FIELD,
@@ -67,8 +67,8 @@ public:
       return "SIZE_FIELD";
     case AT::FILE_DESCRIPTOR:
       return "FILE_DESCRIPTOR";
-    case AT::FILE_PATH_UNKNOWN:
-      return "FILE_PATH_UNKNOWN";
+    case AT::FILE_PATH:
+      return "FILE_PATH";
     case AT::FILE_PATH_READ:
       return "FILE_PATH_READ";
     case AT::FILE_PATH_WRITE:
@@ -88,7 +88,7 @@ public:
 
   ArgumentType DetermineFileModeOpen(uint32_t argumentIdx,
                                      const CallExpr *callExpr) {
-    ArgumentType currentArgType = AT::FILE_PATH_UNKNOWN;
+    ArgumentType currentArgType = AT::FILE_PATH;
     int32_t openModeInt;
 
     // Try to get open's open mode as an integer flag
@@ -112,7 +112,7 @@ public:
 
   ArgumentType DetermineFileModeFopen(uint32_t argumentIdx,
                                       const CallExpr *callExpr) {
-    ArgumentType currentArgType = AT::FILE_PATH_UNKNOWN;
+    ArgumentType currentArgType = AT::FILE_PATH;
     std::string fopenModeStr;
 
     // Try to get fopen's open mode as a astring literal
@@ -144,9 +144,10 @@ public:
 
       // Parse fopen/open flags and try to determine in which mode the file is
       // opened (read/write)
-      if (currentArgType == AT::FILE_PATH_UNKNOWN && functionName == "open") {
+                    
+          if (currentArgType == AT::FILE_PATH && functionName == "open") {
         currentArgType = DetermineFileModeOpen(argumentIdx, callExpr);
-      } else if (currentArgType == AT::FILE_PATH_UNKNOWN &&
+      } else if (currentArgType == AT::FILE_PATH &&
                  functionName == "fopen") {
         currentArgType = DetermineFileModeFopen(argumentIdx, callExpr);
       }
@@ -168,17 +169,17 @@ private:
   // - We should add support for return types
   const std::unordered_map<std::string, std::vector<ArgumentType>>
       fuctionArgsToTypes = {
-          {"open", {AT::FILE_PATH_UNKNOWN, AT::UNKNOWN}},
-          {"fopen", {AT::FILE_PATH_UNKNOWN, AT::UNKNOWN}},
+          {"open", {AT::FILE_PATH, AT::UNKNOWN}},
+          {"fopen", {AT::FILE_PATH, AT::UNKNOWN}},
           {"write", {AT::FILE_DESCRIPTOR, AT::UNKNOWN, AT::SIZE_FIELD}},
 
           // Currently I've replaced all C_STRING with UNKNOWN, to
           // avoid (for now) arguments priority problem.
-          {"strncpy", {AT::UNKNOWN, AT::UNKNOWN, AT::SIZE_FIELD}},
-          {"strcpy", {AT::UNKNOWN, AT::UNKNOWN}},
-          {"strcmp", {AT::UNKNOWN, AT::UNKNOWN}},
-          {"strlen", {AT::UNKNOWN}},
-          {"strncmp", {AT::UNKNOWN, AT::UNKNOWN, AT::SIZE_FIELD}},
+          {"strncpy", {AT::C_STRING, AT::C_STRING, AT::SIZE_FIELD}},
+          {"strcpy", {AT::C_STRING, AT::C_STRING}},
+          {"strcmp", {AT::C_STRING, AT::C_STRING}},
+          {"strlen", {AT::C_STRING}},
+          {"strncmp", {AT::C_STRING, AT::C_STRING, AT::SIZE_FIELD}},
           {"malloc", {AT::SIZE_FIELD}},
           {"calloc", {AT::SIZE_FIELD, AT::SIZE_FIELD}},
           {"realloc", {AT::UNKNOWN, AT::SIZE_FIELD}},
@@ -188,7 +189,7 @@ private:
           {"memcpy", {AT::UNKNOWN, AT::UNKNOWN, AT::SIZE_FIELD}},
           {"memmove", {AT::UNKNOWN, AT::UNKNOWN, AT::SIZE_FIELD}},
           {"memset", {AT::UNKNOWN, AT::UNKNOWN, AT::SIZE_FIELD}},
-          {"puts", {AT::UNKNOWN}},
+          {"puts", {AT::C_STRING}},
   };
 };
 } // namespace futag

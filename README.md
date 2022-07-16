@@ -64,107 +64,38 @@ FUTAG во время работы использует статический �
 
 ## 3. Примеры использования
 
-Использование FUTAG на тестовом примере test/c_examples/multifile_project:
+Использование FUTAG на тестовом примере:
 
-- Запуск проверки
+- Запуск сборки, проверки и анализа
 
-  ```bash
-  /path/to/futag-package/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-function-analyzer-reports -enable-checker futag make -j$(nproc)
-  ```
+```python
+# package futag must be already installed
+from futag.preprocessor import *
 
-- Компиляция статической библиотеки (для получения дополнительной информации проверьте соответствующий Makefile)
-
-  ```bash
-  EXTRA_C_FLAGS=-fsanitize=fuzzer-no-link make archive -j$(nproc)
-  ```
-
-- Объединение результатов
-
-  ```bash
-  cd futag-function-analyzer-reports
-  python3 /path/to/futag-package/python/tools/analyzer/analypar.py .
-  ```
+json0_13 = Builder("../../futag-llvm-package", "json-c-json-c-0.13.1-20180305")
+json0_13.auto_build()
+json0_13.analyze()
+```
 
 - Генерация и компиляция драйверов
 
-  ```python
-  # package futag must be already installed
+```python
+# package futag must be already installed
+from futag.generator import *
 
-  from futag.generator import *
+g = Generator(
+"/path/to/futag-analysis-result.json", 
+"/path/to/futag/package/", # path to the futag-package
+"/path/to/json-c-root/" # library root
+)
 
-  g = Generator(
-    "fuzz-drivers", 
-    "/path/to/futag-analysis-result.json", 
-    "/path/to/multifile_project.a", # path to the compiled archive
-    "/path/to/futag/package/", # path to the futag-package
-    "/path/to/library/multifile_project/" # library root
-  )
+# Generate fuzz drivers
+g.gen_targets()
 
-  # Generate fuzz drivers
-  g.gen_targets()
-
-  # Compile fuzz drivers
-  g.compile_targets()
-  ```
-
-- Вы можете найти успешно скомпилированные цели в каталоге fuzz-drivers. Каждый драйвер находится внутри своей поддиректории.
-
-
-Использование FUTAG на примере библиотеки json-c:
-
-- Сборка библиотеки
-
-  ```bash
-  cd json-c-sources
-  mkdir build && cd build
-  CC=<path-to-futag-package>/bin/clang ../configure --prefix=`pwd`/install CFLAGS="-fsanitize=fuzzer-no-link -Wno-error=implicit-const-int-float-conversion"
-  make -j$(nproc) && make install
-  ```
-
-  После этого вы можете найти скомпилированную версию библиотеки здесь: `<path-to-json-c-sources>/build/install/lib/libjson-c.a`
-
-- Очистка и настройка
-
-  ```bash
-  make clean
-  ../configure --prefix=`pwd`/install
-  ```
-
-- Запуск проверки
-
-  ```bash
-  <path-to-futag-package>/bin/scan-build -analyzer-config futag.FutagFunctionAnalyzer:report_dir=`pwd`/futag-result -enable-checker futag  make -j$(nproc)
-  ```
-
-- Объединение результатов
-
-  ```bash
-  cd futag-result
-  python3 /path/to/futag-package/python/tools/analyzer/analypar.py .
-  ```
-
-- Генерация и компиляция драйверов
-
-  ```python
-  # package futag must be already installed
-
-  from futag.generator import *
-
-  g = Generator(
-    "fuzz-drivers", 
-    "/path/to/futag-analysis-result.json", 
-    "/path/to/libjson-c.a", # path to the compiled archive
-    "/path/to/futag/package/", # path to the futag-package
-    "/path/to/json-c-root/" # library root
-  )
-
-  # Generate fuzz drivers
-  g.gen_targets()
-
-  # Compile fuzz drivers
-  g.compile_targets()
-  ```
-- Успешно скомпилированные цели находятся в каталоге fuzz-drivers. Каждый драйвер находится внутри своей поддиректории.
+# Compile fuzz drivers
+g.compile_targets()
+```
+- Успешно скомпилированные цели находятся в каталоге futag-fuzz-drivers. Каждый драйвер находится внутри своей поддиректории.
 
 ## 4. Авторы
 
