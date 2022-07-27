@@ -30,34 +30,38 @@ This instruction will get you a copy of the project and running on a Unix-liked 
 Futag is based on [llvm-project](https://llvm.org/). For compiling the project, these packages must be installed on your system:
 
 - [CMake](https://cmake.org/) >=3.13.4 [cmake-3.19.3-Linux-x86_64.sh](https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) - Makefile/workspace generator
-- [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler1
-- [python](https://www.python.org/) >=3.6 Automated test suite2
-- [zlib](http://zlib.net/) >=1.2.3.4 Compression library3
+- [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler
+- [python](https://www.python.org/) >=3.6 
+- [pip](https://pypi.org/project/pip/)
+- [zlib](http://zlib.net/) >=1.2.3.4 Compression library
 - [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1 Makefile/build processor
 
 Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirements) on official website of LLVM for more detail.
 
 ### 2.2. Build and install
 
-- Clone the project with submodule llvm-project:
+- Clone the project:
 
-  ```bash
-  ~$ git clone --recurse-submodules https://github.com/ispras/Futag
-  ```
+```bash
+  ~$ git clone https://github.com/ispras/Futag
+```
+- Prepare directory "custom-llvm" by running script:
+```bash
+  ~/Futag/custom-llvm$ ./prepare.sh
+```
+This script creates directory Futag/build and copies script Futag/custom-llvm/build.sh there
 
-- Create build folder and copy build.sh script to build folder then change to build folder and run the build.sh script:
+- Run the build.sh script inside Futag/build:
+```bash
+  ~/Futag/build/build$ ./build.sh
+```
 
-  ```bash
-  ~/futag$ cp build.sh build && cd build
-  ~/futag/build$ ./build.sh
-  ```
-
-- After this stage, the instrument will be installed in folder futag-package
+- After this stage, the instrument will be installed in folder Futag/futag-llvm-package
 
 - Install python package of Futag:
 
  ```bash
-  ~$ pip install /path/to/python/futag-package/dist/futag-0.1.tar.gz
+    ~$ pip install Futag/src/python/futag-package/dist/futag-1.0.tar.gz
   ```
 
 ## 3. Example usage
@@ -68,7 +72,10 @@ Example of execution Futag
 # package futag must be already installed
 from futag.preprocessor import *
 
-json0_13 = Builder("../../futag-llvm-package", "json-c-json-c-0.13.1-20180305")
+json0_13 = Builder(
+    "Futag/futag-llvm-package/", # path to the futag-llvm-package
+    "json-c-json-c-0.13.1-20180305" # library root
+)
 json0_13.auto_build()
 json0_13.analyze()
 ```
@@ -80,9 +87,9 @@ json0_13.analyze()
 from futag.generator import *
 
 g = Generator(
-"/path/to/futag-analysis-result.json", 
-"/path/to/futag/package/", # path to the futag-package
-"/path/to/json-c-root/" # library root
+"/path/to/futag-analysis-result.json", # path to result file of analysis
+"Futag/futag-llvm-package/", # path to the futag-llvm-package
+"json-c-json-c-0.13.1-20180305" # library root
 )
 
 # Generate fuzz drivers

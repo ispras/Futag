@@ -31,9 +31,10 @@ FUTAG во время работы использует статический �
 Инструмент FUTAG основан на [LLVM-project](https://llvm.org/). Для компиляции проекта необходимо, чтобы следующие пакеты были установлены в вашей системе:
 
 - [CMake](https://cmake.org/) >=3.13.4 [cmake-3.19.3-Linux-x86_64.sh](https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) - Makefile/workspace generator
-- [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler1
-- [Python](https://www.python.org/) >=3.6 Automated test suite2
-- [Zlib](http://zlib.net/) >=1.2.3.4 Compression library3
+- [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler
+- [Python](https://www.python.org/) >=3.6 Automated test suite
+- [pip](https://pypi.org/project/pip/)
+- [zlib](http://zlib.net/) >=1.2.3.4 Compression library
 - [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1 Makefile/build processor
 
 Для получения более детальной информации о зависимостях, необходимых для сборки LLVM, вы можете ознакомиться с документацией по указанной [ссылке](https://llvm.org/docs/GettingStarted.html#requirements)
@@ -42,25 +43,28 @@ FUTAG во время работы использует статический �
 
 - Склонируйте проект с подмодулями LLVM:
 
-  ```bash
-  ~$ git clone --recurse-submodules https://github.com/ispras/Futag
-  ```
+```bash
+  ~$ git clone https://github.com/ispras/Futag
+```
+- Подготовьте директорию "custom-llvm" запустив скрипт:
+```bash
+  ~/Futag/custom-llvm$ ./prepare.sh
+```
+Этот скрип создает директорию Futag/build и копирует скрипт Futag/custom-llvm/build.sh в него
 
-- Создайте директорию для сборки инструмента. Затем скопируйте в неё скрипт build.sh и запустите в ней скопированный скрипт:
+- Запустите в "Futag/build" скопированный скрипт:
 
-  ```bash
-  ~/futag$ mkdir build
-  ~/futag$ cp build.sh build/ && cd build
-  ~/futag/build$ ./build.sh
-  ```
+```bash
+  ~/Futag/build/build$ ./build.sh
+```
 
-- В результате инструмент будет установлен в директорию ../../futag-package
+- В результате инструмент будет установлен в директорию Futag/futag-llvm-package
 
 - Для корректной работы инструмента необходимо также установить в python пакет "futag":
 
- ```bash
-  ~$ pip install /path/to/python/futag-package/dist/futag-0.1.tar.gz
-  ```
+```bash
+  ~$ pip install Futag/src/python/futag-package/dist/futag-1.0.tar.gz
+```
 
 ## 3. Примеры использования
 
@@ -72,7 +76,10 @@ FUTAG во время работы использует статический �
 # package futag must be already installed
 from futag.preprocessor import *
 
-json0_13 = Builder("../../futag-llvm-package", "json-c-json-c-0.13.1-20180305")
+json0_13 = Builder(
+    "Futag/futag-llvm-package/", # path to the futag-llvm-package
+    "json-c-json-c-0.13.1-20180305" # library root
+)
 json0_13.auto_build()
 json0_13.analyze()
 ```
@@ -84,9 +91,9 @@ json0_13.analyze()
 from futag.generator import *
 
 g = Generator(
-"/path/to/futag-analysis-result.json", 
-"/path/to/futag/package/", # path to the futag-package
-"/path/to/json-c-root/" # library root
+"/path/to/futag-analysis-result.json", # path to result file of analysis
+"Futag/futag-llvm-package/", # path to the futag-llvm-package
+"json-c-json-c-0.13.1-20180305" # library root
 )
 
 # Generate fuzz drivers

@@ -34,8 +34,6 @@ class Generator:
         ----------
         json_file: str
             path to the futag-analysis-result.json file
-        target_project_archive: str
-            path to the compiled and packed project
         futag_llvm_package: str
             path to the futag llvm package (with binaries, scripts, etc)
         library_root: str
@@ -43,9 +41,9 @@ class Generator:
         output_path : str
             where to save fuzz-drivers, default to "futag-fuzz-drivers"
         build_path: str
-            path to the build directory. Be careful, this directory will be deleted and create again.
+            path to the build directory.
         install_path: str
-            path to the install directory. Be careful, this directory will be deleted and create again.
+            path to the install directory.
         """
 
         self.output_path = None  # Path for saving fuzzing drivers
@@ -63,12 +61,12 @@ class Generator:
         if pathlib.Path(self.futag_llvm_package).exists():
             self.futag_llvm_package = pathlib.Path(self.futag_llvm_package).absolute()
         else:
-            raise ValueError('Incorrect path to FUTAG package')
+            raise ValueError(INVALID_FUTAG_PATH)
 
         if pathlib.Path(self.library_root).exists():
             self.library_root = pathlib.Path(self.library_root).absolute()
         else:
-            raise ValueError('Incorrect path to the library root')
+            raise ValueError(INVALID_LIBPATH)
 
         if pathlib.Path(json_file).exists():
             self.json_file = json_file
@@ -82,6 +80,8 @@ class Generator:
             
             (self.library_root / output_path).mkdir(parents=True, exist_ok=True)
             self.output_path = self.library_root / output_path
+        else:
+            raise ValueError(INVALID_ANALYSIS_FILE)
         
         if not (self.library_root / build_path).exists():
             raise ValueError(INVALID_BUILPATH)
@@ -143,7 +143,6 @@ class Generator:
                 ]
             }
         return {
-            # char  * var_0 = (char  *) malloc(sizeof(char )*(futag_cstr_size + 1));
             "gen_lines": [
                 "//GEN_STRING\n",
                 type_name + " " + var_name + " = (" + type_name + ") " +
@@ -247,14 +246,9 @@ class Generator:
             param_list.append("f_" + arg["param_name"])
             if arg["generator_type"] == 0:
                 if arg["param_usage"] == "SIZE_FIELD":
-                    # print("GEN_SIZE")
                     var_curr_gen = self.gen_size(
                         arg["param_type"], "f_" + arg["param_name"])
                 else:
-                    # if arg["param_usage"] == "FILE_DESCRIPTOR":
-                    #     FILE_DESCRIPTOR
-                    # else:
-                    # print("GEN_BUILTIN")
                     var_curr_gen = self.gen_builtin(
                         arg["param_type"], "f_" + arg["param_name"])
                 if not var_curr_gen:
@@ -274,7 +268,6 @@ class Generator:
 
                     curr_gen_func_params += var_curr_gen["gen_lines"]
                     curr_buf_size_arr.append("sizeof(" + arg["param_type"]+")")
-                    # self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
                 else:
                     # print("GEN_STRING")
                     var_curr_gen = self.gen_string(
@@ -287,8 +280,6 @@ class Generator:
 
                     curr_gen_func_params += var_curr_gen["gen_lines"]
                     curr_gen_free += var_curr_gen["gen_free"]
-            # if arg["generator_type"] == 2:
-            #     self.gen_this_function = False
 
         function_call = "//GEN_VAR_FUNCTION\n    " + func["return_type"] + " " + var_name + \
             " = " + func["func_name"] + \
@@ -321,7 +312,6 @@ class Generator:
             while (self.output_path / func["func_name"] / file_name).exists():
                 file_name = func["func_name"] + str(file_index) + ".c"
                 file_index += 1
-            # print("-- Generate function \"" + func["func_name"] + "\": ...")
             curr_buffer_size = 0
             full_path = (self.output_path /
                          func["func_name"] / file_name).as_posix()
@@ -338,7 +328,6 @@ class Generator:
             f.write("{\n")
 
             if self.dyn_size > 0:
-                # if len(self.buf_size_arr) > 0:
                 f.write("    if (Fuzz_Size < " + str(self.dyn_size))
                 if self.buf_size_arr:
                     f.write(" + " + "+".join(self.buf_size_arr))
@@ -419,7 +408,6 @@ class Generator:
 
                 self.gen_func_params += curr_gen["gen_lines"]
                 self.gen_free += curr_gen["gen_free"]
-                # self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
             else:
                 # print("GEN_STRING")
                 curr_gen = self.gen_string(

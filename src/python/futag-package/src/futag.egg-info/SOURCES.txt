@@ -4,6 +4,7 @@ pyproject.toml
 setup.cfg
 setup.py
 src/futag/__init__.py
+src/futag/compiler.py
 src/futag/generator.py
 src/futag/preprocessor.py
 src/futag/sysmsg.py
