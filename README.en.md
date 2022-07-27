@@ -53,7 +53,7 @@ This script creates directory Futag/build and copies script Futag/custom-llvm/bu
 
 - Run the build.sh script inside Futag/build:
 ```bash
-  ~/Futag/build/build$ ./build.sh
+  ~/Futag/build$ ./build.sh
 ```
 
 - After this stage, the instrument will be installed in folder Futag/futag-llvm-package

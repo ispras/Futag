@@ -24,6 +24,7 @@ FUZZ_DRIVER_PATH = "futag-fuzz-drivers"
 # messages of Futag
 INVALID_INPUT_PROCESSES = "-- [Futag]: Invalid number of processes for building"
 INVALID_FUTAG_PATH = "-- [Futag]: Incorrect path to FUTAG llvm package"
+INVALID_FUZZ_DRIVER_PATH = "-- [Futag]: Incorrect path to fuzz-drivers"
 INVALID_ANALYSIS_PATH = "-- [Futag]: Incorrect path to analysis folder"
 INVALID_ANALYSIS_FILE = "-- [Futag]: Incorrect path to analysis result file"
 INVALID_LIBPATH = "-- [Futag]: Incorrect path to the library root"

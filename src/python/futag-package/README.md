@@ -111,29 +111,27 @@ The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the l
 
 ```bash
     class Generator(builtins.object)
-     |  Generator(json_file: str, futag_package_path: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
+     |  Generator(json_file: str, futag_llvm_package: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
      |  
      |  Futag Generator
      |  
      |  Methods defined here:
      |  
-     |  __init__(self, json_file: str, futag_package_path: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
+     |  __init__(self, json_file: str, futag_llvm_package: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
      |      Parameters
      |      ----------
      |      json_file: str
      |          path to the futag-analysis-result.json file
-     |      target_project_archive: str
-     |          path to the compiled and packed project
-     |      futag_package_path: str
-     |          path to the futag package (with binaries, scripts, etc)
+     |      futag_llvm_package: str
+     |          path to the futag llvm package (with binaries, scripts, etc)
      |      library_root: str
      |          path to the library root
      |      output_path : str
      |          where to save fuzz-drivers, default to "futag-fuzz-drivers"
      |      build_path: str
-     |          path to the build directory. Be careful, this directory will be deleted and create again.
+     |          path to the build directory.
      |      install_path: str
-     |          path to the install directory. Be careful, this directory will be deleted and create again.
+     |          path to the install directory.
      |  
      |  ----------------------------------------------------------------------
 ```
