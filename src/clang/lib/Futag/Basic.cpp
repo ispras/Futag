@@ -822,7 +822,6 @@ DataTypeDetail getDataTypeDetail(QualType type) {
   qual_type_detail.array_size = 1;
   qual_type_detail.type_name = type.getAsString();
   qual_type_detail.generator_type = DataType::_UNKNOWN;
-
   if (type->isBuiltinType()) {
     qual_type_detail.generator_type = DataType::_BUILTIN;
     return qual_type_detail;
@@ -870,17 +869,27 @@ DataTypeDetail getDataTypeDetail(QualType type) {
     return qual_type_detail;
   }
 
- if (type->isPointerType()) {
-    if( type->getPointeeType()->isIncompleteType()){
-        qual_type_detail.generator_type = DataType::_INCOMPLETE;
-        return qual_type_detail;
-    }
-    if( type->getPointeeType()->isBuiltinType()){
+  if (type->isPointerType()) {
+    if (type->getPointeeType()->isIncompleteType()) {
+      qual_type_detail.generator_type = DataType::_INCOMPLETE;
+      return qual_type_detail;
+    } else {
+      if (type->getPointeeType()->isBuiltinType()) {
         qual_type_detail.generator_type = DataType::_POINTER;
         qual_type_detail.is_pointer = true;
         qual_type_detail.parent_type = type->getPointeeType().getAsString();
         return qual_type_detail;
+      } else {
+        vector<string> type_split =
+            futag::explode(qual_type_detail.type_name, ' ');
+        if (std::find(type_split.begin(), type_split.end(), "struct") !=
+            type_split.end()) {
+          qual_type_detail.generator_type = DataType::_INCOMPLETE;
+          return qual_type_detail;
+        }
+      }
     }
+
     qual_type_detail.generator_type = DataType::_UNKNOWN;
     return qual_type_detail;
   }

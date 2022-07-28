@@ -63,6 +63,7 @@ private:
   mutable json mCallContextInfo{};
   mutable json mFunctionDeclInfo{};
   mutable json mTypesInfo{};
+  mutable json mIncludesInfo{};
 
   // Opens json file specified in currentReportPath and writes new
   // data provided in "state" variable to the "functions" key of the
@@ -113,6 +114,9 @@ public:
   // Full path to report that has information about structs, typedefs and enums
   mutable SmallString<0> typesInfoReportPath{};
 
+  // Full path to the report with includes info
+  mutable SmallString<0> includesInfoReportPath{};
+
   // Used to generate random filename
   utils::Random rand{};
 
@@ -123,13 +127,13 @@ public:
   void checkASTDecl(const TranslationUnitDecl *TUD, AnalysisManager &Mgr,
                     BugReporter &BR) const;
 
-  /* Collects infromation about function */
+  /* Collects information about function */
   void VisitFunction(const FunctionDecl *func, AnalysisManager &Mgr) const;
-  /* Collects infromation about struct declarations*/
+  /* Collects information about struct declarations*/
   void VisitRecord(const RecordDecl *func, AnalysisManager &Mgr) const;
-  /* Collects infromation about typedefs */
+  /* Collects information about typedefs */
   void VisitTypedef(const TypedefDecl *func, AnalysisManager &Mgr) const;
-  /* Collects infromation about enums */
+  /* Collects information about enums */
   void VisitEnum(const EnumDecl *func, AnalysisManager &Mgr) const;
 };
 
@@ -186,6 +190,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
       {"location", fileName + ":" + std::to_string(currFuncBeginLoc)},
       {"LOC", LOC},
       {"return_type", func->getReturnType().getAsString()},
+      {"return_type_pointer", func->getReturnType()->isPointerType()},
       // If current function doesn't have parameters, don't use it for fuzzing,
       // but still collect all relevant information
       {"fuzz_it", func->parameters().size() >= 1 && currFuncName != "main"},
@@ -209,14 +214,9 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
     basicFunctionInfo["params"].push_back(
         {{"param_name", currParam->getQualifiedNameAsString()},
          {"param_type", paramQualType.getAsString()},
-         {"is_template", paramQualType->isTemplateTypeParmType()},
          {"generator_type", datatypeDetail.generator_type},
-         {"is_pointer", datatypeDetail.is_pointer},
          {"array_size", datatypeDetail.array_size},
          {"parent_type", datatypeDetail.parent_type},
-         {"gen_var_struct", datatypeDetail.gen_var_struct},
-         {"is_builtin",
-          currParam->getType().getCanonicalType()->isBuiltinType()},
          {"param_usage", "UNKNOWN"}});
 
     // Try to determine argument usage
@@ -266,13 +266,14 @@ void FutagAnalyzer::DetermineArgumentUsageAST(
     json &paramInfo, const FunctionDecl *func, AnalysisManager &Mgr,
     const clang::ParmVarDecl *param) const {
   Stmt *funcBody = func->getBody();
-  futag::FutagArgumentUsageDeterminer functionCallCallback{paramInfo, Mgr, funcBody,
-                                                           func};
+  futag::FutagArgumentUsageDeterminer functionCallCallback{paramInfo, Mgr,
+                                                           funcBody, func};
 
   // Match all callExprs, where one of the arguments have the same name
   auto MatchFuncCall =
-      callExpr(hasAnyArgument(hasDescendant(declRefExpr(
-                                  to(varDecl(hasName(param->getName())))).bind("FutagCalledFuncArgument"))))
+      callExpr(hasAnyArgument(hasDescendant(
+                   declRefExpr(to(varDecl(hasName(param->getName()))))
+                       .bind("FutagCalledFuncArgument"))))
           .bind("FutagCalledFunc");
 
   MatchFinder Finder;
@@ -284,10 +285,18 @@ FutagAnalyzer::FutagAnalyzer()
     : mLogDebugMessages{std::getenv("FUTAG_FUNCTION_ANALYZER_DEBUG_LOG") !=
                         nullptr},
       mCallContextInfo{}, mFunctionDeclInfo{}, mTypesInfo{}, reportDir{},
-      contextReportPath{}, funcDeclReportPath{}, typesInfoReportPath{}, rand{} {
+      contextReportPath{}, funcDeclReportPath{}, typesInfoReportPath{},
+      includesInfoReportPath{}, rand{} {
   mTypesInfo = {{"enums", json::array()},
                 {"typedefs", json::array()},
                 {"structs", json::array()}};
+
+  SmallString<0> cwd;
+  if (sys::fs::current_path(cwd)) {
+    llvm::errs() << "Cannot get current working directory\n";
+  }
+
+  mIncludesInfo = json{{"file", ""}, {"includes", json::array()}, {"cwd", cwd.str()}};
 }
 
 FutagAnalyzer::~FutagAnalyzer() {
@@ -297,11 +306,29 @@ FutagAnalyzer::~FutagAnalyzer() {
   }
   WriteInfoToTheFile(funcDeclReportPath, mFunctionDeclInfo);
   WriteInfoToTheFile(typesInfoReportPath, mTypesInfo);
+  WriteInfoToTheFile(includesInfoReportPath, mIncludesInfo);
 }
 
 void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
                                  AnalysisManager &Mgr, BugReporter &BR) const {
-  llvm::outs() << "Encountered TranslationUnitDecl\n";
+
+  // Save all relevant includes
+  const SourceManager &sm = Mgr.getASTContext().getSourceManager();
+  for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); it++) {
+    SourceLocation includeLoc = sm.getIncludeLoc(sm.translateFile(it->first));
+    string includePath = utils::PathProcessor::RemoveUnnecessaryPathComponents(
+        it->first->getName().str());
+
+    // includePath[0] != '/' - is probably an awfully bad check to avoid system
+    // headers, but I couldn't find any way around
+    if (includeLoc.isValid() && sm.isInMainFile(includeLoc) &&
+        includePath[0] != '/') {
+      mIncludesInfo["file"] =
+          utils::PathProcessor::RemoveUnnecessaryPathComponents(
+              sm.getFilename(includeLoc).str());
+      mIncludesInfo["includes"].push_back(includePath);
+    }
+  }
 
   struct LocalVisitor : public RecursiveASTVisitor<LocalVisitor> {
     const FutagAnalyzer *futagChecker;
@@ -362,9 +389,9 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   int32_t LOC =
       fEndLoc.getSpellingLineNumber() - fBeginLoc.getSpellingLineNumber();
   // Preprocess current filename by deleting all ./ and ../
-  std::string fileName = fBeginLoc.getFileEntry()->getName().str();
-  fileName =
-      futag::utils::PathProcessor::RemoveDotDotFromTheBeginning(fileName);
+  std::string fileName =
+      futag::utils::PathProcessor::RemoveUnnecessaryPathComponents(
+          fBeginLoc.getFileEntry()->getName().str());
 
   std::string currFuncName(func->getQualifiedNameAsString());
   std::string compilerOpts = Mgr.getAnalyzerOptions().FullCompilerInvocation;
@@ -376,19 +403,6 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   // Collect advanced information about function calls inside current function
   CollectAdvancedFunctionsInfo(mCallContextInfo, func, Mgr, fileName,
                                currFuncName);
-
-  //   PathDiagnosticLocation DLoc =
-  //       PathDiagnosticLocation::createBegin(func,
-  //       bugReporter.getSourceManager());
-  //   const char *bcat = "Futag-checker";
-  //   const char *bname = "Found function declaration";
-
-  // Create basic report
-  // std::string filePath = "In file: " + fileName +
-  //                        ", found function: " + currFuncName +
-  //                        ", at line: " + std::to_string(currFuncBeginLoc);
-  // llvm::raw_string_ostream OS(filePath);
-  // bugReporter.EmitBasicReport(func, this, bname, bcat, OS.str(), DLoc);
 
   return;
 }
@@ -506,6 +520,12 @@ void ento::registerFutagFunctionAnalyzer(CheckerManager &Mgr) {
   Chk->typesInfoReportPath = "";
   sys::path::append(Chk->typesInfoReportPath, Chk->reportDir,
                     "types-info-" +
+                        Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
+                        ".futag-function-analyzer");
+
+  Chk->includesInfoReportPath = "";
+  sys::path::append(Chk->includesInfoReportPath, Chk->reportDir,
+                    "includes-info-" +
                         Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
                         ".futag-function-analyzer");
 }
