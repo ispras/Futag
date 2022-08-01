@@ -105,7 +105,7 @@ generator = Generator(
     "json-c-json-c-0.13.1-20180305" 
   )
 generator.gen_targets()
-generator.compile_targets()
+generator.compile_targets(True, 16) #number of processes while compiling
 ```
 The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the library root.
 
@@ -132,6 +132,14 @@ The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the l
      |          path to the build directory.
      |      install_path: str
      |          path to the install directory.
-     |  
+     |
+     |
+     |  compile_targets(self, makefile: bool = True, workers: int = 4)
+     |      Parameters
+     |      ----------
+     |      makefile: bool
+     |          option for generating makefile (Makefile.futag)
+     |      workers: int
+     |          number of processes for compiling
      |  ----------------------------------------------------------------------
 ```

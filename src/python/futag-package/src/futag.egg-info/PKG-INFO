@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: futag
-Version: 1.0
+Version: 1.1
 Summary: Futag tools for creating fuzz targets of software library
 Home-page: https://github.com/ispras/Futag/tree/main/src/python/futag-package
 Author: Futag-team of ISP RAS
@@ -121,35 +121,41 @@ generator = Generator(
     "json-c-json-c-0.13.1-20180305" 
   )
 generator.gen_targets()
-generator.compile_targets()
+generator.compile_targets(True, 16) #number of processes while compiling
 ```
 The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the library root.
 
 ```bash
     class Generator(builtins.object)
-     |  Generator(json_file: str, futag_package_path: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
+     |  Generator(json_file: str, futag_llvm_package: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
      |  
      |  Futag Generator
      |  
      |  Methods defined here:
      |  
-     |  __init__(self, json_file: str, futag_package_path: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
+     |  __init__(self, json_file: str, futag_llvm_package: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
      |      Parameters
      |      ----------
      |      json_file: str
      |          path to the futag-analysis-result.json file
-     |      target_project_archive: str
-     |          path to the compiled and packed project
-     |      futag_package_path: str
-     |          path to the futag package (with binaries, scripts, etc)
+     |      futag_llvm_package: str
+     |          path to the futag llvm package (with binaries, scripts, etc)
      |      library_root: str
      |          path to the library root
      |      output_path : str
      |          where to save fuzz-drivers, default to "futag-fuzz-drivers"
      |      build_path: str
-     |          path to the build directory. Be careful, this directory will be deleted and create again.
+     |          path to the build directory.
      |      install_path: str
-     |          path to the install directory. Be careful, this directory will be deleted and create again.
-     |  
+     |          path to the install directory.
+     |
+     |
+     |  compile_targets(self, makefile: bool = True, workers: int = 4)
+     |      Parameters
+     |      ----------
+     |      makefile: bool
+     |          option for generating makefile (Makefile.futag)
+     |      workers: int
+     |          number of processes for compiling
      |  ----------------------------------------------------------------------
 ```

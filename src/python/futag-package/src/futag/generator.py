@@ -573,7 +573,6 @@ class Generator:
     def gen_targets(self):
         for func in self.target_library["functions"]:
             if(func["fuzz_it"]):
-                # TODO: prepare for generating, search for str and len in params
                 self.gen_func_params = []
                 self.gen_free = []
                 self.gen_this_function = True
@@ -584,9 +583,29 @@ class Generator:
                 if self.gen_this_function:
                     print("-- [Futag] Fuzz-driver for function: ",func["func_name"], " generated!")
 
-    def compile_targets(self):
-        '''Tries to compile all fuzz-drivers inside targets directory
-        '''
+    def compile_driver_worker(self,bgen_args):
+        p = Popen(
+            bgen_args,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+        )
+        output, errors = p.communicate()
+        if p.returncode:
+            print(" ".join(p.args))
+            print("\n-- [Futag] ERROR:", errors)
+        else:
+            print("-- [Futag] Fuzz-driver has been compiled successfully")
+
+    def compile_targets(self, makefile: bool = True, workers: int = 4):
+        """
+        Parameters
+        ----------
+        makefile: bool
+            option for generating makefile (Makefile.futag)
+        workers: int
+            number of processes for compiling
+        """
         include_subdir: List[pathlib.Path] = [x for x in (self.library_root).iterdir() if x.is_dir()]
         include_subdir = include_subdir + \
             [x for x in (self.build_path).iterdir() if x.is_dir()]
@@ -597,9 +616,15 @@ class Generator:
         generated_functions = [x for x in self.output_path.iterdir() if x.is_dir()]
         generated_targets = 0
         compiled_targets = 0
+        compiler_flags = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined,fuzzer -fprofile-instr-generate -fcoverage-mapping"
+        compiler_path = self.futag_llvm_package / "bin/clang"
+        compile_cmd_list = []
+        static_lib = ["-Wl,--start-group"]
+        for target_lib in [u for u in (self.library_root / INSTALL_PATH / "lib").glob("*.a") if u.is_file()]:
+            static_lib.append(target_lib.as_posix())
+        static_lib.append("-Wl,--end-group")
         for dir in generated_functions:
             # Extract compiler cwd, to resolve relative includes
-            # compilation_cwd = pathlib.Path(self.target_library['cwd'])
             current_func = [f for f in self.target_library['functions'] if f['func_name'] == dir.name][0]
             current_func_compilation_opts = current_func['compiler_opts'].split(' ')
             # Extract all include locations from compilation options
@@ -617,43 +642,70 @@ class Generator:
                 else:
                     # Resolve relative include paths (e.g. in this case: -I.. -I.)
                     resolved_include_paths.append(pathlib.Path(include_path).absolute())
-
+            
+            current_include = []
+            
+            for i in include_subdir:
+                current_include.append("-I" + i.as_posix())
+            for i in resolved_include_paths:
+                current_include.append("-I" + i.as_posix())
+            
+            driver_output = []
             for target_src in [t for t in dir.glob("*.c") if t.is_file()]:
                 generated_targets += 1
-                compiler_path = self.futag_llvm_package / "bin/clang"
+                print(target_src.as_posix())
+                driver_output.append([current_include, target_src.as_posix(), dir.as_posix() + "/" + target_src.stem + ".out"])
+                compiler_cmd = [compiler_path.as_posix() ] + compiler_flags.split(" ") + current_include + [target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
+                compile_cmd_list.append(compiler_cmd)
+        if makefile:
+            makefile = open((self.output_path / "Makefile.futag").as_posix(), "w")
+            makefile.write("#************************************************\n")
+            makefile.write("#*      ______  __  __  ______  ___     ______  *\n")
+            makefile.write("#*     / ____/ / / / / /_  __/ /   |   / ____/  *\n")
+            makefile.write("#*    / /_    / / / /   / /   / /| |  / / __    *\n")
+            makefile.write("#*   / __/   / /_/ /   / /   / ___ | / /_/ /    *\n")
+            makefile.write("#*  /_/      \____/   /_/   /_/  |_| \____/     *\n")
+            makefile.write("#*                                              *\n")
+            makefile.write("#*     Fuzzing target Automated Generator       *\n")
+            makefile.write("#*             a tool of ISP RAS                *\n")
+            makefile.write("#*                                              *\n")
+            makefile.write("#************************************************\n")
+            makefile.write("#*This script is used for compiling fuzz drivers*\n")
+            makefile.write("#************************************************\n")
+            makefile.write("\n")
+            makefile.write("COMPILER=" + compiler_path.as_posix() + "\n")
+            makefile.write("FLAGS=" + compiler_flags + "\n")
+            makefile.write("STATIC_LIBS=" + " ".join(static_lib) + "\n")
+            makefile.write("SYS_LIBS=\"\"\n")
 
-                compiler_flags = [
-                    compiler_path.as_posix(),
-                    "-fsanitize=address,fuzzer",
-                    target_src.as_posix()
-                ]
-                for i in include_subdir:
-                    compiler_flags.append("-I" + i.as_posix())
-                for i in resolved_include_paths:
-                    compiler_flags.append("-I" + i.as_posix())
-
-                compiler_flags.append("-o")
-                compiler_flags.append(dir.as_posix() + "/" + target_src.stem + ".out")
-                compiler_flags.append("-Wl,--start-group")
-                for target_lib in [u for u in (self.library_root / INSTALL_PATH / "lib").glob("*.a") if u.is_file()]:
-                    compiler_flags.append(target_lib.as_posix())
-                compiler_flags.append("-Wl,--end-group")
-
-                # TODO: multiprocess compilation
-                p = Popen(
-                    compiler_flags,
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    universal_newlines=True,
+            makefile.write("default: \n")
+            for d in driver_output:
+                makefile.write(
+                    "\t"
+                    + "${COMPILER} ${FLAGS} "
+                    + " ".join(d[0])
+                    + d[1]
+                    + " -o "
+                    + d[2]
+                    + " ${STATIC_LIBS} ${SYS_LIBS}\n"
                 )
-                output, errors = p.communicate()
-                # exit_code = p.wait()
-                if p.returncode:
-                    print(" ".join(p.args))
-                    print(errors)
-                    print(f'Compilation failed for target: {target_src.stem}')
-                else:
-                    print(f'Target: {target_src.stem} compiled successfully')
-                    compiled_targets += 1
-                    
-        print(f"Result of compiling: {str(compiled_targets)} of {str(generated_targets)} fuzz-driver(s)")
+            makefile.write("clean: \n")
+            for d in driver_output:
+                makefile.write("\trm " + d[1] + "\n")
+            makefile.close()
+        multi = 1
+
+        with Pool(workers) as p:
+            p.map(self.compile_driver_worker, compile_cmd_list)
+
+        # Extract the results of compilation
+        compile_targets_list = [x for x in self.output_path.glob("**/*.out") if x.is_file()]
+        print(
+            "-- [Futag] Result of compiling: "
+            + str(len(compile_targets_list))
+            + " of "
+            + str(generated_targets)
+            + " fuzz-driver(s)\n"
+        )
+        
+        

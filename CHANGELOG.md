@@ -12,3 +12,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## 20220727
 - Add custom-llvm: download and build llvm, clang, compiler-rt
 - Fix document
+
+## 20220801
+- Add multi-processing support for compiling
+- TODO: Check analysis result befor generating fuzz-driver
