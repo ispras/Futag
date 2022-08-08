@@ -143,3 +143,55 @@ The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the l
      |          number of processes for compiling
      |  ----------------------------------------------------------------------
 ```
+
+## 4. Fuzzer
+
+The class Fuzzer helps automatically fuzz targets
+
+```python
+from futag.fuzzer import *
+f = Fuzzer("/Futag/futag-llvm-package", 
+"json-c-json-c-0.13.1-20180305/futag-fuzz-drivers")
+f.fuzz()
+```
+
+```bash
+class Fuzzer(builtins.object)
+ |  Fuzzer(futag_llvm_package: str, fuzz_driver_path: str = 'futag-fuzz-drivers', leak: bool = False, debug: bool = False, svres: bool = False, gdb: bool = False, fork: int = 1, timeout: int = 10, totaltime: int = 300, memlimit: int = 2048, coverage: bool = False, introspect: bool = False)
+ |  
+ |  Futag Fuzzer
+ |  
+ |  Methods defined here:
+ |  
+ |  Printer(data)
+ |  
+ |  __init__(self, futag_llvm_package: str, fuzz_driver_path: str = 'futag-fuzz-drivers', leak: bool = False, debug: bool = False, svres: bool = False, gdb: bool = False, fork: int = 1, timeout: int = 10, totaltime: int = 300, memlimit: int = 2048, coverage: bool = False, introspect: bool = False)
+ |      Parameters
+ |      ----------
+ |      futag_llvm_package: str
+ |          path to the futag llvm package (with binaries, scripts, etc)
+ |      fuzz_driver_path: str
+ |          location of fuzz-drivers, default "futag-fuzz-drivers"
+ |      leak: bool = False
+ |          detecting memory leak, default False
+ |      debug: bool = False
+ |          print debug infomation while fuzzing, default False
+ |      svres: bool = False
+ |          generate svres file for Svace (if you have Svace), default False
+ |      gdb: bool = False
+ |          debug crashes with GDB, default False
+ |      fork: int = 1
+ |          fork mode of libFuzzer (https://llvm.org/docs/LibFuzzer.html#fork-mode), default 1 - no fork mode
+ |      timeout: int = 10
+ |          if an fuzz-drive takes longer than this timeout, the process is treated as a failure case, default 10 seconds
+ |      totaltime: int = 300
+ |          total time of fuzzing one fuzz-driver, default 300 seconds
+ |      memlimit: int = 2048
+ |          option for rss_limit_mb of libFuzzer - Memory usage limit in Mb, default 2048 Mb, Use 0 to disable the limit.
+ |      coverage: bool = False
+ |          option for showing coverage of fuzzing, default False.
+ |      introspect: bool = False
+ |          option for integrate with fuzz-introspector (to be add soon).
+ |  
+
+```
