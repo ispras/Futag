@@ -33,8 +33,29 @@ class Fuzzer:
         ----------
         futag_llvm_package: str
             path to the futag llvm package (with binaries, scripts, etc)
-        fuzz_driver_path : str
-            location of fuzz-drivers, default to "futag-fuzz-drivers"
+        fuzz_driver_path: str
+            location of fuzz-drivers, default "futag-fuzz-drivers"
+        leak: bool = False
+            detecting memory leak, default False
+        debug: bool = False
+            print debug infomation while fuzzing, default False
+        svres: bool = False
+            generate svres file for Svace (if you have Svace), default False
+        gdb: bool = False
+            debug crashes with GDB, default False
+        fork: int = 1
+            fork mode of libFuzzer (https://llvm.org/docs/LibFuzzer.html#fork-mode), default 1 - no fork mode
+        timeout: int = 10
+            if an fuzz-drive takes longer than this timeout, the process is treated as a failure case, default 10 seconds
+        totaltime: int = 300
+            total time of fuzzing one fuzz-driver, default 300 seconds
+        memlimit: int = 2048
+            option for rss_limit_mb of libFuzzer - Memory usage limit in Mb, default 2048 Mb, Use 0 to disable the limit.
+        coverage: bool = False
+            option for showing coverage of fuzzing, default False.
+        introspect: bool = False
+            option for integrate with fuzz-introspector (to be add soon).
+            
         """
 
         self.futag_llvm_package = futag_llvm_package

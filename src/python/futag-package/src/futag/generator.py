@@ -39,7 +39,7 @@ class Generator:
         library_root: str
             path to the library root
         output_path : str
-            where to save fuzz-drivers, default to "futag-fuzz-drivers"
+            where to save fuzz-drivers, if this path exists, Futag will delete it and create new one, default "futag-fuzz-drivers"
         build_path: str
             path to the build directory.
         install_path: str

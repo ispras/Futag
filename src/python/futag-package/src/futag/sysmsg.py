@@ -13,7 +13,6 @@
 **************************************************
 """
 
-
 # constants of Futag
 BUILD_PATH = "futag-build"
 BUILD_EX_PARAMS = ""

@@ -21,6 +21,8 @@ The information then is used for generating fuzz targets.
 
 This project is based on llvm-project with Clang statistic analysis, LLVM lto and is distributed under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
 
+- Currently Futag supports libraries in C language.
+
 ## 2. Build instruction
 
 This instruction will get you a copy of the project and running on a Unix-liked system. FUTAG uses LLVM clang and clang tools as front end to analyze and generate the fuzzing targets.
@@ -40,6 +42,8 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 
 ### 2.2. Build and install
 
+#### Install custom LLVM package
+
 - Clone the project:
 
 ```bash
@@ -58,15 +62,17 @@ This script creates directory Futag/build and copies script Futag/custom-llvm/bu
 
 - After this stage, the instrument will be installed in folder Futag/futag-llvm-package
 
-- Install python package of Futag:
+#### Install python package of Futag:
 
  ```bash
-    ~$ pip install Futag/src/python/futag-package/dist/futag-1.0.tar.gz
+    ~$ pip install Futag/src/python/futag-package/dist/futag-1.1.tar.gz
   ```
 
 ## 3. Example usage
 
 Example of execution Futag
+
+- Analyze the library:
 
 ```python
 # package futag must be already installed
@@ -87,7 +93,7 @@ json0_13.analyze()
 from futag.generator import *
 
 g = Generator(
-"/path/to/futag-analysis-result.json", # path to result file of analysis
+"json-c-json-c-0.13.1-20180305/futag-analysis/futag-analysis-result.json", # path to result file of analysis
 "Futag/futag-llvm-package/", # path to the futag-llvm-package
 "json-c-json-c-0.13.1-20180305" # library root
 )
@@ -98,6 +104,17 @@ g.gen_targets()
 # Compile fuzz drivers
 g.compile_targets()
 ```
+
+- Fuzz generated targets:
+
+```python
+from futag.fuzzer import *
+f = Fuzzer("/Futag/futag-llvm-package", 
+"json-c-json-c-0.13.1-20180305/futag-fuzz-drivers")
+f.fuzz()
+```
+
+For more detail please read [the document](https://github.com/ispras/Futag/tree/main/src/python/futag-package) of package
 
 ## 4. Authors
 

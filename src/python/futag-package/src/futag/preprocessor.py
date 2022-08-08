@@ -51,13 +51,13 @@ class Builder:
         library_root: str
             (*required) path to the library root
         clean: bool
-            Option for deleting futag folders (futag-build, futag-install, futag-analysis)
+            Option for deleting futag folders if they are exist (futag-build, futag-install, futag-analysis)
         build_path: str
-            path to the build directory. Be careful, this directory will be deleted and create again.
+            path to the build directory. This directory will be deleted and create again if clean set to True.
         install_path: str
-            path to the install directory. Be careful, this directory will be deleted and create again.
+            path to the install directory. Be careful, this directory will be deleted and create again if clean set to True.
         analysis_path: str
-            path to the report directory. This directory will be created for saving report of analysis.
+            path for saving report of analysis. This directory will be deleted and create again if clean set to True.
         processes: int
             number of processes while building.
         build_ex_params: str
