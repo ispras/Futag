@@ -16,3 +16,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## 20220801
 - Add multi-processing support for compiling
 - TODO: Check analysis result befor generating fuzz-driver
+
+## 20220808
+- Fix bug in generator
+- Fix for svace analysing
+- add first version of fuzzer and result of Fuzzing for Svace

@@ -42,7 +42,7 @@ def delete_folder(pth):
 class Builder:
     """Futag Builder Class"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =16, build_ex_params=BUILD_EX_PARAMS):
+    def __init__(self, futag_llvm_package: str, library_root: str, clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =16, build_ex_params=BUILD_EX_PARAMS):
         """
         Parameters
         ----------
@@ -50,6 +50,8 @@ class Builder:
             (*required) path to the futag llvm package (with binaries, scripts, etc)
         library_root: str
             (*required) path to the library root
+        clean: bool
+            Option for deleting futag folders (futag-build, futag-install, futag-analysis)
         build_path: str
             path to the build directory. Be careful, this directory will be deleted and create again.
         install_path: str
@@ -85,19 +87,19 @@ class Builder:
         else:
             raise ValueError(INVALID_LIBPATH)
 
-        if (self.library_root / build_path).exists():
+        if (self.library_root / build_path).exists() and clean:
             delete_folder(self.library_root / build_path)
 
         (self.library_root / build_path).mkdir(parents=True, exist_ok=True)
         self.build_path = self.library_root / build_path
 
-        if (self.library_root / install_path).exists():
+        if (self.library_root / install_path).exists() and clean:
             delete_folder(self.library_root / install_path)
 
         (self.library_root / install_path).mkdir(parents=True, exist_ok=True)
         self.install_path = self.library_root / install_path
 
-        if (self.library_root / analysis_path).exists():
+        if (self.library_root / analysis_path).exists() and clean:
             delete_folder(self.library_root / analysis_path)
 
         (self.library_root / analysis_path).mkdir(parents=True, exist_ok=True)
@@ -138,7 +140,7 @@ class Builder:
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         config_cmd = [
-            (self.futag_llvm_package / "bin/scan-build").as_posix(),
+            # (self.futag_llvm_package / "bin/scan-build").as_posix(),
             "cmake",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
             f"-DCMAKE_CXX_FLAGS='{self.flags}'",
@@ -211,7 +213,7 @@ class Builder:
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         
         config_cmd = [
-            (self.futag_llvm_package / 'bin/scan-build').as_posix(),
+            # (self.futag_llvm_package / 'bin/scan-build').as_posix(),
             (self.library_root / "configure").as_posix(),
             f"--prefix=" + self.install_path.as_posix(),
         ]
@@ -260,6 +262,71 @@ class Builder:
         else:
             print(LIB_INSTALL_SUCCEEDED)
             
+        os.chdir(curr_dir)
+        return 0
+
+    def gen_build_script_configure(self, script_path: str = "") -> int:
+        """
+        This function export build script with configure for svace.
+        """
+        curr_dir = os.getcwd()
+        if not script_path:
+            script_path = curr_dir + "/svace-build.sh"
+                
+        build_script = open ( script_path, "w")
+        build_script.write('#!/bin/bash')
+
+        os.chdir(self.build_path.as_posix())
+        build_script.write("cd " + self.build_path.as_posix() + "\n")
+        my_env = os.environ.copy()
+        my_env["CFLAGS"] = self.flags
+        my_env["CPPFLAGS"] = self.flags
+        my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
+        my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
+        
+        build_script.write("export CFLAGS=\"" + self.flags + "\"\n")
+        build_script.write("export CPPFLAGS=\"" + self.flags + "\"\n")
+        build_script.write("export CC=" + (self.futag_llvm_package / 'bin/clang').as_posix() + "\n")
+        build_script.write("export CXX=" + (self.futag_llvm_package / 'bin/clang++').as_posix() + "\n")
+
+        config_cmd = [
+            (self.library_root / "configure").as_posix(),
+            f"--prefix=" + self.install_path.as_posix(),
+        ]
+        if self.build_ex_params:
+            config_cmd += self.build_ex_params.split(" ")
+        p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        
+        build_script.write(" ".join(p.args))
+        build_script.write("\n")
+
+        # Build the library
+        p = Popen([
+            (self.futag_llvm_package / 'bin/scan-build').as_posix(),
+            "-enable-checker",
+            "futag.FutagFunctionAnalyzer",
+            "-analyzer-config",
+            "futag.FutagFunctionAnalyzer:report_dir=" + self.analysis_path.as_posix(),
+            "make",
+            "-f",
+            (self.build_path / "Makefile").as_posix(),
+            "-j" + str(self.processes)
+        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        
+        build_script.write(" ".join(p.args))
+        build_script.write("\n")
+
+        # Doing make install
+        p = Popen([
+            "make",
+            "-f",
+            (self.build_path / "Makefile").as_posix(),
+            "install",
+        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+
+        build_script.write(" ".join(p.args))
+        build_script.write("\n")
+        build_script.close()
         os.chdir(curr_dir)
         return 0
 

@@ -75,8 +75,8 @@ class Generator:
                 self.target_library = json.load(f)
 
             # create directory for function targets if not exists
-            if pathlib.Path(output_path).exists():
-                delete_folder(pathlib.Path(output_path))
+            if (self.library_root / output_path).exists():
+                delete_folder(self.library_root / output_path)
             
             (self.library_root / output_path).mkdir(parents=True, exist_ok=True)
             self.output_path = self.library_root / output_path
@@ -138,8 +138,10 @@ class Generator:
                     type_name + " " + var_name + "= r" + var_name + ";\n"
                 ],
                 "gen_free": [
-                    "if (dyn_size > 0 && strlen(" + var_name + \
-                    ") > 0) free(" + var_name + ");\n"
+                    "if (dyn_size > 0 && strlen(r" + var_name + \
+                    ") > 0) {\n",
+                    "    free(r" + var_name + ");\n",
+                    "}\n"
                 ]
             }
         return {
@@ -155,7 +157,9 @@ class Generator:
             ],
             "gen_free": [
                 "if (dyn_size > 0 && strlen(" + var_name + \
-                ") > 0) free(" + var_name + ");\n"
+                ") > 0) {\n",
+                "    free(" + var_name + ");\n",
+                "}\n"
             ]
         }
 
@@ -216,16 +220,20 @@ class Generator:
         }
 
     def gen_input_file(self, var_name):
-        return {
-            "gen_lines": [
-                "//GEN_INPUT_FILE\n",
-                "const char* " + var_name + " = \"futag_input_file\";\n",
-                "FILE *fp = fopen(" + var_name + ",\"w\");\n",
-                "if (fp != NULL) { return 0; }\n",
+        cur_gen_free = [ "    " + x  for x in self.gen_free]
+        gen_lines = [
+            "//GEN_INPUT_FILE\n",
+            "const char* " + var_name + " = \"futag_input_file\";\n",
+            "FILE *fp = fopen(" + var_name + ",\"w\");\n",
+            "if (fp == NULL) {\n",
+        ] + cur_gen_free + ["    return 0;\n",
+                "}\n",
                 "fwrite(pos, 1, dyn_size, fp);\n",
                 "fclose(fp);\n",
                 "pos += dyn_size;\n"
-            ],
+        ]
+        return {
+            "gen_lines": gen_lines,
             "gen_free": []
         }
 
@@ -233,7 +241,7 @@ class Generator:
         """ Check if we can initialize argument as function call """
         return True
 
-    def gen_var_function(self, func, var_name):
+    def gen_var_function(self, parent_func, func, var_name):
         """ Initialize for argument of function call """
         curr_gen_func_params = []
         curr_gen_free = []
@@ -267,7 +275,7 @@ class Generator:
                         return None
 
                     curr_gen_func_params += var_curr_gen["gen_lines"]
-                    curr_buf_size_arr.append("sizeof(" + arg["param_type"]+")")
+                    
                 else:
                     # print("GEN_STRING")
                     var_curr_gen = self.gen_string(
@@ -277,13 +285,17 @@ class Generator:
                     curr_dyn_size += 1
                     if not var_curr_gen:
                         return None
-
                     curr_gen_func_params += var_curr_gen["gen_lines"]
                     curr_gen_free += var_curr_gen["gen_free"]
 
         function_call = "//GEN_VAR_FUNCTION\n    " + func["return_type"] + " " + var_name + \
             " = " + func["func_name"] + \
             "(" + ",".join(param_list)+");\n"
+
+        if func["return_type_pointer"]:
+            if func["return_type"].split(" ")[0] != "const" and not parent_func["return_type_pointer"]:
+                curr_gen_free += ["if(" + var_name+ ") free("+var_name+");\n"]
+
         curr_gen_func_params.append(function_call)
         return {
             "gen_lines": curr_gen_func_params,
@@ -348,26 +360,24 @@ class Generator:
             for line in self.gen_func_params:
                 f.write("    " + line)
 
+            f.write("    //FUNCTION_CALL\n")
             # generate function call
             if func["return_type"] != "void":
                 f.write("    " + func["return_type"] +
-                        "     futag_target = " + func["func_name"] + "(")
-                param_list = []
-                for arg in func["params"]:
-                    param_list.append(arg["param_name"] + " ")
-                f.write(",".join(param_list))
-                f.write(");\n")
+                        " futag_target = " + func["func_name"] + "(")
             else:
                 f.write("    futag_target = " + func["func_name"] + "(")
-                param_list = []
-                for arg in func["params"]:
-                    param_list.append(arg["param_name"] + " ")
-                f.write(",".join(param_list))
-                f.write(");\n")
+            param_list = []
+            for arg in func["params"]:
+                param_list.append(arg["param_name"] + " ")
+            f.write(",".join(param_list))
+            f.write(");\n")
 
             if func["return_type_pointer"]:
-                f.write("    if(futag_target) free(futag_target);\n")
+                if func["return_type"].split(" ")[0] != "const":
+                    f.write("    if(futag_target) free(futag_target);\n")
 
+            f.write("    //FREE\n")
             for line in self.gen_free:
                 f.write("    " + line)
 
@@ -387,13 +397,10 @@ class Generator:
                 # print("GEN_BUILTIN")
                 curr_gen = self.gen_builtin(
                     curr_param["param_type"], curr_param["param_name"])
-            if not curr_gen:
-                self.gen_this_function = False
-                return None
+                self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             self.gen_func_params += curr_gen["gen_lines"]
             self.gen_free += curr_gen["gen_free"]
-            self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
             self.gen_target_function(func, param_id)
@@ -415,6 +422,10 @@ class Generator:
                     curr_param["param_name"],
                     curr_param["parent_type"])
                 self.dyn_size += 1
+                if (len(curr_param["parent_type"]) > 0):
+                    self.buf_size_arr.append("sizeof(" + curr_param["parent_type"]+")")
+                else:
+                    self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
                 if not curr_gen:
                     self.gen_this_function = False
 
@@ -530,7 +541,7 @@ class Generator:
                     if not check_params:
                         continue
 
-                    curr_gen = self.gen_var_function(
+                    curr_gen = self.gen_var_function(func,
                         f, curr_param["param_name"])
                     self.gen_func_params += curr_gen["gen_lines"]
                     self.gen_free += curr_gen["gen_free"]
@@ -615,7 +626,6 @@ class Generator:
             [x for x in (self.install_path / "include" ).iterdir() if x.is_dir()]
         generated_functions = [x for x in self.output_path.iterdir() if x.is_dir()]
         generated_targets = 0
-        compiled_targets = 0
         compiler_flags = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined,fuzzer -fprofile-instr-generate -fcoverage-mapping"
         compiler_path = self.futag_llvm_package / "bin/clang"
         compile_cmd_list = []
@@ -653,9 +663,14 @@ class Generator:
             driver_output = []
             for target_src in [t for t in dir.glob("*.c") if t.is_file()]:
                 generated_targets += 1
-                print(target_src.as_posix())
                 driver_output.append([current_include, target_src.as_posix(), dir.as_posix() + "/" + target_src.stem + ".out"])
                 compiler_cmd = [compiler_path.as_posix() ] + compiler_flags.split(" ") + current_include + [target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
+                target_file = open(target_src.as_posix(), "a")
+                target_file.write("\n//Compile command:")
+                target_file.write("\n/*\n")
+                target_file.write(" ".join(compiler_cmd))
+                target_file.write("\n*/\n")
+                target_file.close()
                 compile_cmd_list.append(compiler_cmd)
         if makefile:
             makefile = open((self.output_path / "Makefile.futag").as_posix(), "w")
@@ -707,5 +722,3 @@ class Generator:
             + str(generated_targets)
             + " fuzz-driver(s)\n"
         )
-        
-        
