@@ -140,7 +140,7 @@ class Builder:
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         config_cmd = [
-            # (self.futag_llvm_package / "bin/scan-build").as_posix(),
+            (self.futag_llvm_package / "bin/scan-build").as_posix(),
             "cmake",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
             f"-DCMAKE_CXX_FLAGS='{self.flags}'",
@@ -153,10 +153,9 @@ class Builder:
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
-
+        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
-            print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
             print(errors)
             raise ValueError(LIB_CONFIGURE_FAILED)
         else:
@@ -174,10 +173,9 @@ class Builder:
             "make",
             "-j" + str(self.processes)
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
-
+        print(LIB_BUILD_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
-            print(LIB_BUILD_COMMAND, " ".join(p.args))
             print(errors)
             raise ValueError(LIB_BUILD_FAILED)
         else:

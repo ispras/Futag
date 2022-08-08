@@ -33,8 +33,8 @@ FUTAG во время работы использует статический �
 
 - [CMake](https://cmake.org/) >=3.13.4 [cmake-3.19.3-Linux-x86_64.sh](https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) - Makefile/workspace generator
 - [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler
-- [Python](https://www.python.org/) >=3.6 Automated test suite
-- [pip](https://pypi.org/project/pip/)
+- [Python](https://www.python.org/) >=3.7 Automated test suite
+- [pip](https://pypi.org/project/pip/) >=22.0.4
 - [zlib](http://zlib.net/) >=1.2.3.4 Compression library
 - [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1 Makefile/build processor
 
@@ -64,7 +64,7 @@ FUTAG во время работы использует статический �
 
 - Для корректной работы инструмента необходимо также установить в python пакет "futag":
 
-#### Установка пакета Питона Futag:
+#### Установка python-пакета Futag:
 
 
 ```bash
@@ -118,7 +118,7 @@ f = Fuzzer("/Futag/futag-llvm-package",
 f.fuzz()
 ```
 
-Подобную информацию можно читать [по ссылке](https://github.com/ispras/Futag/tree/main/src/python/futag-package)
+Подобную информацию можно прочитать [по ссылке](https://github.com/ispras/Futag/tree/main/src/python/futag-package)
 
 ## 4. Авторы
 
