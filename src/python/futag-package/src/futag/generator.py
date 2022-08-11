@@ -28,7 +28,7 @@ from typing import List
 class Generator:
     """Futag Generator"""
 
-    def __init__(self, json_file: str, futag_llvm_package: str, library_root: str, output_path = FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH):
+    def __init__(self, futag_llvm_package: str, library_root: str, json_file: str=ANALYSIS_FILE_PATH, output_path = FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH):
         """
         Parameters
         ----------
@@ -68,9 +68,13 @@ class Generator:
         else:
             raise ValueError(INVALID_LIBPATH)
 
-        if pathlib.Path(json_file).exists():
-            self.json_file = json_file
-            f = open(json_file)
+        if not pathlib.Path(json_file).exists():
+            self.json_file = self.library_root / ANALYSIS_FILE_PATH
+        else:
+            self.json_file = pathlib.Path(json_file)
+             
+        if self.json_file.exists():
+            f = open(self.json_file.as_posix())
             if not f.closed:
                 self.target_library = json.load(f)
 
@@ -309,28 +313,35 @@ class Generator:
             if not self.gen_this_function:
                 return False
             # generate file name
-            file_index = 0
+            file_index = 1
             # A short tale how I tried to debug "undefined reference to" for 4
             # hours. If clang sees .cc extension it somehow assumes that it
             # works with c++ (even if we use clang and not clang++) thus
             # when I've tried to link with pure C library I wasn't able to do so.
             # One extra char and whole day worth of debugging.
             # God, I love C!
-            file_name = func["func_name"] + ".c"
-
+            
+            dir_name = func["func_name"] + str(file_index)
+            
             if not (self.output_path / func["func_name"]).exists():
                 (self.output_path / func["func_name"]
                  ).mkdir(parents=True, exist_ok=True)
-            while (self.output_path / func["func_name"] / file_name).exists():
-                file_name = func["func_name"] + str(file_index) + ".c"
+
+            # Each variant of fuzz-driver will be save in seperated directory 
+            # inside the directory of fuction
+            
+            while (self.output_path / func["func_name"] / dir_name).exists():
                 file_index += 1
+                dir_name = func["func_name"] + str(file_index)
+
+            (self.output_path / func["func_name"] / dir_name).mkdir(parents=True, exist_ok=True)
+            
+            file_name = func["func_name"] + str(file_index) + ".c"
             curr_buffer_size = 0
-            full_path = (self.output_path /
-                         func["func_name"] / file_name).as_posix()
+            full_path = (self.output_path / func["func_name"] / dir_name / file_name).as_posix()
             f = open(full_path, 'w')
             if f.closed:
                 return False
-
             for line in self.gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
@@ -622,20 +633,22 @@ class Generator:
             [x for x in (self.build_path).iterdir() if x.is_dir()]
         include_subdir = include_subdir + \
             [x for x in (self.install_path).iterdir() if x.is_dir()]
-        include_subdir = include_subdir + \
-            [x for x in (self.install_path / "include" ).iterdir() if x.is_dir()]
+        if (self.install_path / "include" ).exists():
+            include_subdir = include_subdir + \
+                [x for x in (self.install_path / "include" ).iterdir() if x.is_dir()]
         generated_functions = [x for x in self.output_path.iterdir() if x.is_dir()]
         generated_targets = 0
         compiler_flags = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined,fuzzer -fprofile-instr-generate -fcoverage-mapping"
         compiler_path = self.futag_llvm_package / "bin/clang"
         compile_cmd_list = []
         static_lib = ["-Wl,--start-group"]
-        for target_lib in [u for u in (self.library_root / INSTALL_PATH / "lib").glob("*.a") if u.is_file()]:
+        for target_lib in [u for u in (self.library_root).glob("**/*.a") if u.is_file()]:
             static_lib.append(target_lib.as_posix())
         static_lib.append("-Wl,--end-group")
-        for dir in generated_functions:
+        for func_dir in generated_functions:
+        
             # Extract compiler cwd, to resolve relative includes
-            current_func = [f for f in self.target_library['functions'] if f['func_name'] == dir.name][0]
+            current_func = [f for f in self.target_library['functions'] if f['func_name'] == func_dir.name][0]
             current_func_compilation_opts = current_func['compiler_opts'].split(' ')
             # Extract all include locations from compilation options
             include_paths: List[pathlib.Path] = map(
@@ -659,19 +672,20 @@ class Generator:
                 current_include.append("-I" + i.as_posix())
             for i in resolved_include_paths:
                 current_include.append("-I" + i.as_posix())
-            
-            driver_output = []
-            for target_src in [t for t in dir.glob("*.c") if t.is_file()]:
-                generated_targets += 1
-                driver_output.append([current_include, target_src.as_posix(), dir.as_posix() + "/" + target_src.stem + ".out"])
-                compiler_cmd = [compiler_path.as_posix() ] + compiler_flags.split(" ") + current_include + [target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
-                target_file = open(target_src.as_posix(), "a")
-                target_file.write("\n//Compile command:")
-                target_file.write("\n/*\n")
-                target_file.write(" ".join(compiler_cmd))
-                target_file.write("\n*/\n")
-                target_file.close()
-                compile_cmd_list.append(compiler_cmd)
+            fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
+            for dir in fuzz_driver_dirs:
+                driver_output = []
+                for target_src in [t for t in dir.glob("*.c") if t.is_file()]:
+                    generated_targets += 1
+                    driver_output.append([current_include, target_src.as_posix(), dir.as_posix() + "/" + target_src.stem + ".out"])
+                    compiler_cmd = [compiler_path.as_posix() ] + compiler_flags.split(" ") + current_include + [target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
+                    target_file = open(target_src.as_posix(), "a")
+                    target_file.write("\n//Compile command:")
+                    target_file.write("\n/*\n")
+                    target_file.write(" ".join(compiler_cmd))
+                    target_file.write("\n*/\n")
+                    target_file.close()
+                    compile_cmd_list.append(compiler_cmd)
         if makefile:
             makefile = open((self.output_path / "Makefile.futag").as_posix(), "w")
             makefile.write("#************************************************\n")

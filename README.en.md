@@ -44,6 +44,7 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 
 #### Install custom LLVM package
 
+- If you download release package, you can pass this part and go to "Install python package of Futag"
 - Clone the project:
 
 ```bash
@@ -64,9 +65,11 @@ This script creates directory Futag/build and copies script Futag/custom-llvm/bu
 
 #### Install python package of Futag:
 
- ```bash
-    ~$ pip install Futag/src/python/futag-package/dist/futag-1.1.tar.gz
-  ```
+ - Install Futag python package in Futag/src/python/futag-package/dist/futag-1.1.tar.gz or from the extracted package futag-llvm-package/python-package/futag-1.1.tar.gz:
+
+```bash
+  ~$ pip install futag-1.1.tar.gz
+```
 
 ## 3. Example usage
 
@@ -93,7 +96,6 @@ json0_13.analyze()
 from futag.generator import *
 
 g = Generator(
-"json-c-json-c-0.13.1-20180305/futag-analysis/futag-analysis-result.json", # path to result file of analysis
 "Futag/futag-llvm-package/", # path to the futag-llvm-package
 "json-c-json-c-0.13.1-20180305" # library root
 )

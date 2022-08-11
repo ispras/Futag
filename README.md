@@ -42,7 +42,11 @@ FUTAG во время работы использует статический �
 
 ### 2.2. Сборка и установка
 
+
 #### Установка пользовательского пакета LLVM
+
+- Если вы скачали релиз, можете пропустить этот пункт и сразу перейти к
+
 - Склонируйте проект:
 
 ```bash
@@ -66,9 +70,9 @@ FUTAG во время работы использует статический �
 
 #### Установка python-пакета Futag:
 
-
+- Установить python-пакет Futag можно по пути Futag/src/python/futag-package/dist/futag-1.1.tar.gz или из распакованного пакета futag-llvm-package/python-package/futag-1.1.tar.gz:
 ```bash
-  ~$ pip install Futag/src/python/futag-package/dist/futag-1.1.tar.gz
+  ~$ pip install futag-1.1.tar.gz
 ```
 
 ## 3. Примеры использования
@@ -96,7 +100,6 @@ json0_13.analyze()
 from futag.generator import *
 
 g = Generator(
-"/path/to/futag-analysis-result.json", # path to result file of analysis
 "Futag/futag-llvm-package/", # path to the futag-llvm-package
 "json-c-json-c-0.13.1-20180305" # library root
 )

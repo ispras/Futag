@@ -48,9 +48,11 @@ fi
 cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_EXTERNAL_PROJECTS="clang;compiler-rt" -DLLVM_EXTERNAL_CLANG_SOURCE_DIR=$custom_llvm/clang -DLLVM_EXTERNAL_COMPILER_RT_SOURCE_DIR=$custom_llvm/compiler-rt $custom_llvm/llvm
 
 make -j16 && make -j16 install
-
-cp -r $futag_src/python $futag_install_folder/
+mkdir $futag_install_folder/python-package
+cp -r $futag_src/python/futag-package/dist/*.tar.gz $futag_install_folder/python-package
 cp -r $futag_src/svres-tmpl $futag_install_folder/
+cp -r ../README* $futag_install_folder/
+cp -r ../LICENSE $futag_install_folder/
 
 echo ""
 echo "======== End of install script for FUTAG - a fuzzing target automated generator ========"

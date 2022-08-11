@@ -137,6 +137,7 @@ class Builder:
         my_env = os.environ.copy()
         my_env["CFLAGS"] = self.flags
         my_env["CPPFLAGS"] = self.flags
+        my_env["LDFLAGS"] = self.flags
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         config_cmd = [
@@ -190,7 +191,7 @@ class Builder:
         if p.returncode:
             print(LIB_INSTALL_COMMAND, " ".join(p.args))
             print(errors)
-            raise ValueError(LIB_INSTALL_FAILED)
+            print(LIB_INSTALL_FAILED)
         else:
             print(LIB_INSTALL_SUCCEEDED)
 
@@ -207,6 +208,7 @@ class Builder:
         my_env = os.environ.copy()
         my_env["CFLAGS"] = self.flags
         my_env["CPPFLAGS"] = self.flags
+        my_env["LDFLAGS"] = self.flags
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         
