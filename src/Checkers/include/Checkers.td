@@ -23,8 +23,8 @@ def Core : Package<"core">;
 def CoreBuiltin : Package<"builtin">, ParentPackage<Core>, Hidden;
 def CoreUninitialized  : Package<"uninitialized">, ParentPackage<Core>;
 def CoreAlpha : Package<"core">, ParentPackage<Alpha>;
+
 def Futag: Package<"futag">;
-def Test: Package<"test">;
 
 // The OptIn package is for checkers that are not alpha and that would normally
 // be on by default but where the driver does not have enough information to
@@ -75,6 +75,7 @@ def Taint : Package<"taint">, ParentPackage<SecurityAlpha>;
 
 def CERT : Package<"cert">, ParentPackage<SecurityAlpha>;
 def POS : Package<"pos">, ParentPackage<CERT>;
+def ENV : Package<"env">, ParentPackage<CERT>;
 
 def Unix : Package<"unix">;
 def UnixAlpha : Package<"unix">, ParentPackage<Alpha>;
@@ -122,25 +123,9 @@ def WebKit : Package<"webkit">;
 def WebKitAlpha : Package<"webkit">, ParentPackage<Alpha>;
 
 //===----------------------------------------------------------------------===//
-// Futag Checkers.
-//===----------------------------------------------------------------------===//
-let ParentPackage = Futag in {
-
-    def FutagFunctionAnalyzer : Checker<"FutagFunctionAnalyzer">,
-    HelpText<"Futag Checker for finding potential fuzzing functions. Use scan-build for viewing result and generating list of needed function">,
-    CheckerOptions<[
-        CmdLineOption<String,
-                    "report_dir",
-                    "Absolute path to the directory, where to write results of the analyzis",
-                    "/tmp/futag-function-analyzer-reports/",
-                    Released>,
-    ]>,
-    Documentation<NotDocumented>;
-} //end Futag 
-
-//===----------------------------------------------------------------------===//
 // Core Checkers.
 //===----------------------------------------------------------------------===//
+
 let ParentPackage = Core in {
 
 def CallAndMessageModeling : Checker<"CallAndMessageModeling">,
@@ -248,6 +233,25 @@ def NonnullGlobalConstantsChecker: Checker<"NonnilStringConstants">,
   Hidden;
 
 } // end "core"
+
+
+//===----------------------------------------------------------------------===//
+// Futag Checkers.
+//===----------------------------------------------------------------------===//
+let ParentPackage = Futag in {
+
+    def FutagFunctionAnalyzer : Checker<"FutagFunctionAnalyzer">,
+    HelpText<"Futag Checker for finding potential fuzzing functions. Use scan-build for viewing result and generating list of needed function">,
+    CheckerOptions<[
+        CmdLineOption<String,
+                    "report_dir",
+                    "Absolute path to the directory, where to write results of the analyzis",
+                    "/tmp/futag-function-analyzer-reports/",
+                    Released>,
+    ]>,
+    Documentation<NotDocumented>;
+} //end Futag 
+
 
 let ParentPackage = CoreAlpha in {
 
@@ -367,6 +371,8 @@ let ParentPackage = APIModeling in {
 
 def StdCLibraryFunctionsChecker : Checker<"StdCLibraryFunctions">,
   HelpText<"Improve modeling of the C standard library functions">,
+  // Uninitialized value check is a mandatory dependency. This Checker asserts
+  // that arguments are always initialized.
   Dependencies<[CallAndMessageModeling]>,
   CheckerOptions<[
     CmdLineOption<Boolean,
@@ -501,7 +507,17 @@ def DynamicMemoryModeling: Checker<"DynamicMemoryModeling">,
                   "allocating and deallocating functions are annotated with "
                   "ownership_holds, ownership_takes and ownership_returns.",
                   "false",
-                  InAlpha>
+                  InAlpha>,
+    CmdLineOption<Boolean,
+                  "AddNoOwnershipChangeNotes",
+                  "Add an additional note to the bug report for leak-like "
+                  "bugs. Dynamically allocated objects passed to functions "
+                  "that neither deallocated it, or have taken responsibility "
+                  "of the ownership are noted, similarly to "
+                  "NoStoreFuncVisitor.",
+                  "true",
+                  Released,
+                  Hide>
   ]>,
   Dependencies<[CStringModeling]>,
   Documentation<NotDocumented>,
@@ -556,8 +572,8 @@ def StdCLibraryFunctionArgsChecker : Checker<"StdCLibraryFunctionArgs">,
            "such as whether the parameter of isalpha is in the range [0, 255] "
            "or is EOF.">,
   Dependencies<[StdCLibraryFunctionsChecker]>,
-  WeakDependencies<[NonNullParamChecker]>,
-  Documentation<NotDocumented>;
+  WeakDependencies<[CallAndMessageChecker, NonNullParamChecker, StreamChecker]>,
+  Documentation<HasAlphaDocumentation>;
 
 } // end "alpha.unix"
 
@@ -607,6 +623,10 @@ def SmartPtrModeling: Checker<"SmartPtrModeling">,
                   Hide>,
   ]>,
   Hidden;
+
+def StringChecker: Checker<"StringChecker">,
+  HelpText<"Checks C++ std::string bugs">,
+  Documentation<HasDocumentation>;
 
 def MoveChecker: Checker<"Move">,
   HelpText<"Find use-after-move bugs in C++">,
@@ -952,6 +972,14 @@ let ParentPackage = POS in {
   Documentation<HasDocumentation>;
 
 } // end "alpha.cert.pos"
+
+let ParentPackage = ENV in {
+
+  def InvalidPtrChecker : Checker<"InvalidPtr">,
+  HelpText<"Finds usages of possibly invalidated pointers">,
+  Documentation<HasDocumentation>;
+
+} // end "alpha.cert.env"
 
 let ParentPackage = SecurityAlpha in {
 
@@ -1494,8 +1522,8 @@ def LiveVariablesDumper : Checker<"DumpLiveVars">,
   HelpText<"Print results of live variable analysis">,
   Documentation<NotDocumented>;
 
-def LiveStatementsDumper : Checker<"DumpLiveStmts">,
-  HelpText<"Print results of live statement analysis">,
+def LiveExpressionsDumper : Checker<"DumpLiveExprs">,
+  HelpText<"Print results of live expression analysis">,
   Documentation<NotDocumented>;
 
 def CFGViewer : Checker<"ViewCFG">,
@@ -1672,12 +1700,20 @@ def NoUncountedMemberChecker : Checker<"NoUncountedMemberChecker">,
   HelpText<"Check for no uncounted member variables.">,
   Documentation<HasDocumentation>;
 
+def UncountedLambdaCapturesChecker : Checker<"UncountedLambdaCapturesChecker">,
+  HelpText<"Check uncounted lambda captures.">,
+  Documentation<HasDocumentation>;
+
 } // end webkit
 
 let ParentPackage = WebKitAlpha in {
 
 def UncountedCallArgsChecker : Checker<"UncountedCallArgsChecker">,
   HelpText<"Check uncounted call arguments.">,
+  Documentation<HasDocumentation>;
+
+def UncountedLocalVarsChecker : Checker<"UncountedLocalVarsChecker">,
+  HelpText<"Check uncounted local variables.">,
   Documentation<HasDocumentation>;
 
 } // end alpha.webkit

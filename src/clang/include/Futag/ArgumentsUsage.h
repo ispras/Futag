@@ -172,7 +172,6 @@ private:
           {"open", {AT::FILE_PATH, AT::UNKNOWN}},
           {"fopen", {AT::FILE_PATH, AT::UNKNOWN}},
           {"write", {AT::FILE_DESCRIPTOR, AT::UNKNOWN, AT::SIZE_FIELD}},
-
           // Currently I've replaced all C_STRING with UNKNOWN, to
           // avoid (for now) arguments priority problem.
           {"strncpy", {AT::C_STRING, AT::C_STRING, AT::SIZE_FIELD}},
@@ -181,7 +180,7 @@ private:
           {"strlen", {AT::C_STRING}},
           {"strncmp", {AT::C_STRING, AT::C_STRING, AT::SIZE_FIELD}},
           {"malloc", {AT::SIZE_FIELD}},
-          {"calloc", {AT::SIZE_FIELD, AT::SIZE_FIELD}},
+          {"calloc", {AT::SIZE_FIELD, AT::UNKNOWN,}},
           {"realloc", {AT::UNKNOWN, AT::SIZE_FIELD}},
           {"close", {AT::FILE_DESCRIPTOR}},
           {"memchr", {AT::UNKNOWN, AT::UNKNOWN, AT::SIZE_FIELD}},

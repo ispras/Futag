@@ -8,5 +8,8 @@ futag-llvm-package/**
 custom-llvm/futag-llvm-package/**
 custom-llvm/build
 custom-llvm/clang
+custom-llvm/fuzz-introspector
+custom-llvm/cmake
 custom-llvm/llvm
 custom-llvm/compiler-rt
+futag-llvm-package-pre-release.tar.gz

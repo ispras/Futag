@@ -52,44 +52,49 @@ json0_13.analyze()
 For more parameters of Builder please refer to docstring of this class.
 ```bash
     class Builder(builtins.object)
-     |  Builder(futag_package_path: str, library_root: str, build_path: str = 'futag-build', install_path: str = 'futag-install', analysis_path: str = 'futag-analysis', processes: int = 16, build_ex_params='')
-     |  
-     |  Futag Builder Class
-     |  
-     |  Methods defined here:
-     |  
-     |  __init__(self, futag_package_path: str, library_root: str, build_path: str = 'futag-build', install_path: str = 'futag-install', analysis_path: str = 'futag-analysis', processes: int = 16, build_ex_params='')
-     |      Parameters
-     |      ----------
-     |      futag_package_path: str
-     |          (*required) path to the futag package (with binaries, scripts, etc)
-     |      library_root: str
-     |          (*required) path to the library root
-     |      build_path: str
-     |          path to the build directory. Be careful, this directory will be deleted and create again.
-     |      install_path: str
-     |          path to the install directory. Be careful, this directory will be deleted and create again.
-     |      analysis_path: str
-     |          path to the report directory. This directory will be created for saving report of analysis.
-     |      processes: int
-     |          number of processes while building.
-     |      build_ex_params: str
-     |          extra params for building, for example "--with-openssl" for building curl
-     |  
-     |  analyze(self)
-     |      This function reads analysis result of Futag checker
-     |  
-     |  auto_build(self) -> int
-     |      This function tries to automatically build your library.
-     |      It finds in your library source code whether configure file or CMakeList.txt file exists.
-     |  
-     |  build_cmake(self) -> int
-     |      This function tries to build your library with cmake.
-     |  
-     |  build_configure(self) -> int
-     |      This function tries to build your library with configure.
-     |  
-     |  ----------------------------------------------------------------------
+    |  Builder(futag_llvm_package: str, library_root: str, clean: bool = False, build_path: str = 'futag-build', install_path: str = 'futag-install', analysis_path: str = 'futag-analysis', processes: int = 16, build_ex_params='')
+    |  
+    |  Futag Builder Class
+    |  
+    |  Methods defined here:
+    |  
+    |  __init__(self, futag_llvm_package: str, library_root: str, clean: bool = False, build_path: str = 'futag-build', install_path: str = 'futag-install', analysis_path: str = 'futag-analysis', processes: int = 16, build_ex_params='')
+    |      Parameters
+    |      ----------
+    |      futag_llvm_package: str
+    |          (*required) path to the futag llvm package (with binaries, scripts, etc)
+    |      library_root: str
+    |          (*required) path to the library root
+    |      flags: str
+    |          flags for compiling. Default to "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
+    |      clean: bool
+    |          Option for deleting futag folders if they are exist, default to False (futag-build, futag-install, futag-analysis)
+    |      build_path: str
+    |          path to the build directory, default to "futag-build". This directory will be deleted and create again if clean set to True.
+    |      install_path: str
+    |          path to the install directory, default to "futag-install". Be careful, this directory will be deleted and create again if clean set to True.
+    |      analysis_path: str
+    |          path for saving report of analysis, default to "futag-analysis". This directory will be deleted and create again if clean set to True.
+    |      processes: int
+    |          number of processes while building, default to 4.
+    |      build_ex_params: str
+    |          extra params for building, for example "--with-openssl" for building curl
+
+    |  
+    |  analyze(self)
+    |      This function reads analysis result of Futag checker
+    |  
+    |  auto_build(self) -> int
+    |      This function tries to automatically build your library.
+    |      It finds in your library source code whether configure file or CMakeList.txt file exists.
+    |  
+    |  build_cmake(self) -> int
+    |      This function tries to build your library with cmake.
+    |  
+    |  build_configure(self) -> int
+    |      This function tries to build your library with configure.
+    |  
+    |  ----------------------------------------------------------------------
 
 ```
 
@@ -111,37 +116,47 @@ The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the l
 
 ```bash
     class Generator(builtins.object)
-     |  Generator(json_file: str, futag_llvm_package: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
-     |  
-     |  Futag Generator
-     |  
-     |  Methods defined here:
-     |  
-     |  __init__(self, json_file: str, futag_llvm_package: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
-     |      Parameters
-     |      ----------
-     |      json_file: str
-     |          path to the futag-analysis-result.json file
-     |      futag_llvm_package: str
-     |          path to the futag llvm package (with binaries, scripts, etc)
-     |      library_root: str
-     |          path to the library root
-     |      output_path : str
-     |          where to save fuzz-drivers, default to "futag-fuzz-drivers"
-     |      build_path: str
-     |          path to the build directory.
-     |      install_path: str
-     |          path to the install directory.
-     |
-     |
-     |  compile_targets(self, makefile: bool = True, workers: int = 4)
-     |      Parameters
-     |      ----------
-     |      makefile: bool
-     |          option for generating makefile (Makefile.futag)
-     |      workers: int
-     |          number of processes for compiling
-     |  ----------------------------------------------------------------------
+    |  Futag Generator
+    |  
+    |  Methods defined here:
+    |  
+    |  __init__(self, futag_llvm_package:str, library_root:str, json_file:str='futag-analysis/futag-analysis-result.json', output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
+    |      Parameters
+    |      ----------
+    |      json_file: str
+    |          path to the futag-analysis-result.json file
+    |      futag_llvm_package: str
+    |          path to the futag llvm package (with binaries, scripts, etc)
+    |      library_root: str
+    |          path to the library root
+    |      output_path : str
+    |          where to save fuzz-drivers, if this path exists, Futag will delete it and create new one, default "futag-fuzz-drivers"
+    |      build_path: str
+    |          path to the build directory.
+    |      install_path: str
+    |          path to the install directory.
+    |  
+    |  check_gen_function(self, function)
+    |      Check if we can initialize argument as function call
+    |  
+    |  compile_driver_worker(self, bgen_args)
+    |  
+    |  compile_targets(self, makefile:bool=True, workers:int=4)
+    |      Parameters
+    |      ----------
+    |      makefile: bool
+    |          option for generating makefile (Makefile.futag), default to True.
+    |      workers: int
+    |          number of processes for compiling, default to 4.
+    |
+    |  compile_targets(self, makefile: bool = True, workers: int = 4)
+    |      Parameters
+    |      ----------
+    |      makefile: bool
+    |          option for generating makefile (Makefile.futag)
+    |      workers: int
+    |          number of processes for compiling
+    |  ----------------------------------------------------------------------
 ```
 
 ## 4. Fuzzer
@@ -163,33 +178,31 @@ class Fuzzer(builtins.object)
  |  
  |  Methods defined here:
  |  
- |  Printer(data)
- |  
- |  __init__(self, futag_llvm_package: str, fuzz_driver_path: str = 'futag-fuzz-drivers', leak: bool = False, debug: bool = False, svres: bool = False, gdb: bool = False, fork: int = 1, timeout: int = 10, totaltime: int = 300, memlimit: int = 2048, coverage: bool = False, introspect: bool = False)
+ |  __init__(self, futag_llvm_package: str, fuzz_driver_path: str = 'futag-fuzz-drivers', debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False)
  |      Parameters
  |      ----------
  |      futag_llvm_package: str
  |          path to the futag llvm package (with binaries, scripts, etc)
  |      fuzz_driver_path: str
  |          location of fuzz-drivers, default "futag-fuzz-drivers"
- |      leak: bool = False
- |          detecting memory leak, default False
  |      debug: bool = False
  |          print debug infomation while fuzzing, default False
- |      svres: bool = False
- |          generate svres file for Svace (if you have Svace), default False
  |      gdb: bool = False
  |          debug crashes with GDB, default False
+ |      svres: bool = False
+ |          generate svres file for Svace (if you have Svace), default False
  |      fork: int = 1
  |          fork mode of libFuzzer (https://llvm.org/docs/LibFuzzer.html#fork-mode), default 1 - no fork mode
- |      timeout: int = 10
- |          if an fuzz-drive takes longer than this timeout, the process is treated as a failure case, default 10 seconds
  |      totaltime: int = 300
  |          total time of fuzzing one fuzz-driver, default 300 seconds
+ |      timeout: int = 10
+ |          if an fuzz-drive takes longer than this timeout, the process is treated as a failure case, default 10 seconds
  |      memlimit: int = 2048
  |          option for rss_limit_mb of libFuzzer - Memory usage limit in Mb, default 2048 Mb, Use 0 to disable the limit.
  |      coverage: bool = False
  |          option for showing coverage of fuzzing, default False.
+ |      leak: bool = False
+ |          detecting memory leak, default False
  |      introspect: bool = False
  |          option for integrate with fuzz-introspector (to be add soon).
  |  

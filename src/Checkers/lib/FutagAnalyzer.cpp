@@ -148,9 +148,9 @@ void FutagAnalyzer::WriteInfoToTheFile(const StringRef tCurrentReportPath,
   }
 
   if (sys::fs::exists(tCurrentReportPath)) {
-    llvm::report_fatal_error(
+    std::cerr <<
         std::string(__func__) +
-        " -> Report file already exists: " + tCurrentReportPath.str() + "!");
+        " -> Report file already exists: " + tCurrentReportPath.str() + "!";
   }
 
   // Create top-level directories
@@ -165,9 +165,9 @@ void FutagAnalyzer::WriteInfoToTheFile(const StringRef tCurrentReportPath,
     currReportFile << std::setw(4) << tState << std::endl;
   } else {
     // Just crash with report_fatal_error
-    llvm::report_fatal_error(std::string(__func__) +
+    std::cerr <<std::string(__func__) +
                              " -> Cannot write updated json to the file: " +
-                             tCurrentReportPath.str() + "!");
+                             tCurrentReportPath.str() + "!";
   }
 }
 

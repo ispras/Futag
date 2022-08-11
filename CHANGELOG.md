@@ -21,3 +21,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fix bug in generator
 - Fix for svace analysing
 - add first version of fuzzer and result of Fuzzing for Svace
+
+## 20220811
+- Fix bug in generator
+- Add pre release package
+- Fix document
+
+## 20220821
+- Fix bug in generator
+- Add release package
+- Fix document
+
+## 20220911
+- Add support for fuzz-introspector
+- Migrate to llvm-14.0.6

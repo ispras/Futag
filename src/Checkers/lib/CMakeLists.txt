@@ -50,6 +50,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   IdenticalExprChecker.cpp
   InnerPointerChecker.cpp
   InvalidatedIteratorChecker.cpp
+  cert/InvalidPtrChecker.cpp
   Iterator.cpp
   IteratorModeling.cpp
   IteratorRangeChecker.cpp
@@ -105,6 +106,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   StdLibraryFunctionsChecker.cpp
   STLAlgorithmModeling.cpp
   StreamChecker.cpp
+  StringChecker.cpp
   Taint.cpp
   TaintTesterChecker.cpp
   TestAfterDivZeroChecker.cpp
@@ -128,6 +130,8 @@ add_clang_library(clangStaticAnalyzerCheckers
   WebKit/PtrTypesSemantics.cpp
   WebKit/RefCntblBaseVirtualDtorChecker.cpp
   WebKit/UncountedCallArgsChecker.cpp
+  WebKit/UncountedLambdaCapturesChecker.cpp
+  WebKit/UncountedLocalVarsChecker.cpp
 
   LINK_LIBS
   clangAST
