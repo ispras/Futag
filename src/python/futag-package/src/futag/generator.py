@@ -57,6 +57,7 @@ class Generator:
         self.gen_this_function = True
         self.buf_size_arr = []
         self.dyn_size = 0
+        self.curr_gen_string = -1
 
         if pathlib.Path(self.futag_llvm_package).exists():
             self.futag_llvm_package = pathlib.Path(self.futag_llvm_package).absolute()
@@ -152,12 +153,10 @@ class Generator:
             "gen_lines": [
                 "//GEN_STRING\n",
                 type_name + " " + var_name + " = (" + type_name + ") " +
-                "malloc(sizeof(" + type_name + ") * dyn_size + 1);\n",
-                "memset(" + var_name+", 0, sizeof(" + \
-                type_name + ") * dyn_size + 1);\n",
-                "memcpy(" + var_name+", pos, sizeof(" + \
-                type_name + ") * dyn_size );\n",
-                "pos += sizeof(" + type_name + ") * dyn_size ;\n"
+                "malloc(sizeof(char) * dyn_size + 1);\n",
+                "memset(" + var_name+", 0, sizeof(char) * dyn_size + 1);\n",
+                "memcpy(" + var_name+", pos, sizeof(char) * dyn_size );\n",
+                "pos += sizeof(char) * dyn_size ;\n"
             ],
             "gen_free": [
                 "if (dyn_size > 0 && strlen(" + var_name + \
@@ -405,11 +404,15 @@ class Generator:
                 curr_gen = self.gen_size(
                     curr_param["param_type"], curr_param["param_name"])
             else:
-                # print("GEN_BUILTIN")
-                curr_gen = self.gen_builtin(
+                if self.curr_gen_string == param_id - 1 and self.curr_gen_string >= 0:
+                    # print("GEN_SIZE")
+                    curr_gen = self.gen_size(
                     curr_param["param_type"], curr_param["param_name"])
-                self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
-
+                else:
+                    # print("GEN_BUILTIN")
+                    curr_gen = self.gen_builtin(
+                        curr_param["param_type"], curr_param["param_name"])
+                    self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
             self.gen_func_params += curr_gen["gen_lines"]
             self.gen_free += curr_gen["gen_free"]
 
@@ -442,6 +445,7 @@ class Generator:
 
                 self.gen_func_params += curr_gen["gen_lines"]
                 self.gen_free += curr_gen["gen_free"]
+                self.curr_gen_string = param_id
 
             param_id += 1
             self.gen_target_function(func, param_id)

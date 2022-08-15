@@ -144,7 +144,18 @@ class Fuzzer:
         return hash(str(backtrace["warnID"]) + input_str)
 
 
-    def libFuzzerLog_parser(self, fuzz_driver, libFuzzer_log, debug):
+    def libFuzzerLog_parser(self, fuzz_driver: str, libFuzzer_log: str, gdb: bool = False):
+        """
+        Parameters
+        ----------
+        fuzz_driver: str
+            path to the fuzz-driver
+        libFuzzer_log: str
+            path of libFuzzer log
+        gdb: bool = False
+            option for parsing with GDB
+        """
+
         # Thank https://regex101.com/
         # match_error = "^==\d*==ERROR: (\w*): (.*)$"
         match_error = "^==\d*==ERROR: (\w*): (.*) on.*$"
@@ -157,9 +168,10 @@ class Fuzzer:
         match_location = "(\d*):(\d*)"
         match_exc_trace = "^.*\/llvm-11.1.0\/.*$"
         match_exc_trace2 = "^.*libc-start.c.*$"
-        # match_exc_trace3 = "^.*ExecuteCallback.*compiler-rt/lib/fuzzer/FuzzerLoop.cpp.*$"
-        match_exc_trace3 = "^.*LLVMFuzzerTestOneInput.*$"
-        match_artifacts = "^artifact_prefix.*Test unit written to (.*)$"
+        match_exc_trace3 = "^.*compiler-rt/lib/.*$"
+        match_exc_trace4 = "^.*LLVMFuzzerTestOneInput.*$"
+        # match_artifacts = "^artifact_prefix.*Test unit written to (.*)$"
+        match_artifacts = "^Running: (.*)$"
         match_oom = "out-of-memory"
 
         backtrace = {}
@@ -175,10 +187,9 @@ class Fuzzer:
         artifact_file = ""
         with open(libFuzzer_log, "r", errors="ignore") as f:
             lines = f.readlines()
-        if self.debug:
+        if self.gdb:
             print("-- [Futag] crash log:\n", "".join(lines))
         for l in lines:
-            # print(l)
             artifact = re.match(match_artifacts, l)
             if artifact:
                 artifact_file = artifact.group(1)
@@ -216,6 +227,8 @@ class Fuzzer:
                         continue
                     if re.match(match_exc_trace3, l):
                         continue
+                    if re.match(match_exc_trace4, l):
+                        continue
                     location = re.match(match_location, trace.group(4))
                     if location:
                         if not crash_line:
@@ -250,7 +263,7 @@ class Fuzzer:
                             role = ""
         if not backtrace:
             return
-        if debug:
+        if gdb:
             match_variable = "^([a-zA-Z_0-9]*) = .*$"
             match_empty = "^(.*) = 0x[0-9]$"
             match_full_ff = "^(.*) = 0x[0-9]$"
@@ -453,6 +466,7 @@ class Fuzzer:
         generated_functions = [x for x in self.fuzz_driver_path.iterdir() if x.is_dir()]
         # for dir in generated_functions:
         for func_dir in generated_functions:
+            self.backtraces = []
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
                 for x in [t for t in dir.glob("*.out") if t.is_file()]:
@@ -516,14 +530,12 @@ class Fuzzer:
                         )
                         output, errors = p.communicate()
                         crashlog_file.close()
-                        # Parsing crash without GDB
-                        self.libFuzzerLog_parser(x.as_posix(), crashlog_filename, 0)
-                        # if self.gdb:
-                        #     print("-- [Futag]: Parsing crashes with GDB: ", x.as_posix())
-                        #     self.libFuzzerLog_parser(x.as_posix(), crashlog_filename, 1)
-                        # else:
-                        #     print("-- [Futag]: Parsing crash without GDB: ", x.as_posix())
-                        #     self.libFuzzerLog_parser(x.as_posix(), crashlog_filename, 0)
+                        if self.gdb:
+                            print("-- [Futag]: Parsing crashes with GDB: ", x.as_posix())
+                            self.libFuzzerLog_parser(x.as_posix(), crashlog_filename, True)
+                        else:
+                            print("-- [Futag]: Parsing crash without GDB: ", x.as_posix())
+                            self.libFuzzerLog_parser(x.as_posix(), crashlog_filename, False)
                     
                     if self.coverage:
                         llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
