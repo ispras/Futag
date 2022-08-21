@@ -20,7 +20,7 @@ import re
 from shutil import which
 from hashlib import md5
 from pathlib import Path
-from subprocess import Popen, PIPE, call, run
+from subprocess import Popen, PIPE, call, run, TimeoutExpired
 from multiprocessing import Pool
 from futag.sysmsg import *
 
@@ -56,7 +56,7 @@ class Fuzzer:
             detecting memory leak, default False
         introspect: bool = False
             option for integrate with fuzz-introspector (to be add soon).
-            
+
         """
 
         self.futag_llvm_package = futag_llvm_package
@@ -71,7 +71,7 @@ class Fuzzer:
             self.fuzz_driver_path = Path(self.fuzz_driver_path).absolute()
         else:
             raise ValueError(INVALID_FUZZ_DRIVER_PATH)
-        
+
         self.svres = svres
         self.leak = leak
         self.debug = debug
@@ -89,7 +89,7 @@ class Fuzzer:
         # Set for backtrace's hashes. If current backtrace's hash is not in set then add this backtrace to backtraces list, otherwise this backtrace will be passed
         self.backtrace_hashes = (
             set()
-        )  
+        )
 
     def get_id_from_error(self, error_string):
         error_id = 0
@@ -108,7 +108,6 @@ class Fuzzer:
         str = str.replace('"', "&quot;")
         str = str.replace("\n", " ")
         return str
-
 
     def get_backtrace_hash(self, backtrace):
         '''
@@ -139,10 +138,10 @@ class Fuzzer:
         for r in backtrace["role_traces"]:
             for s in r["stack"]:
                 input_str += (
-                    str(s["file"]) + str(s["location"]["line"]) + str(s["location"]["col"])
+                    str(s["file"]) + str(s["location"]["line"]) +
+                    str(s["location"]["col"])
                 )
         return hash(str(backtrace["warnID"]) + input_str)
-
 
     def libFuzzerLog_parser(self, fuzz_driver: str, libFuzzer_log: str, gdb: bool = False):
         """
@@ -227,13 +226,14 @@ class Fuzzer:
                         continue
                     if re.match(match_exc_trace3, l):
                         continue
-                    if re.match(match_exc_trace4, l):
-                        continue
+                    # if re.match(match_exc_trace4, l):
+                    #     continue
                     location = re.match(match_location, trace.group(4))
                     if location:
                         if not crash_line:
                             crash_line = location.group(1)
-                        location = {"line": location.group(1), "col": location.group(2)}
+                        location = {"line": location.group(
+                            1), "col": location.group(2)}
                     else:
                         location = {"line": trace.group(4), "col": "0"}
                         if not crash_line:
@@ -264,6 +264,13 @@ class Fuzzer:
         if not backtrace:
             return
         if gdb:
+            """
+            Execute gdb for 3 times:
+            - First time for setting breakpoints and output all args, variables
+            - Second time for getting type of args, variables
+            - Third time for getting value
+            """
+
             match_variable = "^([a-zA-Z_0-9]*) = .*$"
             match_empty = "^(.*) = 0x[0-9]$"
             match_full_ff = "^(.*) = 0x[0-9]$"
@@ -272,6 +279,9 @@ class Fuzzer:
             match_normal = "^(.*) = .*$"
             if backtrace["role_traces"]:
                 count_role_traces = 0
+
+                # !setting breakpoints and output all args, variables
+
                 with open(".gdbinit", "w") as gdbinit:
                     gdbinit.write("file " + fuzz_driver + "\n")
                     gdbinit.write("set args " + artifact_file + "\n")
@@ -306,21 +316,96 @@ class Fuzzer:
                             gdbinit.write("info args" + "\n")
                             gdbinit.write("info local" + "\n")
                             gdbinit.write("set logging off" + "\n")
-                    gdbinit.write("quit")
+                    gdbinit.write("quit\n")
 
                 # https://undo.io/resources/gdb-watchpoint/here-quick-way-pretty-print-structures-gdb/
-                run([
+                try:
+                    run([
                         "gdb",
                         "-q",
                         "-iex",
                         "set auto-load safe-path .",
                     ],
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    universal_newlines=True,
-                    timeout=30,
-                )
+                        # stdout=PIPE,
+                        # stderr=PIPE,
+                        check=True,
+                        universal_newlines=True,
+                        timeout=10,
+                    )
+                except Exception:
+                    print("-- [Futag] Debug with GDB: set breakpoints failed!")
+                # !getting type of args, variables
+                count_role_traces = 0
+                with open(".gdbinit", "w") as gdbinit:
+                    gdbinit.write("file " + fuzz_driver + "\n")
+                    gdbinit.write("set args " + artifact_file + "\n")
+                    gdbinit.write("set pagination off" + "\n")
+                    gdbinit.write("set logging off" + "\n")
 
+                    for trace in backtrace["role_traces"]:
+                        count_role_traces += 1
+                        count_stack = 0
+                        for stack in trace["stack"]:
+                            count_stack += 1
+                            gdbinit.write(
+                                "set logging file types_"
+                                + str(count_role_traces)
+                                + "_"
+                                + str(count_stack)
+                                + "\n"
+                            )
+                            gdbinit.write("set logging overwrite on \n")
+                            gdbinit.write(
+                                "b "
+                                + stack["file"]
+                                + ":"
+                                + stack["location"]["line"]
+                                + "\n"
+                            )
+                            if count_stack == 1:
+                                gdbinit.write("r" + "\n")
+                            else:
+                                gdbinit.write("c" + "\n")
+                            gdbinit.write("set logging on" + "\n")
+                            # read trace file for variables
+                            if Path("trace_" + str(count_role_traces) + "_" + str(count_stack)).exists():
+                                with open(
+                                    "trace_" + str(count_role_traces) +
+                                    "_" + str(count_stack),
+                                    "r",
+                                ) as info_file:
+                                    lines = info_file.readlines()
+
+                            for line in lines:
+                                # match variable
+                                variable = re.match(match_variable, line)
+                                var_name = ""
+                                is_pointer = False
+                                if variable:
+                                    var_name = variable.group(1)
+                                    gdbinit.write('echo ' + var_name + ': \n')
+                                    gdbinit.write("ptype " + var_name + "\n")
+                                    gdbinit.write("echo \n")
+                            gdbinit.write("set logging off" + "\n")
+                    gdbinit.write("quit\n")
+
+                try:
+                    run([
+                            "gdb",
+                            "-q",
+                            "-iex",
+                            "set auto-load safe-path .",
+                        ],
+                        # stdout=PIPE,
+                        # stderr=PIPE,
+                        check=True,
+                        universal_newlines=True,
+                        timeout=10,
+                    )
+                except Exception:
+                    print(
+                        "-- [Futag] Debug with GDB: get types of variables failed!")
+                
                 count_role_traces = 0
                 with open(".gdbinit", "w") as gdbinit:
                     gdbinit.write("file " + fuzz_driver + "\n")
@@ -354,11 +439,23 @@ class Fuzzer:
                                 gdbinit.write("c" + "\n")
                             gdbinit.write("set logging on" + "\n")
                             # read trace file for variables
-                            with open(
-                                "trace_" + str(count_role_traces) + "_" + str(count_stack),
-                                "r",
-                            ) as info_file:
-                                lines = info_file.readlines()
+                            lines = []
+                            types = []
+                            if Path("trace_" + str(count_role_traces) + "_" + str(count_stack)).exists():
+                                with open(
+                                    "trace_" + str(count_role_traces) +
+                                    "_" + str(count_stack),
+                                    "r",
+                                ) as info_file:
+                                    lines = info_file.readlines()
+
+                            if Path("types_" + str(count_role_traces) + "_" + str(count_stack)).exists():
+                                with open(
+                                    "types_" + str(count_role_traces) +
+                                    "_" + str(count_stack),
+                                    "r",
+                                ) as types_file:
+                                    types = types_file.readlines()
 
                             for line in lines:
                                 # match variable
@@ -374,27 +471,48 @@ class Fuzzer:
                                         is_pointer = False
                                     if re.match(match_error_gdb, line):
                                         is_pointer = False
-                                    gdbinit.write('output "value of ' + var_name + ':" \n')
+                                    gdbinit.write(
+                                        'output "value of ' + var_name + ':" \n')
                                     if is_pointer:
-                                        gdbinit.write("output *" + var_name + " \n")
-                                        gdbinit.write('output "; "' + "\n")
+                                        check_void = False
+                                        for t in types:
+
+                                            split_types = t.split(':')
+                                            if len(split_types) < 2:
+                                                continue
+                                            var_name_in_types = split_types[0]
+                                            var_type_in_types = split_types[1].split(" = ")[
+                                                1].strip()
+                                            if var_name_in_types == var_name and var_type_in_types == "void *":
+                                                check_void = True
+                                        if not check_void:
+                                            gdbinit.write(
+                                                "output *" + var_name + " \n")
+                                            gdbinit.write('output "; "' + "\n")
                                     else:
-                                        gdbinit.write("output " + var_name + " \n")
+                                        gdbinit.write(
+                                            "output " + var_name + " \n")
                                         gdbinit.write('output "; "' + "\n")
                             gdbinit.write("set logging off" + "\n")
-                    gdbinit.write("quit")
-                run([
-                        "gdb",
-                        "-q",
-                        "-iex",
-                        "set auto-load safe-path .",
-                    ],
-                    stdout=PIPE,
-                    stderr=PIPE,
-                    universal_newlines=True,
-                    timeout=30,
-                )
-
+                    gdbinit.write("quit\n")
+                # p = Popen(
+                try:
+                    run(
+                        [
+                            "gdb",
+                            "-q",
+                            "-iex",
+                            "set auto-load safe-path .",
+                        ],
+                        # stdout=PIPE,
+                        # stderr=PIPE,
+                        check=True,
+                        universal_newlines=True,
+                        timeout=10,
+                    )
+                    # output, errors = p.communicate()
+                except:
+                    print("-- [Futag] Debug with GDB: get values failed!")
                 count_role_traces = 0
                 for trace in backtrace["role_traces"]:
                     count_role_traces += 1
@@ -402,13 +520,15 @@ class Fuzzer:
                     for stack in trace["stack"]:
                         count_stack += 1
                         info = ""
-                        with open(
-                            "values_" + str(count_role_traces) + "_" + str(count_stack), "r"
-                        ) as info_file:
-                            lines = info_file.read()
+                        if Path("values_" + str(count_role_traces) + "_" + str(count_stack)).exists():
+                            with open(
+                                "values_" + str(count_role_traces) +
+                                "_" + str(count_stack), "r"
+                            ) as info_file:
+                                lines = info_file.read()
 
-                        for line in lines:
-                            info += self.futag_escape(line)
+                            for line in lines:
+                                info += self.futag_escape(line)
                         stack["info"] = info
         hash_backtrace = self.get_backtrace_hash(backtrace)
         if not hash_backtrace in self.backtrace_hashes:
@@ -459,11 +579,13 @@ class Fuzzer:
                     + '</traces><userAttributes class="tree-map"><entry><string>.comment</string><string></string></entry><entry><string>.status</string><string>Default</string></entry></userAttributes></WarnInfoEx>'
                 )
             os.system("rm -f values_*")
+            os.system("rm -f types_*")
             os.system("rm -f trace_*")
 
     def fuzz(self):
         symbolizer = self.futag_llvm_package / "bin/llvm-symbolizer"
-        generated_functions = [x for x in self.fuzz_driver_path.iterdir() if x.is_dir()]
+        generated_functions = [
+            x for x in self.fuzz_driver_path.iterdir() if x.is_dir()]
         # for dir in generated_functions:
         for func_dir in generated_functions:
             self.backtraces = []
@@ -503,7 +625,8 @@ class Fuzzer:
                             "-artifact_prefix=" + dir.as_posix() + "/",
                         ]
                     if self.debug:
-                        print("-- [Futag] FUZZING command:" + " ".join(execute_command))
+                        print("-- [Futag] FUZZING command:" +
+                              " ".join(execute_command))
 
                     # print(" ".join(execute_command))
                     p = call(
@@ -516,7 +639,8 @@ class Fuzzer:
 
                     # 2. Find all crash-* leak-* ... in artifact folder
                     # print(dir.as_posix())
-                    crashes_files = [x for x in dir.glob("**/crash-*") if x.is_file()]
+                    crashes_files = [x for x in dir.glob(
+                        "**/crash-*") if x.is_file()]
                     for cr in crashes_files:
                         getlog_command = [x.as_posix(), cr.as_posix()]
                         crashlog_filename = dir.as_posix() + "/" + cr.stem + ".log"
@@ -531,12 +655,16 @@ class Fuzzer:
                         output, errors = p.communicate()
                         crashlog_file.close()
                         if self.gdb:
-                            print("-- [Futag]: Parsing crashes with GDB: ", x.as_posix())
-                            self.libFuzzerLog_parser(x.as_posix(), crashlog_filename, True)
+                            print(
+                                "-- [Futag]: Parsing crashes with GDB: ", x.as_posix())
+                            self.libFuzzerLog_parser(
+                                x.as_posix(), crashlog_filename, True)
                         else:
-                            print("-- [Futag]: Parsing crash without GDB: ", x.as_posix())
-                            self.libFuzzerLog_parser(x.as_posix(), crashlog_filename, False)
-                    
+                            print(
+                                "-- [Futag]: Parsing crash without GDB: ", x.as_posix())
+                            self.libFuzzerLog_parser(
+                                x.as_posix(), crashlog_filename, False)
+
                     if self.coverage:
                         llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
                         llvm_profdata_command = [
@@ -601,10 +729,12 @@ class Fuzzer:
             with template_file.open() as tmpl:
                 lines = tmpl.read()
             lines = lines.replace("WARNING_INFO", warning_info_text)
-            lines = lines.replace("WARNINGINFO_EXPLAINATION", warning_info_ex_text)
+            lines = lines.replace(
+                "WARNINGINFO_EXPLAINATION", warning_info_ex_text)
             warning_info_path.unlink()
             warning_info_ex_path.unlink()
             with open((self.fuzz_driver_path / "futag.svres").as_posix(), "w") as svres:
                 svres.write(lines)
-            print("-- [Futag] Please import file ", (self.fuzz_driver_path / "futag.svres").as_posix(), " to Svace project to view result!")
+            print("-- [Futag] Please import file ", (self.fuzz_driver_path /
+                  "futag.svres").as_posix(), " to Svace project to view result!")
         print("============ FINISH ============")

@@ -369,7 +369,7 @@ class Builder:
         for jf in decl_files:
             functions = json.load(open(jf.as_posix()))
             if functions is None:
-                print(" -- Error: loading json from file: %s" %
+                print(" -- Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
             # get global hash of all functions
@@ -384,7 +384,7 @@ class Builder:
         for jf in context_files:
             contexts = json.load(open(jf.as_posix()))
             if contexts is None:
-                print(" -- Error: loading json from file: %s" %
+                print(" -- Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
             # get global hash of all functions

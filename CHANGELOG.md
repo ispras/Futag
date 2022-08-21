@@ -22,7 +22,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fix for svace analysing
 - add first version of fuzzer and result of Fuzzing for Svace
 
-## 20220808
+## 20220811
+- Fix bug in generator
+- Add pre release package
+- Fix document
+
+## 20220821
 - Fix bug in generator
 - Add release package
 - Fix document
