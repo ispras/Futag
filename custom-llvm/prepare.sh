@@ -45,6 +45,19 @@ then
 fi
 mv clang-11.1.0.src clang
 
+# # Download clang-tools-extra source code
+# if ! [ -f "clang-tools-extra-11.1.0.src.tar.xz" ]
+# then
+#     wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.1.0/clang-tools-extra-11.1.0.src.tar.xz
+# fi
+
+# tar xf clang-tools-extra-11.1.0.src.tar.xz
+# if [ -d "clang-tools-extra" ]
+# then
+#     rm -rf clang-tools-extra
+# fi
+# mv clang-tools-extra-11.1.0.src clang-tools-extra
+
 # Download compiler-rt source code
 if ! [ -f "compiler-rt-11.1.0.src.tar.xz" ]
 then
