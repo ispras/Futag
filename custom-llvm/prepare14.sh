@@ -25,24 +25,28 @@ if ! [ -f "llvm-14.0.6.src.tar.xz" ]
 then
     wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/llvm-14.0.6.src.tar.xz
 fi
+
 tar xf llvm-14.0.6.src.tar.xz
+
 if [ -d "llvm" ]
 then
     rm -rf llvm
 fi
-mv llvm-14.0.6.src.tar.xz llvm
+mv llvm-14.0.6.src llvm
 
 # Download clang source code
 if ! [ -f "clang-14.0.6.src.tar.xz" ]
 then
-    wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/clang-14.0.6.src.tar.xz
-
-tar xf clang-14.0.6.src.tar.xz
-if [ -d "clang" ]
-then
-    rm -rf clang
+    wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/clang-14.0.6.src.tar.xz 
 fi
-mv clang-14.0.6.src.tar.xz clang
+
+tar xf clang-14.0.6.src.tar.xz 
+
+if [ -d "clang" ] 
+then
+    rm -rf clang 
+fi
+mv clang-14.0.6.src clang
 
 # # Download clang-tools-extra source code
 # if ! [ -f "clang-tools-extra-11.1.0.src.tar.xz" ]
@@ -68,7 +72,7 @@ if [ -d "compiler-rt" ]
 then
     rm -rf compiler-rt
 fi
-mv compiler-rt-14.0.6.src.tar.xz compiler-rt
+mv compiler-rt-14.0.6.src compiler-rt
 
 #create build folder and copy script
 if [ -d "../build" ]
