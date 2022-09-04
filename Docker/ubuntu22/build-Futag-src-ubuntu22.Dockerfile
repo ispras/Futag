@@ -19,10 +19,11 @@ USER futag
 WORKDIR /home/futag/
 
 RUN git clone https://github.com/ispras/Futag.git
-WORKDIR /home/futag/Futag
-RUN git checkout testing-libs
+# WORKDIR /home/futag/Futag
+# RUN git checkout testing-libs
 WORKDIR /home/futag/Futag/custom-llvm
-RUN ./prepare14.sh
+RUN ./prepare.sh
+ADD build.sh /home/futag/Futag/build
 WORKDIR /home/futag/Futag/build
 RUN ./build.sh
 
