@@ -136,11 +136,8 @@ class Builder:
         """
         # Config with cmake
         my_env = os.environ.copy()
-<<<<<<< HEAD
         print(LIB_ANALYSIS_STARTED)
         
-=======
->>>>>>> 30d8648c9a945d03f54e8f48079a10b971e4a443
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         config_cmd = [
@@ -153,11 +150,6 @@ class Builder:
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
-<<<<<<< HEAD
-=======
-        
-        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
->>>>>>> 30d8648c9a945d03f54e8f48079a10b971e4a443
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
