@@ -34,8 +34,11 @@ GDB_NOT_FOUND = "-- [Futag]: GDB is not found in your system, Futag can not debu
 LIB_CONFIGURE_FAILED = "--Configure library failed, please build it your own!"
 LIB_CONFIGURE_SUCCEEDED = "-- [Futag]: Library was configured successfully!"
 LIB_ANALYSIS_STARTED = "-- [Futag]: Starting analyzing: "
+<<<<<<< HEAD
 LIB_ANALYZING_FAILED = "-- [Futag]: Analyzing failed"
 LIB_ANALYZING_SUCCEEDED = "-- [Futag]: Analyzing succeeded"
+=======
+>>>>>>> 30d8648c9a945d03f54e8f48079a10b971e4a443
 LIB_CONFIGURE_COMMAND = "-- [Futag]: Configure command: "
 LIB_BUILD_FAILED = "-- [Futag]: Build library failed, please build it your own!"
 LIB_BUILD_START = "-- [Futag]: Start building your library!"

@@ -136,8 +136,11 @@ class Builder:
         """
         # Config with cmake
         my_env = os.environ.copy()
+<<<<<<< HEAD
         print(LIB_ANALYSIS_STARTED)
         
+=======
+>>>>>>> 30d8648c9a945d03f54e8f48079a10b971e4a443
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         config_cmd = [
@@ -150,6 +153,11 @@ class Builder:
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+<<<<<<< HEAD
+=======
+        
+        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
+>>>>>>> 30d8648c9a945d03f54e8f48079a10b971e4a443
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
@@ -247,7 +255,11 @@ class Builder:
         os.chdir(self.build_path.as_posix())
 
         my_env = os.environ.copy()
+<<<<<<< HEAD
         print(LIB_ANALYSIS_STARTED)
+=======
+        
+>>>>>>> 30d8648c9a945d03f54e8f48079a10b971e4a443
         config_cmd = [
             # (self.futag_llvm_package / 'bin/scan-build').as_posix(),
             (self.library_root / "configure").as_posix(),
@@ -256,11 +268,19 @@ class Builder:
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+<<<<<<< HEAD
         
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
             raise ValueError(LIB_ANALYZING_FAILED)
+=======
+        print(LIB_ANALYSIS_STARTED)
+        output, errors = p.communicate()
+        if p.returncode:
+            print(errors)
+            raise ValueError(LIB_CONFIGURE_FAILED)
+>>>>>>> 30d8648c9a945d03f54e8f48079a10b971e4a443
 
         # Build the library
         p = Popen([
@@ -277,7 +297,11 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
+<<<<<<< HEAD
             raise ValueError(LIB_ANALYZING_FAILED)
+=======
+            raise ValueError(LIB_ANALYZING_FAILD)
+>>>>>>> 30d8648c9a945d03f54e8f48079a10b971e4a443
         else:
             print(LIB_ANALYZING_SUCCEEDED)
 
