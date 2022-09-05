@@ -136,25 +136,19 @@ class Builder:
         """
         # Config with cmake
         my_env = os.environ.copy()
-        my_env["CFLAGS"] = self.flags
-        my_env["CPPFLAGS"] = self.flags
-        my_env["LDFLAGS"] = self.flags
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         config_cmd = [
             (self.futag_llvm_package / "bin/scan-build").as_posix(),
             "cmake",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
-            f"-DCMAKE_CXX_FLAGS='{self.flags}'",
-            # f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
-            # f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
-            f"-DCMAKE_C_FLAGS='{self.flags}'",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        
         print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
@@ -183,26 +177,21 @@ class Builder:
         else:
             print(LIB_BUILD_SUCCEEDED)
         
-        # Doing make clean
-        p = Popen([
-            "make",
-            "clean",
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
-        output, errors = p.communicate()
-        if p.returncode:
-            print(errors)
-            print(LIB_CLEAN_FAILED)
-        else:
-            print(LIB_CLEAN_SUCCEEDED)
-
         os.chdir(curr_dir)
+        delete_folder(self.build_path)
+        (self.build_path).mkdir(parents=True, exist_ok=True)
+        os.chdir(self.build_path.as_posix())
+        my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
+        my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
+        my_env["CFLAGS"] = self.coverage_flags
+        my_env["CPPFLAGS"] = self.coverage_flags
+        my_env["LDFLAGS"] = self.coverage_flags
         config_cmd = [
-            # (self.futag_llvm_package / "bin/scan-build").as_posix(),
             "cmake",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
             f"-DCMAKE_CXX_FLAGS='{self.coverage_flags}'",
-            f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
-            f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
+            # f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
+            # f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
             f"-DCMAKE_C_FLAGS='{self.coverage_flags}'",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
@@ -220,10 +209,6 @@ class Builder:
         
         os.chdir(self.build_path.as_posix())
         # Doing make for building
-        my_env = os.environ.copy()
-        my_env["CFLAGS"] = self.coverage_flags
-        my_env["CPPFLAGS"] = self.coverage_flags
-        my_env["LDFLAGS"] = self.coverage_flags
 
         p = Popen([
             "make",
@@ -262,11 +247,6 @@ class Builder:
         os.chdir(self.build_path.as_posix())
 
         my_env = os.environ.copy()
-        # my_env["CFLAGS"] = self.flags
-        # my_env["CPPFLAGS"] = self.flags
-        # my_env["LDFLAGS"] = self.flags
-        # my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
-        # my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         
         config_cmd = [
             # (self.futag_llvm_package / 'bin/scan-build').as_posix(),
@@ -276,13 +256,11 @@ class Builder:
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
-        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
+        print(LIB_ANALYSIS_STARTED)
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
             raise ValueError(LIB_CONFIGURE_FAILED)
-        else:
-            print(LIB_CONFIGURE_SUCCEEDED)
 
         # Build the library
         p = Popen([
@@ -295,11 +273,11 @@ class Builder:
             "-j" + str(self.processes)
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
         
-        print(LIB_BUILD_COMMAND, " ".join(p.args))
+        print(LIB_ANALYZING_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_BUILD_FAILED)
+            raise ValueError(LIB_ANALYZING_FAILD)
         else:
             print(LIB_BUILD_SUCCEEDED)
 

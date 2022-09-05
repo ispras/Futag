@@ -43,7 +43,7 @@ then
     mkdir $futag_install_folder
 fi
 
-cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_EXTERNAL_PROJECTS="clang;compiler-rt;" -DLLVM_EXTERNAL_CLANG_SOURCE_DIR=$custom_llvm/clang  -DLLVM_EXTERNAL_COMPILER_RT_SOURCE_DIR=$custom_llvm/compiler-rt $custom_llvm/llvm
+cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_INCLUDE_BENCHMARKS=OFF  -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_EXTERNAL_PROJECTS="clang;compiler-rt;" -DLLVM_EXTERNAL_CLANG_SOURCE_DIR=$custom_llvm/clang  -DLLVM_EXTERNAL_COMPILER_RT_SOURCE_DIR=$custom_llvm/compiler-rt $custom_llvm/llvm
 
 make -j16 && make -j16 install
 mkdir $futag_install_folder/python-package
