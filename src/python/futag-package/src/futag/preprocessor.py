@@ -15,14 +15,10 @@
 """
 import json
 import pathlib
-import copy
 import os
 
 from futag.sysmsg import *
-
-from subprocess import Popen, PIPE, call
-from multiprocessing import Pool
-from typing import List
+from subprocess import Popen, PIPE
 
 def delete_folder(pth):
     """
@@ -42,7 +38,7 @@ def delete_folder(pth):
 class Builder:
     """Futag Builder Class"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =16, build_ex_params=BUILD_EX_PARAMS):
+    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping", clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =16, build_ex_params=BUILD_EX_PARAMS):
         """
         Parameters
         ----------
@@ -50,6 +46,8 @@ class Builder:
             (*required) path to the futag llvm package (with binaries, scripts, etc)
         library_root: str
             (*required) path to the library root
+        flags: str
+            flags for compiling. Default to "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
         clean: bool
             Option for deleting futag folders if they are exist (futag-build, futag-install, futag-analysis)
         build_path: str
@@ -104,9 +102,7 @@ class Builder:
 
         (self.library_root / analysis_path).mkdir(parents=True, exist_ok=True)
         self.analysis_path = self.library_root / analysis_path
-
-        self.flags = "-fsanitize=address -g -O0 "
-        self.coverage_flags = "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping "
+        self.flags = flags
         self.build_ex_params = build_ex_params
 
     def auto_build(self) -> int:
@@ -142,6 +138,18 @@ class Builder:
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         config_cmd = [
             (self.futag_llvm_package / "bin/scan-build").as_posix(),
+            "-disable-checker",
+            "core",
+            "-disable-checker",
+            "security",
+            "-disable-checker",
+            "unix",
+            "-disable-checker",
+            "deadcode",
+            "-disable-checker",
+            "nullability",
+            "-disable-checker",
+            "cplusplus",
             "cmake",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
             f"-B{(self.build_path).as_posix()}",
@@ -162,6 +170,18 @@ class Builder:
         # Doing make for analysis
         p = Popen([
             (self.futag_llvm_package / "bin/scan-build").as_posix(),
+            "-disable-checker",
+            "core",
+            "-disable-checker",
+            "security",
+            "-disable-checker",
+            "unix",
+            "-disable-checker",
+            "deadcode",
+            "-disable-checker",
+            "nullability",
+            "-disable-checker",
+            "cplusplus",
             "-enable-checker",
             "futag.FutagFunctionAnalyzer",
             "-analyzer-config",
@@ -183,16 +203,16 @@ class Builder:
         os.chdir(self.build_path.as_posix())
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-        my_env["CFLAGS"] = self.coverage_flags
-        my_env["CPPFLAGS"] = self.coverage_flags
-        my_env["LDFLAGS"] = self.coverage_flags
+        my_env["CFLAGS"] = self.flags
+        my_env["CPPFLAGS"] = self.flags
+        my_env["LDFLAGS"] = self.flags
         config_cmd = [
             "cmake",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
-            f"-DCMAKE_CXX_FLAGS='{self.coverage_flags}'",
+            f"-DCMAKE_CXX_FLAGS='{self.flags}'",
             # f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
             # f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
-            f"-DCMAKE_C_FLAGS='{self.coverage_flags}'",
+            f"-DCMAKE_C_FLAGS='{self.flags}'",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
@@ -205,6 +225,7 @@ class Builder:
             print(errors)
             raise ValueError(LIB_CONFIGURE_FAILED)
         else:
+            print(output)
             print(LIB_CONFIGURE_SUCCEEDED)
         
         os.chdir(self.build_path.as_posix())
@@ -220,6 +241,7 @@ class Builder:
             print(errors)
             print(LIB_BUILD_FAILED)
         else:
+            print(output)
             print(LIB_BUILD_SUCCEEDED)
 
         # Doing make install
@@ -234,6 +256,7 @@ class Builder:
             print(errors)
             print(LIB_INSTALL_FAILED)
         else:
+            print(output)
             print(LIB_INSTALL_SUCCEEDED)
 
         os.chdir(curr_dir)
@@ -246,32 +269,56 @@ class Builder:
         curr_dir = os.getcwd()
         os.chdir(self.build_path.as_posix())
 
-        my_env = os.environ.copy()
         print(LIB_ANALYSIS_STARTED)
         config_cmd = [
-            # (self.futag_llvm_package / 'bin/scan-build').as_posix(),
+            (self.futag_llvm_package / 'bin/scan-build').as_posix(),
+            "-disable-checker",
+            "core",
+            "-disable-checker",
+            "security",
+            "-disable-checker",
+            "unix",
+            "-disable-checker",
+            "deadcode",
+            "-disable-checker",
+            "nullability",
+            "-disable-checker",
+            "cplusplus",
             (self.library_root / "configure").as_posix(),
             f"--prefix=" + self.install_path.as_posix(),
         ]
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
-        p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True)
         
+        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
             raise ValueError(LIB_ANALYZING_FAILED)
 
-        # Build the library
+        # Analyzing the library
         p = Popen([
             (self.futag_llvm_package / 'bin/scan-build').as_posix(),
+            "-disable-checker",
+            "core",
+            "-disable-checker",
+            "security",
+            "-disable-checker",
+            "unix",
+            "-disable-checker",
+            "deadcode",
+            "-disable-checker",
+            "nullability",
+            "-disable-checker",
+            "cplusplus",
             "-enable-checker",
             "futag.FutagFunctionAnalyzer",
             "-analyzer-config",
             "futag.FutagFunctionAnalyzer:report_dir=" + self.analysis_path.as_posix(),
             "make",
             "-j" + str(self.processes)
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
         
         print(LIB_ANALYZING_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
@@ -281,16 +328,16 @@ class Builder:
         else:
             print(LIB_ANALYZING_SUCCEEDED)
 
+        # Doing make for building
         os.chdir(curr_dir)
         delete_folder(self.build_path)
         (self.build_path).mkdir(parents=True, exist_ok=True)
         os.chdir(self.build_path.as_posix())
-        # Doing make for building
 
         my_env = os.environ.copy()
-        my_env["CFLAGS"] = self.coverage_flags
-        my_env["CPPFLAGS"] = self.coverage_flags
-        my_env["LDFLAGS"] = self.coverage_flags
+        my_env["CFLAGS"] = self.flags
+        my_env["CPPFLAGS"] = self.flags
+        my_env["LDFLAGS"] = self.flags
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
 
@@ -308,6 +355,7 @@ class Builder:
             print(errors)
             raise ValueError(LIB_CONFIGURE_FAILED)
         else:
+            print(output)
             print(LIB_CONFIGURE_SUCCEEDED)
 
         p = Popen([
@@ -320,6 +368,7 @@ class Builder:
             print(errors)
             print(LIB_BUILD_FAILED)
         else:
+            print(output)
             print(LIB_BUILD_SUCCEEDED)
 
         # Doing make install
@@ -334,6 +383,7 @@ class Builder:
             print(errors)
             raise ValueError(LIB_INSTALL_FAILED)
         else:
+            print(output)
             print(LIB_INSTALL_SUCCEEDED)
             
         os.chdir(curr_dir)
