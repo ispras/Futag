@@ -1,20 +1,20 @@
-# Играть с Futag
+# Краткое руководство по использованию Futag
 
-## Как Futag собирает вашу тестируемую библиотеку автоматически 
+## Описание процесса автоматической сборки Futag тестируемой библиотеки
 
-Для того, чтобы создать фаззинг-обертки для функций в библиотеке, Futag запускает статистический анализ во время компиляции данной библиотеки. Этот процесс реализуется автоматически шагами:
-1. создать в каталоге исходного кода библиотеки папку futag-build
-2. перейти в папку futag-build
-3. запустить configure или cmake в папке futag-build с заданными аргументами (install_path, build_ex_params, и т.д.)
-4. запустить make в сфере scan-build с чекером futag.FutagFunctionAnalyzer чтобы извлечь зависимости в папку analysis_path
-5. очистить собранные файлы
-6. запустить make с параметрами flags (по умолчанию: "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping" - AddressSanitizer, debug, without optimization, information generation for coverage) чтобы собрать отладочную информацию и покрытие
+Для создания фаззинг-оберток для функций в библиотеке, Futag запускает статический анализ во время компиляции данной библиотеки. Этот процесс выполняется Futag автоматически и состоит из следующих шагов:
+1. в каталоге исходного кода библиотеки создается папка futag-build
+2. осуществляется переход в папку futag-build
+3. в папке futag-build запускается configure или cmake с заданными аргументами (install_path, build_ex_params, и т.д.)
+4. запускается make (в сфере scan-build с чекером futag.FutagFunctionAnalyzer), зависимости извлекаются и сохраняются в папку analysis_path
+5. выполняется удаление собранных файлов
+6. запускается make с параметрами flags. По умолчанию параметры имеют значение: "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping" - AddressSanitizer, debug, without optimization, information generation for coverage) - в результате сборки с параметрами по умолчанию формируется фаззинг-цель, включающая опции сбора отладочной информации и покрытия.
 7. запустить make install чтобы установить библиотеку в пользовательскую папку.
 
-Есть возможность объединить [4] и [6] но scan-build не собирает с флагами "-fprofile-instr-generate -fcoverage-mapping" соответственно отсутствует информация о покрытии.
+Есть возможность объединить шаги [4] и [6], но scan-build не собирает с флагами "-fprofile-instr-generate -fcoverage-mapping", соответственно в собранной цели будет отсутстовать инструментация, позволяющая собирать информацию о покрытии.
 
-## Написать эффективный python-скрипт
-Документация python-пакета можно посмотреть [по ссылке](https://github.com/ispras/Futag/tree/main/src/python/futag-package).
+## Как написать python-скрипт работы с Futag
+Полную документацию python-модуля в составе Futag можно посмотреть [по ссылке](https://github.com/ispras/Futag/tree/main/src/python/futag-package).
 
 Класс Builder принимает следующие параметры:
 ```python
@@ -59,7 +59,7 @@ lib_test.analyze()
 ```
 *path/to/library/source/code* можно задавать как ".", "~/", и т.д.
 
-Если вы хотите скомпилировать библиотеку со своим флагами, то задавайте с помощью параметра *flags*.
+Если вы хотите скомпилировать библиотеку со своим флагами, вы сможете задать их с помощью параметра *flags*.
 ```python
 lib_test = Builder(
     "/path/to/futag-llvm-package/", 
@@ -68,7 +68,7 @@ lib_test = Builder(
 )
 ```
 
-Если вы повторно запускаете Futag в каталоге исходного кода библиотеки, задав параметр *clean=True* вы можете назначить удаление сгенерированных раньше папок futag-build, futag-install и futag-analysis.
+Если вы повторно запускаете Futag в каталоге исходного кода библиотеки, задав параметр *clean=True* вы можете принудительно удалить сгенерированные ранее папки futag-build, futag-install и futag-analysis.
 ```python
 lib_test = Builder(
     "/path/to/futag-llvm-package/", 
