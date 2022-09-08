@@ -57,12 +57,12 @@ FUTAG во время работы использует статический �
 # package futag must be already installed
 from futag.preprocessor import *
 
-json0_13 = Builder(
+testing_lib = Builder(
     "Futag/futag-llvm-package/", # path to the futag-llvm-package
     "json-c-json-c-0.13.1-20180305" # library root
 )
-json0_13.auto_build()
-json0_13.analyze()
+testing_lib.auto_build()
+testing_lib.analyze()
 ```
 
 - Генерация и компиляция драйверов
@@ -73,7 +73,7 @@ from futag.generator import *
 
 g = Generator(
 "Futag/futag-llvm-package/", # path to the futag-llvm-package
-"json-c-json-c-0.13.1-20180305" # library root
+"path/to/library/source/code" # library root
 )
 
 # Generate fuzz drivers

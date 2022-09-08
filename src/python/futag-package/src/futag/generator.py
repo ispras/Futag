@@ -697,9 +697,9 @@ class Generator:
         Parameters
         ----------
         makefile: bool
-            option for generating makefile (Makefile.futag)
+            option for generating makefile (Makefile.futag), default to True.
         workers: int
-            number of processes for compiling
+            number of processes for compiling, default to 4.
         """
         include_subdir: List[pathlib.Path] = [x for x in (self.library_root).iterdir() if x.is_dir()]
         include_subdir = include_subdir + \

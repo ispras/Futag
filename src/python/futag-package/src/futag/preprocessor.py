@@ -38,7 +38,7 @@ def delete_folder(pth):
 class Builder:
     """Futag Builder Class"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping", clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =16, build_ex_params=BUILD_EX_PARAMS):
+    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = COMPILER_FLAGS, clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =4, build_ex_params=BUILD_EX_PARAMS):
         """
         Parameters
         ----------
@@ -49,15 +49,15 @@ class Builder:
         flags: str
             flags for compiling. Default to "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
         clean: bool
-            Option for deleting futag folders if they are exist (futag-build, futag-install, futag-analysis)
+            Option for deleting futag folders if they are exist, default to False (futag-build, futag-install, futag-analysis)
         build_path: str
-            path to the build directory. This directory will be deleted and create again if clean set to True.
+            path to the build directory, default to "futag-build". This directory will be deleted and create again if clean set to True.
         install_path: str
-            path to the install directory. Be careful, this directory will be deleted and create again if clean set to True.
+            path to the install directory, default to "futag-install". Be careful, this directory will be deleted and create again if clean set to True.
         analysis_path: str
-            path for saving report of analysis. This directory will be deleted and create again if clean set to True.
+            path for saving report of analysis, default to "futag-analysis". This directory will be deleted and create again if clean set to True.
         processes: int
-            number of processes while building.
+            number of processes while building, default to 4.
         build_ex_params: str
             extra params for building, for example "--with-openssl" for building curl
         """
@@ -133,7 +133,9 @@ class Builder:
         # Config with cmake
         my_env = os.environ.copy()
         print(LIB_ANALYSIS_STARTED)
-        
+        if self.build_path.resolve() == self.library_root.resolve():
+            raise ValueError(CMAKE_PATH_ERROR)
+
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         config_cmd = [
@@ -201,21 +203,24 @@ class Builder:
         delete_folder(self.build_path)
         (self.build_path).mkdir(parents=True, exist_ok=True)
         os.chdir(self.build_path.as_posix())
-        my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
-        my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-        my_env["CFLAGS"] = self.flags
-        my_env["CPPFLAGS"] = self.flags
-        my_env["LDFLAGS"] = self.flags
+
         config_cmd = [
             "cmake",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
             f"-DCMAKE_CXX_FLAGS='{self.flags}'",
-            # f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
-            # f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
+            f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
+            f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
             f"-DCMAKE_C_FLAGS='{self.flags}'",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
+
+        # my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
+        # my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
+        # my_env["CFLAGS"] = self.flags
+        # my_env["CPPFLAGS"] = self.flags
+        # my_env["LDFLAGS"] = self.flags
+
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
@@ -329,10 +334,12 @@ class Builder:
             print(LIB_ANALYZING_SUCCEEDED)
 
         # Doing make for building
-        os.chdir(curr_dir)
-        delete_folder(self.build_path)
-        (self.build_path).mkdir(parents=True, exist_ok=True)
-        os.chdir(self.build_path.as_posix())
+        p = Popen([
+            "make",
+            "distclean",
+        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        
+        output, errors = p.communicate()
 
         my_env = os.environ.copy()
         my_env["CFLAGS"] = self.flags
@@ -347,7 +354,8 @@ class Builder:
         ]
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
-        p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        # p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True)
 
         output, errors = p.communicate()
         print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
@@ -362,11 +370,12 @@ class Builder:
             "make",
             "-j" + str(self.processes)
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
-
+        
+        print(LIB_BUILD_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            print(LIB_BUILD_FAILED)
+            raise ValueError(LIB_BUILD_FAILED)
         else:
             print(output)
             print(LIB_BUILD_SUCCEEDED)

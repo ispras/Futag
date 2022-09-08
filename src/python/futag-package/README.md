@@ -65,18 +65,21 @@ For more parameters of Builder please refer to docstring of this class.
     |          (*required) path to the futag llvm package (with binaries, scripts, etc)
     |      library_root: str
     |          (*required) path to the library root
+    |      flags: str
+    |          flags for compiling. Default to "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
     |      clean: bool
-    |          Option for deleting futag folders if they are exist (futag-build, futag-install, futag-analysis)
+    |          Option for deleting futag folders if they are exist, default to False (futag-build, futag-install, futag-analysis)
     |      build_path: str
-    |          path to the build directory. This directory will be deleted and create again if clean set to True.
+    |          path to the build directory, default to "futag-build". This directory will be deleted and create again if clean set to True.
     |      install_path: str
-    |          path to the install directory. Be careful, this directory will be deleted and create again if clean set to True.
+    |          path to the install directory, default to "futag-install". Be careful, this directory will be deleted and create again if clean set to True.
     |      analysis_path: str
-    |          path for saving report of analysis. This directory will be deleted and create again if clean set to True.
+    |          path for saving report of analysis, default to "futag-analysis". This directory will be deleted and create again if clean set to True.
     |      processes: int
-    |          number of processes while building.
+    |          number of processes while building, default to 4.
     |      build_ex_params: str
     |          extra params for building, for example "--with-openssl" for building curl
+
     |  
     |  analyze(self)
     |      This function reads analysis result of Futag checker
@@ -113,37 +116,47 @@ The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the l
 
 ```bash
     class Generator(builtins.object)
-     |  Generator(json_file: str, futag_llvm_package: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
-     |  
-     |  Futag Generator
-     |  
-     |  Methods defined here:
-     |  
-     |  __init__(self, json_file: str, futag_llvm_package: str, library_root: str, output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
-     |      Parameters
-     |      ----------
-     |      json_file: str
-     |          path to the futag-analysis-result.json file
-     |      futag_llvm_package: str
-     |          path to the futag llvm package (with binaries, scripts, etc)
-     |      library_root: str
-     |          path to the library root
-     |      output_path : str
-     |          where to save fuzz-drivers, default to "futag-fuzz-drivers".
-     |      build_path: str
-     |          path to the build directory, default to "futag-build".
-     |      install_path: str
-     |          path to the install directory, default to "futag-install".
-     |
-     |
-     |  compile_targets(self, makefile: bool = True, workers: int = 4)
-     |      Parameters
-     |      ----------
-     |      makefile: bool
-     |          option for generating makefile (Makefile.futag)
-     |      workers: int
-     |          number of processes for compiling
-     |  ----------------------------------------------------------------------
+    |  Futag Generator
+    |  
+    |  Methods defined here:
+    |  
+    |  __init__(self, futag_llvm_package:str, library_root:str, json_file:str='futag-analysis/futag-analysis-result.json', output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
+    |      Parameters
+    |      ----------
+    |      json_file: str
+    |          path to the futag-analysis-result.json file
+    |      futag_llvm_package: str
+    |          path to the futag llvm package (with binaries, scripts, etc)
+    |      library_root: str
+    |          path to the library root
+    |      output_path : str
+    |          where to save fuzz-drivers, if this path exists, Futag will delete it and create new one, default "futag-fuzz-drivers"
+    |      build_path: str
+    |          path to the build directory.
+    |      install_path: str
+    |          path to the install directory.
+    |  
+    |  check_gen_function(self, function)
+    |      Check if we can initialize argument as function call
+    |  
+    |  compile_driver_worker(self, bgen_args)
+    |  
+    |  compile_targets(self, makefile:bool=True, workers:int=4)
+    |      Parameters
+    |      ----------
+    |      makefile: bool
+    |          option for generating makefile (Makefile.futag), default to True.
+    |      workers: int
+    |          number of processes for compiling, default to 4.
+    |
+    |  compile_targets(self, makefile: bool = True, workers: int = 4)
+    |      Parameters
+    |      ----------
+    |      makefile: bool
+    |          option for generating makefile (Makefile.futag)
+    |      workers: int
+    |          number of processes for compiling
+    |  ----------------------------------------------------------------------
 ```
 
 ## 4. Fuzzer
