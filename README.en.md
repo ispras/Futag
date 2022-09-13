@@ -20,7 +20,10 @@ The information then is used for generating fuzz targets.
 
 This project is based on llvm-project with Clang statistic analysis, LLVM lto and is distributed under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
 
-- Currently Futag supports libraries in C language.
+Currently Futag supports:
+- automatically compiling libraries with cmake and configure;
+- automatically generating fuzzing-targets for libraries in C language.
+Additionally, Futag provides the ability to test compiled targets.
 
 ## 2. Install
 
@@ -43,11 +46,10 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 
 - Download release package and extract it: futag-llvm-package.tar.gz
 
-- Install requirements:
+- Install requirements: pathlib, multiprocessing
 ```bash
-  ~$ pip install -r futag-llvm-package/requirements.txt
+  ~$ pip install pathlib multiprocessing
 ```
-
 - Install Futag python package from the extracted package futag-llvm-package/python-package/futag-1.1.tar.gz:
 
 ```bash
@@ -80,24 +82,12 @@ g = Generator(
 "Futag/futag-llvm-package/", # path to the futag-llvm-package
 "path/to/library/source/code" # library root
 )
-
-# Generate fuzz drivers
-g.gen_targets()
-
-# Compile fuzz drivers
-g.compile_targets()
+g.gen_targets() # Generate fuzz drivers
+g.compile_targets() # Compile fuzz drivers
 ```
+- Fuzzing-targets are in futag-fuzz-drivers folder by default.
 
-- Fuzz generated targets:
-
-```python
-from futag.fuzzer import *
-f = Fuzzer("/Futag/futag-llvm-package", 
-"path/to/library/source/code")
-f.fuzz()
-```
-
-For more detail please read [the document](https://github.com/ispras/Futag/tree/main/src/python/futag-package) of package
+For documentation of python-package please read [the document](https://github.com/ispras/Futag/tree/main/src/python/futag-package)
 
 ## 4. Build from source code
 

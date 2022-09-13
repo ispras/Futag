@@ -122,6 +122,51 @@ lib_test = Builder(
 )
 ```
 
-## Как можно реализовать вручную
+## Как можно интегрировать Futag с библиотекой, собираемой способом, отличным от поддерживаемых на текущий момент
 
-[TODO: add text ) ]
+Кроме cmake и configure библиотеки могут быть собраны разными способами: ninja, mach, и т.д..
+В этом случае также можно запустить сборку под контролем средства scan-build в составе анализатора Futag, этот процесс состоит из следующих шагов:
+
+1. Подготовить свою библиотеку (с configure и т.д.)
+2. Собрать библиотеку под средством scan-build с анализатором Futag
+
+```bash
+$ /path/to/futag-llvm/package/bin/scan-build -enable-checker futag.FutagFunctionAnalyzer -analyzer-config futag.FutagFunctionAnalyzer:report_dir=/path/to/analysis/folder <your-build-script>
+```
+
+- Если у вас *ninja* можно запустить как:
+```bash
+$ /path/to/futag-llvm/package/bin/scan-build -enable-checker futag.FutagFunctionAnalyzer -analyzer-config futag.FutagFunctionAnalyzer:report_dir=/path/to/analysis/folder ninja -j4
+```
+- Если у вас свой скрипт *build-lib.sh* можно запустить как:
+```bash
+$ /path/to/futag-llvm/package/bin/scan-build -enable-checker futag.FutagFunctionAnalyzer -analyzer-config futag.FutagFunctionAnalyzer:report_dir=/path/to/analysis/folder build-lib.sh
+```
+
+3. Запустить анализатор:
+
+```python
+# package futag must be already installed
+from futag.preprocessor import *
+
+testing_lib = Builder(
+    "Futag/futag-llvm-package/", # path to the futag-llvm-package
+    "path/to/library/source/code", # library root
+    "/path/to/analysis/folder"
+)
+testing_lib.analyze()
+```
+
+4. Запустить генератор:
+
+```python
+# package futag must be already installed
+from futag.generator import *
+
+g = Generator(
+"Futag/futag-llvm-package/", # path to the futag-llvm-package
+"path/to/library/source/code", # library root
+"/path/to/analysis/folder/futag-analysis-result.json"#path to the futag-analysis-result.json file
+)
+g.gen_targets() # Generate fuzz drivers
+g.compile_targets() # Compile fuzz drivers

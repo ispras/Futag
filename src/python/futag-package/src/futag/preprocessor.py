@@ -38,7 +38,7 @@ def delete_folder(pth):
 class Builder:
     """Futag Builder Class"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = COMPILER_FLAGS, clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =4, build_ex_params=BUILD_EX_PARAMS):
+    def __init__(self, futag_llvm_package: str, library_root: str, analysis_path: str = ANALYSIS_PATH, flags: str = COMPILER_FLAGS, clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, processes: int =4, build_ex_params=BUILD_EX_PARAMS):
         """
         Parameters
         ----------
@@ -46,6 +46,8 @@ class Builder:
             (*required) path to the futag llvm package (with binaries, scripts, etc)
         library_root: str
             (*required) path to the library root
+        analysis_path: str
+            path for saving report of analysis, default to "futag-analysis". This directory will be deleted and create again if clean set to True.
         flags: str
             flags for compiling. Default to "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
         clean: bool
@@ -54,8 +56,6 @@ class Builder:
             path to the build directory, default to "futag-build". This directory will be deleted and create again if clean set to True.
         install_path: str
             path to the install directory, default to "futag-install". Be careful, this directory will be deleted and create again if clean set to True.
-        analysis_path: str
-            path for saving report of analysis, default to "futag-analysis". This directory will be deleted and create again if clean set to True.
         processes: int
             number of processes while building, default to 4.
         build_ex_params: str

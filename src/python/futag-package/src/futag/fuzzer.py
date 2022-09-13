@@ -21,7 +21,6 @@ from shutil import which
 from hashlib import md5
 from pathlib import Path
 from subprocess import Popen, PIPE, call, run, TimeoutExpired
-from multiprocessing import Pool
 from futag.sysmsg import *
 
 

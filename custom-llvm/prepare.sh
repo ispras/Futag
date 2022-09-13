@@ -68,7 +68,7 @@ cd $build_folder
 
 mkdir $binutils_install
 cd $binutils_install
-mkdir $binutils_install/local-install
+mkdir local-install
 curr_dir="$PWD"
 ../binutils/configure --prefix=$curr_dir/local-install --enable-gold --enable-plugins --disable-werror
 make -j8 all-gold
