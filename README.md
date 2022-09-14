@@ -93,7 +93,7 @@ g.compile_targets()
 
 Документация Python-пакета находится [по ссылке](https://github.com/ispras/Futag/tree/main/src/python/futag-package)
 
-Подобную информацию о работе Futag можно прочитать [по ссылке](https://github.com/ispras/Futag/blob/main/Краткое-руководство-по-использованию-Futag.md)
+Подобную информацию о работе Futag можно прочитать [по ссылке](https://github.com/ispras/Futag/blob/main/How-to-work-with-Futag.md)
 
 ## 4. Сборка из исходного кода
 

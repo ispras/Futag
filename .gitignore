@@ -13,9 +13,4 @@ custom-llvm/cmake
 custom-llvm/llvm
 custom-llvm/compiler-rt
 futag-llvm-package-pre-release.tar.gz
-Docker-test-build.Dockerfile
-Docker-test-build-run.sh
-Docker-test-build.sh
-Docker-test-package.Dockerfile
-Docker-test-package-run.sh
-Docker-test-package.sh
+**/futag-llvm-package.tar.xz
