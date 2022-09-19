@@ -80,6 +80,7 @@ class Generator:
                 self.target_library = json.load(f)
 
             # create directory for function targets if not exists
+            # TODO: set option for deleting
             if (self.library_root / output_path).exists():
                 delete_folder(self.library_root / output_path)
             
@@ -719,7 +720,7 @@ class Generator:
             static_lib.append(target_lib.as_posix())
         static_lib.append("-Wl,--end-group")
         for func_dir in generated_functions:
-        
+            print(func_dir)
             # Extract compiler cwd, to resolve relative includes
             current_func = [f for f in self.target_library['functions'] if f['func_name'] == func_dir.name][0]
             current_func_compilation_opts = current_func['compiler_opts'].split(' ')

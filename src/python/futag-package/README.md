@@ -58,23 +58,23 @@ class Builder(builtins.object)
  |  
  |  Methods defined here:
  |  
- |  __init__(self, futag_llvm_package: str, library_root: str, analysis_path: str = 'futag-analysis', flags: str = '-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping', clean: bool = False, build_path: str = 'futag-build', install_path: str = 'futag-install', processes: int = 4, build_ex_params='')
+ |  __init__(self, futag_llvm_package: str, library_root: str, flags: str = '-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping', clean: bool = False, build_path: str = 'futag-build', install_path: str = 'futag-install', analysis_path: str = 'futag-analysis', processes: int = 4, build_ex_params='')
  |      Parameters
  |      ----------
  |      futag_llvm_package: str
  |          (*required) path to the futag llvm package (with binaries, scripts, etc)
  |      library_root: str
  |          (*required) path to the library root
- |      analysis_path: str
- |          path for saving report of analysis, default to "futag-analysis". This directory will be deleted and create again if clean set to True.
  |      flags: str
  |          flags for compiling. Default to "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
  |      clean: bool
- |          Option for deleting futag folders if they are exist, default to False (futag-build, futag-install, futag-analysis)
+ |          Option for deleting futag folders if they are exist, default to False (futag-build, futag-install, futag-analysis). 
  |      build_path: str
- |          path to the build directory, default to "futag-build". This directory will be deleted and create again if clean set to True.
+ |          path to the build directory, default to "futag-build". Be careful, this directory will be deleted and create again if clean set to True.
  |      install_path: str
  |          path to the install directory, default to "futag-install". Be careful, this directory will be deleted and create again if clean set to True.
+ |      analysis_path: str
+ |          path for saving report of analysis, default to "futag-analysis". Be careful, this directory will be deleted and create again if clean set to True.
  |      processes: int
  |          number of processes while building, default to 4.
  |      build_ex_params: str
@@ -148,7 +148,7 @@ class Generator(builtins.object)
 
 ## 4. Fuzzer
 
-The class Fuzzer helps automatically fuzz targets
+The class Fuzzer helps automatically fuzz targets. It's just a simple script for testing and may contains some unexpected bugs.
 
 ```python
 from futag.fuzzer import *

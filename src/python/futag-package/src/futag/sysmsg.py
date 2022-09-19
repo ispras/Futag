@@ -54,6 +54,7 @@ AUTO_BUILD_MSG = "-- [Futag]: Futag is finding for configure or cmake in you lib
 AUTO_BUILD_FAILED = "-- [Futag]: Futag is unable to automatically build your library. Please do it yourself!"
 CONFIGURE_FOUND = "-- [Futag]: File configure found, trying to build library with configure... "
 CMAKE_FOUND = "-- [Futag]: File CMakeList.txt found, trying to build library with cmake... "
+MAKEFILE_FOUND = "-- [Futag]: File Makefile found, trying to build library with make... "
 
 # Constants for generator
 GEN_BUILTIN = 0

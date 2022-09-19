@@ -148,9 +148,8 @@ void FutagAnalyzer::WriteInfoToTheFile(const StringRef tCurrentReportPath,
   }
 
   if (sys::fs::exists(tCurrentReportPath)) {
-    std::cerr <<
-        std::string(__func__) +
-        " -> Report file already exists: " + tCurrentReportPath.str() + "!";
+    std::cerr << std::string(__func__) + " -> Report file already exists: " +
+                     tCurrentReportPath.str() + "!";
   }
 
   // Create top-level directories
@@ -165,9 +164,9 @@ void FutagAnalyzer::WriteInfoToTheFile(const StringRef tCurrentReportPath,
     currReportFile << std::setw(4) << tState << std::endl;
   } else {
     // Just crash with report_fatal_error
-    std::cerr <<std::string(__func__) +
-                             " -> Cannot write updated json to the file: " +
-                             tCurrentReportPath.str() + "!";
+    std::cerr << std::string(__func__) +
+                     " -> Cannot write updated json to the file: " +
+                     tCurrentReportPath.str() + "!";
   }
 }
 
@@ -296,7 +295,8 @@ FutagAnalyzer::FutagAnalyzer()
     llvm::errs() << "Cannot get current working directory\n";
   }
 
-  mIncludesInfo = json{{"file", ""}, {"includes", json::array()}, {"cwd", cwd.str()}};
+  mIncludesInfo =
+      json{{"file", ""}, {"includes", json::array()}, {"cwd", cwd.str()}};
 }
 
 FutagAnalyzer::~FutagAnalyzer() {
@@ -373,6 +373,14 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc())) {
     return;
   }
+   
+  if (!func->isGlobal()) {
+    return;
+  }
+  if (isa<CXXMethodDecl>(func)) {
+    return;
+  }
+
   // If the provided function doesn't have a body or the function
   // is a declaration (not a definition) -> skip this entry.
   if (!func->hasBody() || !func->isThisDeclarationADefinition()) {

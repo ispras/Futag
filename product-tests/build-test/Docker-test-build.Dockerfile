@@ -2,7 +2,7 @@
 FROM ubuntu:22.04
 
 LABEL maintainer="thientc84@gmail.com"
-LABEL description="This is custom Docker Image based on Ubuntu 20.04 for testing Futag."
+LABEL description="This is custom Docker Image based on Ubuntu 22.04 for testing Futag."
 
 RUN apt update --fix-missing
 RUN apt install -y apt-utils

@@ -60,6 +60,7 @@ then
 fi
 mkdir $futag_install_folder
 
+# begin integrate with fuzz-introspector
 # extract and build binutils
 binutils_install="binutils-install"
 tar xf binutils-futag.tar.xz -C $build_folder/
@@ -84,5 +85,5 @@ fuzz_introspector=$futag_install_folder/fuzz-introspector
 $fuzz_introspector/sed_cmds.sh
 cp -rf $fuzz_introspector/frontends/llvm/include/llvm/Transforms/FuzzIntrospector/ ./llvm/include/llvm/Transforms/FuzzIntrospector
 cp -rf $fuzz_introspector/frontends/llvm/lib/Transforms/FuzzIntrospector ./llvm/lib/Transforms/FuzzIntrospector
-
+# end integrate with fuzz-introspector
 cp build.sh $build_folder

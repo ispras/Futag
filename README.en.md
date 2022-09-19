@@ -7,6 +7,7 @@
   - [4. Build from source code](#4-build-from-source-code)
   - [5. Authors](#5-authors)
   - [6. References](#6-references)
+  - [7. Found bugs](#7-found-bugs)
 
 ## 1. About
 
@@ -21,8 +22,9 @@ The information then is used for generating fuzz targets.
 This project is based on llvm-project with Clang statistic analysis, LLVM lto and is distributed under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
 
 Currently Futag supports:
-- automatically compiling libraries with cmake and configure;
+- automatically compiling libraries with Makefile, cmake and configure;
 - automatically generating fuzzing-targets for libraries in C language.
+- automatically generating fuzzing-targets for global functions of libraries in C language.
 Additionally, Futag provides the ability to test compiled targets.
 
 ## 2. Install
@@ -44,16 +46,16 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 
 ### Install
 
-- Download release package and extract it: futag-llvm-package.tar.gz
+- Download release package and extract it: [futag-llvm-package.latest.tar.gz](https://github.com/ispras/Futag/releases/tag/latest)
 
-- Install requirements: pathlib, multiprocessing
+- Install requirements: 
 ```bash
-  ~$ pip install pathlib multiprocessing
+  ~$ pip install -r futag-llvm-package/python-package/requirements.txt
 ```
 - Install Futag python package from the extracted package futag-llvm-package/python-package/futag-1.1.tar.gz:
 
 ```bash
-  ~$ pip install futag-1.1.tar.gz
+  ~$ pip install futag-llvm-package/python-package/futag-1.1.tar.gz
 ```
 
 ## 3. Usage
@@ -65,7 +67,7 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 from futag.preprocessor import *
 
 testing_lib = Builder(
-    "Futag/futag-llvm-package/", # path to the futag-llvm-package
+    "futag-llvm-package/", # path to the futag-llvm-package
     "path/to/library/source/code" # library root
 )
 testing_lib.auto_build()
@@ -79,7 +81,7 @@ testing_lib.analyze()
 from futag.generator import *
 
 g = Generator(
-"Futag/futag-llvm-package/", # path to the futag-llvm-package
+"futag-llvm-package/", # path to the futag-llvm-package
 "path/to/library/source/code" # library root
 )
 g.gen_targets() # Generate fuzz drivers
@@ -111,10 +113,14 @@ This script creates directory Futag/build and copies script Futag/custom-llvm/bu
 
 ## 5. Authors
 
-- Thien Tran (thientc@ispras.ru)
+- [Tran Chi Thien](https://github.com/thientc/) (thientc@ispras.ru)
 - Shamil Kurmangaleev (kursh@ispras.ru)
 - Theodor Arsenij Larionov-Trichkin (tlarionov@ispras.ru)
 
 ## 6. References
 
 - C. T. Tran and S. Kurmangaleev, ["Futag: Automated fuzz target generator for testing software libraries"](https://ieeexplore.ieee.org/document/9693749) 2021 Ivannikov Memorial Workshop (IVMEM), 2021, pp. 80-85, doi: 10.1109/IVMEM53963.2021.00021.
+
+## 7. Found bugs
+
+- Crash in function [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) of [libpng version 1.6.37](https://github.com/glennrp/libpng)

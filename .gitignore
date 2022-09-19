@@ -12,5 +12,5 @@ custom-llvm/fuzz-introspector
 custom-llvm/cmake
 custom-llvm/llvm
 custom-llvm/compiler-rt
-futag-llvm-package-pre-release.tar.gz
+**/futag-llvm-package.latest.tar.xz
 **/futag-llvm-package.tar.xz

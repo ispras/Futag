@@ -7,6 +7,7 @@
   - [4. Сборка из исходного кода](#4-сборка-из-исходного-кода)
   - [5. Авторы](#5-авторы)
   - [6. Статьи](#6-статьи)
+  - [7. Найденные ошибки](#7-найденные-ошибки)
 
 ## 1. Описание
 
@@ -21,20 +22,21 @@ FUTAG во время работы использует статический �
 Данный проект основан на LLVM со статическим анализом Clang, а также LLVM lto и распространяется под лицензией ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
 
 В настоящее время Futag поддерживает:
-- автоматическую сборку библиотеки с cmake и configure;
+- автоматическую сборку библиотеки с Makefile, cmake и configure;
 - генерацию фаззинг-оберток для библиотек языка Си;
+- генерацию фаззинг-оберток для глобальных функций языка Си;
 Дополнительно Futag предоставляет возможность тестового запуска скомпилированных целей.
 
 ## 2. Установка
 
 Данная инструкция позволяет собрать копию проекта и запустить её в Unix-подобной системе. 
 
-### Зависимости
+### 2.1. Зависимости
 
 Инструмент FUTAG основан на [LLVM-project](https://llvm.org/). Для компиляции проекта необходимо, чтобы следующие пакеты были установлены в вашей системе:
 
 - [CMake](https://cmake.org/) >=3.13.4 [cmake-3.19.3-Linux-x86_64.sh](https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) - Makefile/workspace generator
-- [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler
+- [GCC](https://gcc.gnu.org/)>=7.1.0 C/C++ compiler
 - [Python](https://www.python.org/) >=3.8 Automated test suite
 - [pip](https://pypi.org/project/pip/) >=22.0.4
 - [zlib](http://zlib.net/) >=1.2.3.4 Compression library
@@ -42,31 +44,31 @@ FUTAG во время работы использует статический �
 
 Для получения более детальной информации о зависимостях, необходимых для сборки LLVM, вы можете ознакомиться с документацией по указанной [ссылке](https://llvm.org/docs/GettingStarted.html#requirements)
 
-### Установка:
+### 2.2. Установка:
 
-- Скачать релиз futag-llvm-package.tar.gz
+- Скачать последний релиз [futag-llvm-package.latest.tar.gz](https://github.com/ispras/Futag/releases/tag/latest) и разархивировать
 
-- Установить зависимости: pathlib, multiprocessing
+- Установить зависимости: 
 ```bash
-  ~$ pip install pathlib multiprocessing
+  ~$ pip install -r futag-llvm-package/python-package/requirements.txt
 ```
 
 - Установить python-пакет Futag можно по пути futag-llvm-package/python-package/futag-1.1.tar.gz:
 ```bash
-  ~$ pip install futag-1.1.tar.gz
+  ~$ pip install futag-llvm-package/python-package/futag-1.1.tar.gz
 ```
 
-## 3. Использования
+## 3. Использованиe
 
 - Запуск сборки, проверки и анализа
 
 ```python
-# package futag must be already installed
+# предварительно должен быть установлен пакет futag-<версия>.tar.gz
 from futag.preprocessor import *
 
 testing_lib = Builder(
-    "Futag/futag-llvm-package/", # path to the futag-llvm-package
-    "path/to/library/source/code" # library root
+    "futag-llvm-package/", # путь к директории "futag-llvm-package" [2.2.]
+    "path/to/library/source/code" # путь к директории содержащей исходные кода исследуемого ПО
 )
 testing_lib.auto_build()
 testing_lib.analyze()
@@ -75,12 +77,13 @@ testing_lib.analyze()
 - Генерация и компиляция драйверов
 
 ```python
-# package futag must be already installed
+# предварительно должен быть установлен пакет futag-<версия>.tar.gz
 from futag.generator import *
 
 g = Generator(
-"Futag/futag-llvm-package/", # path to the futag-llvm-package
-"path/to/library/source/code" # library root
+"futag-llvm-package/", # путь к директории "futag-llvm-package"
+"path/to/library/source/code" # путь к директории содержащей исходные кода исследуемого ПО
+
 )
 
 # Generate fuzz drivers
@@ -119,10 +122,14 @@ g.compile_targets()
 
 ## 5. Авторы
 
-- Thien Tran (thientc@ispras.ru)
-- Shamil Kurmangaleev (kursh@ispras.ru)
+- [Чан Ти Тхиен](https://github.com/thientc/) (thientc@ispras.ru)
+- Курмангалеев Шамиль (kursh@ispras.ru)
 - Theodor Arsenij Larionov-Trichkin (tlarionov@ispras.ru)
 
 ## 6. Статьи
 
 - C. T. Tran and S. Kurmangaleev, ["Futag: Automated fuzz target generator for testing software libraries"](https://ieeexplore.ieee.org/document/9693749) 2021 Ivannikov Memorial Workshop (IVMEM), 2021, pp. 80-85, doi: 10.1109/IVMEM53963.2021.00021.
+
+## 7. Найденные ошибки
+
+- Крэш в функции [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) библиотеки [libpng версии 1.6.37](https://github.com/glennrp/libpng)
