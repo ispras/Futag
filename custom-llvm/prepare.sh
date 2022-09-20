@@ -62,22 +62,23 @@ mkdir $futag_install_folder
 
 # begin integrate with fuzz-introspector
 # extract and build binutils
-binutils_install="binutils-install"
+binutils_build="futag-build"
 tar xf binutils-futag.tar.xz -C $build_folder/
-
+# git clone --depth 1 git://sourceware.org/git/binutils-gdb.git binutils
 cd $build_folder
-
-mkdir $binutils_install
-cd $binutils_install
-mkdir local-install
+cd binutils
+mkdir $binutils_build
+mkdir futag-install
 curr_dir="$PWD"
-../binutils/configure --prefix=$curr_dir/local-install --enable-gold --enable-plugins --disable-werror
+cd $binutils_build
+
+../configure --prefix=$curr_dir/futag-install --enable-gold --enable-plugins --disable-werror
 make -j8 all-gold
+make -j8 
 make -j8 install
-cd ..
 
 set +x 
-cd ../custom-llvm/
+cd ../../../custom-llvm/
 
 tar xf fuzz-introspector.tar.xz -C $futag_install_folder/
 fuzz_introspector=$futag_install_folder/fuzz-introspector

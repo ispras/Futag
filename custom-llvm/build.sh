@@ -38,7 +38,7 @@ cp -r $futag_src/clang/lib/Futag $custom_llvm/clang/lib/
 cp -r $futag_src/Checkers/include/Checkers.td $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/
 cp -r $futag_src/Checkers/lib/* $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
 
-cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ZLIB=OFF -DCMAKE_BUILD_TYPE=Release -DLLVM_BINUTILS_INCDIR=./binutils-install/local-install/include -DLLVM_INSTALL_TOOLCHAIN_ONLY=On -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DLLVM_INCLUDE_BENCHMARKS=OFF  -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;" $custom_llvm/llvm
+cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ZLIB=OFF -DCMAKE_BUILD_TYPE=Release -DLLVM_BINUTILS_INCDIR=./binutils/futag-install/include -DLLVM_INSTALL_TOOLCHAIN_ONLY=On -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DLLVM_INCLUDE_BENCHMARKS=OFF  -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;" $custom_llvm/llvm
 
 # cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;" $custom_llvm/llvm
 
