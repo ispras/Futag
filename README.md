@@ -92,11 +92,15 @@ g.gen_targets()
 # Compile fuzz drivers
 g.compile_targets()
 ```
-- Успешно скомпилированные цели по-умольчанию находятся в каталоге futag-fuzz-drivers. Каждый драйвер находится внутри своей поддиректории.
-
+По-умолчанию, успешно скомпилированные фаззинг-обертки для целевых функций находятся в каталоге futag-fuzz-drivers, где для каждой целевой функции создаётся своя поддиректория название которой совпадает с именем целевой функции. 
+Если для функции сгенерировалось несколько фаззинг-оберток, в подкаталоге целевой функции создаются соответствующие директории, где к имени целевой функции добавляется порядковый номер.
 Документация Python-пакета находится [по ссылке](https://github.com/ispras/Futag/tree/main/src/python/futag-package)
 
 Подобную информацию о работе Futag можно прочитать [по ссылке](https://github.com/ispras/Futag/blob/main/How-to-work-with-Futag.md)
+
+Шаблон скриптов запуска можно посмотреть [здесь](https://github.com/ispras/Futag/blob/main/src/python/template-script.py)
+
+Был создан [репозиторий](https://github.com/thientc/Futag-tests) для тестирования Futag над библиотеками (json-c, php, FreeImage, и т.д.), можете протестировать с [Докер-контейнером](https://github.com/ispras/Futag/tree/main/product-tests/libraries-test).
 
 ## 4. Сборка из исходного кода
 
@@ -119,6 +123,8 @@ g.compile_targets()
 
 - В результате инструмент будет установлен в директорию Futag/futag-llvm-package
 
+Можете попробовать сборку Futag с готовыми [Докер-файлами](https://github.com/ispras/Futag/tree/main/product-tests/build-test) для разных версий ОС Ubuntu.
+
 
 ## 5. Авторы
 
@@ -132,4 +138,4 @@ g.compile_targets()
 
 ## 7. Найденные ошибки
 
-- Крэш в функции [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) библиотеки [libpng версии 1.6.37](https://github.com/glennrp/libpng)
+- Крэш в функции [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) библиотеки [libpng версии 1.6.37](https://github.com/glennrp/libpng) (подвержен)

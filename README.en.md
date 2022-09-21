@@ -87,9 +87,16 @@ g = Generator(
 g.gen_targets() # Generate fuzz drivers
 g.compile_targets() # Compile fuzz drivers
 ```
-- Fuzzing-targets are in futag-fuzz-drivers folder by default.
+By default, successfully compiled fuzz-drivers for target functions are located in the futag-fuzz-drivers directory, where each target function is in its own subdirectory, the name of which matches the name of the target function.
+If several fuzz-drivers have been generated for a function, corresponding directories are created in the subdirectory of the target function, where a serial number is added to the name of the target function.
 
-For documentation of python-package please read [the document](https://github.com/ispras/Futag/tree/main/src/python/futag-package)
+Documentation Futag Python-package follows by this [link](https://github.com/ispras/Futag/tree/main/src/python/futag-package)
+
+Details of working with Futag can be read [here](https://github.com/ispras/Futag/blob/main/How-to-work-with-Futag.md)
+
+The example script can be viewed [here](https://github.com/ispras/Futag/blob/main/src/python/template-script.py)
+
+[Testing repository](https://github.com/thientc/Futag-tests) has been created to test Futag for libraries (json-c, php, FreeImage, etc.), you can try with [Docker container]( https://github.com/ispras/Futag/tree/main/product-tests/libraries-test).
 
 ## 4. Build from source code
 
@@ -109,7 +116,9 @@ This script creates directory Futag/build and copies script Futag/custom-llvm/bu
   ~/Futag/build$ ./build.sh
 ```
 
-- After this stage, the instrument will be built and installed in folder Futag/futag-llvm-package
+After this stage, the instrument will be built and installed in folder Futag/futag-llvm-package
+
+You can try building Futag with ready [Dockerfiles](https://github.com/ispras/Futag/tree/main/product-tests/build-test) for different versions of Ubuntu OS.
 
 ## 5. Authors
 
@@ -123,4 +132,4 @@ This script creates directory Futag/build and copies script Futag/custom-llvm/bu
 
 ## 7. Found bugs
 
-- Crash in function [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) of [libpng version 1.6.37](https://github.com/glennrp/libpng)
+- Crash in function [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) of [libpng version 1.6.37](https://github.com/glennrp/libpng) (confirmed)

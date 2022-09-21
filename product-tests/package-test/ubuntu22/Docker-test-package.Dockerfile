@@ -18,7 +18,6 @@ ADD futag-llvm-package.latest.tar.xz /home/futag/
 USER root
 WORKDIR /home/futag/Futag/
 RUN pip install futag-llvm-package/python-package/futag-1.1.tar.gz
-RUN pip install -r futag-llvm-package/fuzz-introspector/requirements.txt
 RUN pip install -r futag-llvm-package/python-package/requirements.txt
 
 USER futag 

@@ -35,3 +35,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## 20220911
 - Add support for fuzz-introspector
 - Migrate to llvm-14.0.6
+
+## 20220921
+- Add support for Makefile
+- Generation for global function of C++ libraries
+- Add testing repository: https://github.com/thientc/Futag-tests
