@@ -16,6 +16,7 @@
 import json
 import pathlib
 import os
+import re
 
 from futag.sysmsg import *
 from subprocess import Popen, PIPE
@@ -513,9 +514,9 @@ class Builder:
         ]
 
         # Find all includes info files in given location
-        includesinfo_files = [
+        info_files = [
             x
-            for x in self.analysis_path.glob("**/includes-info-*.futag-function-analyzer")
+            for x in self.analysis_path.glob("**/file-info-*.futag-function-analyzer")
             if x.is_file()
         ]
 
@@ -524,18 +525,18 @@ class Builder:
         enum_list = []
         typedef_list = []
         struct_list = []
-        includes_dict = {}
+        compiled_files = []
 
+        print("")
+        print(" -- [Futag]: Analysing fuctions for generating fuzz-drivers..." )
         for jf in decl_files:
             functions = json.load(open(jf.as_posix()))
             if functions is None:
-                print(" -- Warning: loading json from file %s failed!" %
+                print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
             # get global hash of all functions
             global_hash = [x for x in function_list]
-            if not functions:
-                continue
             # iterate function hash for adding to global hash list
             for hash in functions:
                 if not hash in global_hash:
@@ -544,7 +545,7 @@ class Builder:
         for jf in context_files:
             contexts = json.load(open(jf.as_posix()))
             if contexts is None:
-                print(" -- Warning: loading json from file %s failed!" %
+                print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
             # get global hash of all functions
@@ -568,8 +569,15 @@ class Builder:
                 else:
                     print(" -- %s not found in global hash list!" % (hash))
 
+        print("")
+        print(" -- [Futag]: Analysing data types ..." )
+
         for jf in typeinfo_files:
             types = json.load(open(jf.as_posix()))
+            if types is None:
+                print(" -- [Futag]: Warning: loading json from file %s failed!" %
+                      (jf.as_posix()))
+                continue
             # get global hash of all functions
             for enum_it in types["enums"]:
                 exist = False
@@ -600,19 +608,35 @@ class Builder:
                 if not exist:
                     typedef_list.append(typedef_it)
 
-        cwd = None
-        for incf in includesinfo_files:
-            includes = json.load(open(incf.as_posix()))
-            includes_dict[includes['file']] = includes['includes']
+        print("")
+        print(" -- [Futag]: Analysing header files and compiler options..." )
 
-            # # Just to make sure, that the cwd is the same for every file
-            # if cwd is not None:
-            #     assert(cwd == includes['cwd'])
-            # else:
-            #     cwd = includes['cwd']
+        match_include = "^\s*#include\s*([<\"][//_\-\w.<>]+[>\"])\s*$"
+        for infofile in info_files:
+            compiled_file = json.load(open(infofile.as_posix()))
+            if compiled_file is None:
+                print(" -- [Futag]: Warning: loading json from file %s failed!" %
+                      (jf.as_posix()))
+                continue
+            with open(compiled_file['file'], "r", errors="ignore") as f:
+                code = f.readlines()
+            headers = []
+            for line in code:
+                include = re.match(match_include, line)
+                if include:
+                    header = include.group(1)
+                    for i in compiled_file['includes']:
+                        if header[1:-1].split("/")[-1] == i.split('/')[-1] and header[1:-1] in i :
+                            headers.append(header)
+
+            compiled_files.append({
+                "filename" : compiled_file['file'],
+                "headers" : headers,
+                "compiler_opts" : compiled_file['compiler_opts'],
+                # "real_includes" : includes['includes'],
+            })
 
         functions_w_contexts = []
-        functions_w_contexts_set = set()
         for func in function_list:
             contexts = []
             for f in function_list:
@@ -627,8 +651,6 @@ class Builder:
                 "fuzz_it": function_list[func]["fuzz_it"],
                 "contexts": contexts,
                 "location": function_list[func]["location"],
-                "compiler_opts": function_list[func]["compiler_opts"],
-                "LOC": function_list[func]["LOC"],
 
             }
             functions_w_contexts.append(fs)
@@ -638,8 +660,7 @@ class Builder:
             "enums": enum_list,
             "structs": struct_list,
             "typedefs": typedef_list,
-            "includes": includes_dict,
-            "cwd": cwd
+            "compiled_files": compiled_files,
         }
         json.dump(result, open(
             (self.analysis_path / "futag-analysis-result.json").as_posix(), "w"))

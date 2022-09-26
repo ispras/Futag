@@ -78,10 +78,8 @@ private:
   //   - Return value type
   //   - Parameter names/types
   void CollectBasicFunctionInfo(json &currJsonCtx, const FunctionDecl *func,
-                                AnalysisManager &Mgr, int32_t currFuncBeginLoc,
-                                int32_t LOC, const std::string &fileName,
-                                const std::string &currFuncName,
-                                const std::string &compilerOpts) const;
+                                AnalysisManager &Mgr, int32_t currFuncBeginLoc, const std::string &fileName,
+                                const std::string &currFuncName) const;
 
   // Collects "advanced", context-related function information.
   // This information consists from a lot of different things. For example:
@@ -172,8 +170,8 @@ void FutagAnalyzer::WriteInfoToTheFile(const StringRef tCurrentReportPath,
 
 void FutagAnalyzer::CollectBasicFunctionInfo(
     json &currJsonCtx, const FunctionDecl *func, AnalysisManager &Mgr,
-    int32_t currFuncBeginLoc, int32_t LOC, const std::string &fileName,
-    const std::string &currFuncName, const std::string &compilerOpts) const {
+    int32_t currFuncBeginLoc, const std::string &fileName,
+    const std::string &currFuncName) const {
   // Use ODRHash as a key for a json object. This is required later due to the
   // fact that we need to update state for already existing functions, thus we
   // somehow should be able to find these functions in the json file.
@@ -184,10 +182,8 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
   // line on which function is defined, return type of the function and
   // if we should fuzz it or no
   json basicFunctionInfo = {
-      {"compiler_opts", compilerOpts},
       {"func_name", currFuncName},
       {"location", fileName + ":" + std::to_string(currFuncBeginLoc)},
-      {"LOC", LOC},
       {"return_type", func->getReturnType().getAsString()},
       {"return_type_pointer", func->getReturnType()->isPointerType()},
       // If current function doesn't have parameters, don't use it for fuzzing,
@@ -216,6 +212,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
          {"generator_type", datatypeDetail.generator_type},
          {"array_size", datatypeDetail.array_size},
          {"parent_type", datatypeDetail.parent_type},
+         {"parent_gen", datatypeDetail.parent_gen},
          {"param_usage", "UNKNOWN"}});
 
     // Try to determine argument usage
@@ -290,13 +287,11 @@ FutagAnalyzer::FutagAnalyzer()
                 {"typedefs", json::array()},
                 {"structs", json::array()}};
 
-  SmallString<0> cwd;
-  if (sys::fs::current_path(cwd)) {
-    llvm::errs() << "Cannot get current working directory\n";
-  }
-
   mIncludesInfo =
-      json{{"file", ""}, {"includes", json::array()}, {"cwd", cwd.str()}};
+      json{
+        {"file", ""}, 
+        {"includes", json::array()}, 
+        {"compiler_opts", ""}};
 }
 
 FutagAnalyzer::~FutagAnalyzer() {
@@ -315,20 +310,19 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
   // Save all relevant includes
   const SourceManager &sm = Mgr.getASTContext().getSourceManager();
   for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); it++) {
+
     SourceLocation includeLoc = sm.getIncludeLoc(sm.translateFile(it->first));
     string includePath = utils::PathProcessor::RemoveUnnecessaryPathComponents(
         it->first->getName().str());
-
     // includePath[0] != '/' - is probably an awfully bad check to avoid system
     // headers, but I couldn't find any way around
-    if (includeLoc.isValid() && sm.isInMainFile(includeLoc) &&
-        includePath[0] != '/') {
-      mIncludesInfo["file"] =
-          utils::PathProcessor::RemoveUnnecessaryPathComponents(
-              sm.getFilename(includeLoc).str());
+    if (includeLoc.isValid() && sm.isInMainFile(includeLoc)) {
       mIncludesInfo["includes"].push_back(includePath);
     }
   }
+  std::string compilerOpts = Mgr.getAnalyzerOptions().FullCompilerInvocation;
+  mIncludesInfo["file"] = sm.getFileEntryForID(sm.getMainFileID())->getName().str();
+  mIncludesInfo["compiler_opts"] = compilerOpts;
 
   struct LocalVisitor : public RecursiveASTVisitor<LocalVisitor> {
     const FutagAnalyzer *futagChecker;
@@ -373,7 +367,7 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc())) {
     return;
   }
-   
+
   if (!func->isGlobal()) {
     return;
   }
@@ -381,32 +375,30 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     return;
   }
 
+FullSourceLoc fBeginLoc = Mgr.getASTContext().getFullLoc(func->getBeginLoc());
+  FullSourceLoc fEndLoc = Mgr.getASTContext().getFullLoc(func->getEndLoc());
+  if (!fBeginLoc.getFileEntry()) {
+    return;
+  }
   // If the provided function doesn't have a body or the function
   // is a declaration (not a definition) -> skip this entry.
   if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
     return;
   }
 
-  FullSourceLoc fBeginLoc = Mgr.getASTContext().getFullLoc(func->getBeginLoc());
-  FullSourceLoc fEndLoc = Mgr.getASTContext().getFullLoc(func->getEndLoc());
-  if (!fBeginLoc.getFileEntry()) {
-    return;
-  }
+  
 
   int32_t currFuncBeginLoc = fBeginLoc.getSpellingLineNumber();
-  int32_t LOC =
-      fEndLoc.getSpellingLineNumber() - fBeginLoc.getSpellingLineNumber();
   // Preprocess current filename by deleting all ./ and ../
   std::string fileName =
       futag::utils::PathProcessor::RemoveUnnecessaryPathComponents(
           fBeginLoc.getFileEntry()->getName().str());
 
   std::string currFuncName(func->getQualifiedNameAsString());
-  std::string compilerOpts = Mgr.getAnalyzerOptions().FullCompilerInvocation;
 
   // Collect basic information about current function
-  CollectBasicFunctionInfo(mFunctionDeclInfo, func, Mgr, currFuncBeginLoc, LOC,
-                           fileName, currFuncName, compilerOpts);
+  CollectBasicFunctionInfo(mFunctionDeclInfo, func, Mgr, currFuncBeginLoc,
+                           fileName, currFuncName);
 
   // Collect advanced information about function calls inside current function
   CollectAdvancedFunctionsInfo(mCallContextInfo, func, Mgr, fileName,
