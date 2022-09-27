@@ -321,7 +321,7 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
     }
   }
   std::string compilerOpts = Mgr.getAnalyzerOptions().FullCompilerInvocation;
-  mIncludesInfo["file"] = sm.getFileEntryForID(sm.getMainFileID())->getName().str();
+  mIncludesInfo["file"] = sm.getFileEntryForID(sm.getMainFileID())->tryGetRealPathName().str();
   mIncludesInfo["compiler_opts"] = compilerOpts;
 
   struct LocalVisitor : public RecursiveASTVisitor<LocalVisitor> {
