@@ -87,4 +87,4 @@ $fuzz_introspector/sed_cmds.sh
 cp -rf $fuzz_introspector/frontends/llvm/include/llvm/Transforms/FuzzIntrospector/ ./llvm/include/llvm/Transforms/FuzzIntrospector
 cp -rf $fuzz_introspector/frontends/llvm/lib/Transforms/FuzzIntrospector ./llvm/lib/Transforms/FuzzIntrospector
 # end integrate with fuzz-introspector
-cp build.sh $build_folder
+cp build.sh buildMacM.sh $build_folder

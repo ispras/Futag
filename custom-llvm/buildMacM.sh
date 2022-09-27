@@ -38,17 +38,13 @@ cp -r $futag_src/clang/lib/Futag $custom_llvm/clang/lib/
 cp -r $futag_src/Checkers/include/Checkers.td $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/
 cp -r $futag_src/Checkers/lib/* $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
 
-cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ZLIB=OFF -DCMAKE_BUILD_TYPE=Release -DLLVM_BINUTILS_INCDIR=./binutils/futag-install/include -DLLVM_INSTALL_TOOLCHAIN_ONLY=On -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DLLVM_INCLUDE_BENCHMARKS=OFF  -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;" $custom_llvm/llvm
-
-# cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;" $custom_llvm/llvm
+# on Macbook with M1, M2 processors, you should install g++-11 to avoid error with clang14 (default install for MacOS > 12.5)
+cmake  -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=/opt/homebrew/bin/g++-11 -DCMAKE_C_COMPILER=/opt/homebrew/bin/gcc-11 -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ZLIB=OFF -DCMAKE_BUILD_TYPE=Release -DLLVM_BINUTILS_INCDIR=./binutils/futag-install/include -DLLVM_INSTALL_TOOLCHAIN_ONLY=On -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DLLVM_INCLUDE_BENCHMARKS=OFF  -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;" $custom_llvm/llvm
 
 make -j8 && make -j8 install
 
 cp lib/LLVMgold.so $futag_install_folder/lib/
-if [ ! -d $futag_install_folder/lib/bfd-plugins ]
-then
-    mkdir $futag_install_folder/lib/bfd-plugins
-fi
+mkdir $futag_install_folder/lib/bfd-plugins
 cp lib/LLVMgold.so $futag_install_folder/lib/bfd-plugins
 cp lib/libLTO.so $futag_install_folder/lib/bfd-plugins
 

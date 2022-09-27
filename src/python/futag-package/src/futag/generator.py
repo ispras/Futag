@@ -100,13 +100,13 @@ class Generator:
         self.var_files = 0
 
     def gen_header(self, target_function_fname):
-        defaults = ["stddef.h", "stdlib.h", "string.h", "stdint.h"]
+        defaults = ["stdio.h", "stddef.h", "stdlib.h", "string.h", "stdint.h"]
         compiled_files = self.target_library["compiled_files"]
         included_headers = []
         for f in compiled_files:
             if f["filename"] == target_function_fname:
                 for header in f["headers"]:
-                    if not header[1:-2] in defaults:
+                    if not header[1:-1] in defaults:
                         included_headers.append(header)
                 break
             
@@ -796,7 +796,7 @@ class Generator:
             print(" ".join(p.args))
             print("\n-- [Futag] ERROR:", errors)
         else:
-            print("-- [Futag] Fuzz-driver has been compiled successfully")
+            print("-- [Futag] Fuzz-driver has been compiled successfully!")
 
     def compile_targets(self, makefile: bool = True, workers: int = 4):
         """

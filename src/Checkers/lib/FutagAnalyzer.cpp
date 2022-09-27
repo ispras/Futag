@@ -525,7 +525,7 @@ void ento::registerFutagFunctionAnalyzer(CheckerManager &Mgr) {
 
   Chk->includesInfoReportPath = "";
   sys::path::append(Chk->includesInfoReportPath, Chk->reportDir,
-                    "includes-info-" +
+                    "file-info-" +
                         Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
                         ".futag-function-analyzer");
 }
