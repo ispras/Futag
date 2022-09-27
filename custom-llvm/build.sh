@@ -40,8 +40,6 @@ cp -r $futag_src/Checkers/lib/* $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
 
 cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_ENABLE_ZLIB=OFF -DCMAKE_BUILD_TYPE=Release -DLLVM_BINUTILS_INCDIR=./binutils/futag-install/include -DLLVM_INSTALL_TOOLCHAIN_ONLY=On -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DLLVM_INCLUDE_BENCHMARKS=OFF  -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;" $custom_llvm/llvm
 
-# cmake  -G "Unix Makefiles" -DLLVM_BUILD_TESTS=OFF -DLLVM_TARGETS_TO_BUILD=X86 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;" $custom_llvm/llvm
-
 make -j8 && make -j8 install
 
 cp lib/LLVMgold.so $futag_install_folder/lib/
@@ -62,6 +60,9 @@ cp -r $futag_src/python/requirements.txt $futag_install_folder/python-package
 cp -r $futag_src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
+
+cd ../product-tests
+./prepare-package.sh
 
 echo ""
 echo "======== End of install script for FUTAG - a fuzzing target automated generator ========"

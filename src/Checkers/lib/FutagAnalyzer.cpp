@@ -78,7 +78,8 @@ private:
   //   - Return value type
   //   - Parameter names/types
   void CollectBasicFunctionInfo(json &currJsonCtx, const FunctionDecl *func,
-                                AnalysisManager &Mgr, int32_t currFuncBeginLoc, const std::string &fileName,
+                                AnalysisManager &Mgr, int32_t currFuncBeginLoc,
+                                const std::string &fileName,
                                 const std::string &currFuncName) const;
 
   // Collects "advanced", context-related function information.
@@ -288,10 +289,7 @@ FutagAnalyzer::FutagAnalyzer()
                 {"structs", json::array()}};
 
   mIncludesInfo =
-      json{
-        {"file", ""}, 
-        {"includes", json::array()}, 
-        {"compiler_opts", ""}};
+      json{{"file", ""}, {"includes", json::array()}, {"compiler_opts", ""}};
 }
 
 FutagAnalyzer::~FutagAnalyzer() {
@@ -309,6 +307,9 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
 
   // Save all relevant includes
   const SourceManager &sm = Mgr.getASTContext().getSourceManager();
+  if (!sm.getMainFileID().isValid()) {
+    return;
+  }
   for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); it++) {
 
     SourceLocation includeLoc = sm.getIncludeLoc(sm.translateFile(it->first));
@@ -321,7 +322,15 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
     }
   }
   std::string compilerOpts = Mgr.getAnalyzerOptions().FullCompilerInvocation;
-  mIncludesInfo["file"] = sm.getFileEntryForID(sm.getMainFileID())->tryGetRealPathName().str();
+  auto fe = sm.getFileEntryForID(sm.getMainFileID());
+  if (fe->tryGetRealPathName().empty()){
+    if(fe->getName().empty()){
+      return;
+    }
+    mIncludesInfo["file"] = fe->getName();
+  }else{
+    mIncludesInfo["file"] = fe->tryGetRealPathName();
+  }
   mIncludesInfo["compiler_opts"] = compilerOpts;
 
   struct LocalVisitor : public RecursiveASTVisitor<LocalVisitor> {
@@ -375,7 +384,7 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     return;
   }
 
-FullSourceLoc fBeginLoc = Mgr.getASTContext().getFullLoc(func->getBeginLoc());
+  FullSourceLoc fBeginLoc = Mgr.getASTContext().getFullLoc(func->getBeginLoc());
   FullSourceLoc fEndLoc = Mgr.getASTContext().getFullLoc(func->getEndLoc());
   if (!fBeginLoc.getFileEntry()) {
     return;
@@ -385,8 +394,6 @@ FullSourceLoc fBeginLoc = Mgr.getASTContext().getFullLoc(func->getBeginLoc());
   if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
     return;
   }
-
-  
 
   int32_t currFuncBeginLoc = fBeginLoc.getSpellingLineNumber();
   // Preprocess current filename by deleting all ./ and ../

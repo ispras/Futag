@@ -614,10 +614,11 @@ class Builder:
         match_include = "^\s*#include\s*([<\"][//_\-\w.<>]+[>\"])\s*$"
         for infofile in info_files:
             compiled_file = json.load(open(infofile.as_posix()))
-            if compiled_file is None:
+            if not compiled_file  or not compiled_file['file']:
                 print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
+
             with open(compiled_file['file'], "r", errors="ignore") as f:
                 code = f.readlines()
             headers = []
