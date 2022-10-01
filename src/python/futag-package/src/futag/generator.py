@@ -28,7 +28,7 @@ from typing import List
 class Generator:
     """Futag Generator"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, json_file: str=ANALYSIS_FILE_PATH, output_path = FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH):
+    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path = FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH):
         """
         Parameters
         ----------
@@ -36,6 +36,8 @@ class Generator:
             path to the futag llvm package (with binaries, scripts, etc)
         library_root: str
             path to the library root
+        target_type: int
+            format of fuzz-drivers (LIBFUZZER or AFLPLUSPLUS), default to LIBFUZZER 
         json_file: str
             path to the futag-analysis-result.json file
         output_path : str
@@ -58,6 +60,10 @@ class Generator:
         self.buf_size_arr = []
         self.dyn_size = 0
         self.curr_gen_string = -1
+        if(target_type > 1 or target_type < 0):
+            raise ValueError(INVALID_TARGET_TYPE)
+        
+        self.target_type = target_type
 
         if pathlib.Path(self.futag_llvm_package).exists():
             self.futag_llvm_package = pathlib.Path(self.futag_llvm_package).absolute()
@@ -155,8 +161,9 @@ class Generator:
                 "gen_free": [
                     # "if (dyn_size > 0 && strlen(r" + var_name + \
                     # ") > 0) {\n",
-                    "if (dyn_size > 0) {\n",
+                    "if (r" + var_name + ") {\n",
                     "    free(r" + var_name + ");\n",
+                    "    r" + var_name + " = NULL;\n",
                     "}\n"
                 ]
             }
@@ -172,8 +179,9 @@ class Generator:
             "gen_free": [
                 # "if (dyn_size > 0 && strlen(" + var_name + \
                 # ") > 0) {\n",
-                "if (dyn_size > 0 ) {\n",
-                "    free(" + var_name + ");\n",
+                "if (" + var_name + ") {\n",
+                "    free( " + var_name + ");\n",
+                "    " + var_name + " = NULL;\n",
                 "}\n"
             ]
         }
@@ -220,11 +228,12 @@ class Generator:
                     type_name + " " + var_name + " = u" + var_name + ";\n",
                 ],
                 "gen_free": [
-                    "if (dyn_size > 0) {\n",
+                    "if (s" + var_name + ") {\n",
                     "    free(s" + var_name + ");\n",
+                    "    s" + var_name + " = NULL;\n",
                     "}\n"
                 ],
-                "buf_size": None
+                "buf_size": "sizeof(char)",
             }
         if parent_type in ["char *", "unsigned char *"]:
             self.dyn_size += 1
@@ -240,11 +249,12 @@ class Generator:
                     type_name + " " + var_name + " = s" + var_name + ";\n"
                 ],
                 "gen_free": [
-                    "if (dyn_size > 0) {\n",
+                    "if (s" + var_name + " ) {\n",
                     "    free(s" + var_name + ");\n",
+                    "    s" + var_name + " = NULL;\n",
                     "}\n"
                 ],
-                "buf_size": None
+                "buf_size": "sizeof(char)"
             }
         if parent_gen == "incomplete":
             self.gen_this_function = False
@@ -252,7 +262,8 @@ class Generator:
                 "gen_lines": [
                     "//GEN_VOID\n"
                 ],
-                "gen_free": []
+                "gen_free": [],
+                "buf_size": ""
             }
         return {
             "gen_lines": [
@@ -263,7 +274,7 @@ class Generator:
                 type_name + " " + var_name + " = u" + var_name + ";\n"
             ],
             "gen_free": [],
-            "buf_size": parent_type
+            "buf_size": ""
         }
 
     def gen_pointer(self, type_name, var_name, parent_type):
@@ -428,6 +439,7 @@ class Generator:
             "char *",
         ]
         if param_id == len(func['params']):
+            
             if not self.gen_this_function:
                 return False
             # If there is no buffer - return!
@@ -467,63 +479,127 @@ class Generator:
             for line in self.gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
-
-            f.write(
-                "int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size)\n")
-            f.write("{\n")
-
-            if self.dyn_size > 0:
-                f.write("    if (Fuzz_Size < " + str(self.dyn_size))
-                if self.buf_size_arr:
-                    f.write(" + " + "+".join(self.buf_size_arr))
-                f.write(") return 0;\n")
+            if self.target_type == LIBFUZZER:
                 f.write(
-                    "    size_t dyn_size = (int) ((Fuzz_Size - (" +
-                    str(self.dyn_size))
-                if self.buf_size_arr:
-                    f.write(" + " + "+".join(self.buf_size_arr))
-                f.write("))/" + str(self.dyn_size) + ");\n")
-            else:
-                if len(self.buf_size_arr) > 0:
-                    f.write("    if (Fuzz_Size < ")
-                    f.write("+".join(self.buf_size_arr))
+                    "int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size)\n")
+                f.write("{\n")
+
+                if self.dyn_size > 0:
+                    f.write("    if (Fuzz_Size < " + str(self.dyn_size))
+                    if self.buf_size_arr:
+                        f.write(" + " + "+".join(self.buf_size_arr))
                     f.write(") return 0;\n")
+                    f.write(
+                        "    size_t dyn_size = (int) ((Fuzz_Size - (" +
+                        str(self.dyn_size))
+                    if self.buf_size_arr:
+                        f.write(" + " + "+".join(self.buf_size_arr))
+                    f.write("))/" + str(self.dyn_size) + ");\n")
+                else:
+                    if len(self.buf_size_arr) > 0:
+                        f.write("    if (Fuzz_Size < ")
+                        f.write("+".join(self.buf_size_arr))
+                        f.write(") return 0;\n")
 
-            f.write("    uint8_t * pos = Fuzz_Data;\n")
-            for line in self.gen_func_params:
-                f.write("    " + line)
+                f.write("    uint8_t * pos = Fuzz_Data;\n")
+                for line in self.gen_func_params:
+                    f.write("    " + line)
 
-            f.write("    //FUNCTION_CALL\n")
-            # generate function call
-            # if func["return_type"] != "void":
-            #     f.write("    " + func["return_type"] +
-            #             " futag_target = " + func["func_name"] + "(")
-            # else:
-            #     f.write("    futag_target = " + func["func_name"] + "(")
-            if func["return_type"] in malloc_free:
-                f.write("    " + func["return_type"] +
-                        " futag_target = " + func["func_name"] + "(")
+                f.write("    //FUNCTION_CALL\n")
+                if func["return_type"] in malloc_free:
+                    f.write("    " + func["return_type"] +
+                            " futag_target = " + func["func_name"] + "(")
+                else:
+                    f.write("    " + func["func_name"] + "(")
+                
+                param_list = []
+                for arg in func["params"]:
+                    param_list.append(arg["param_name"] + " ")
+                f.write(",".join(param_list))
+                f.write(");\n")
+                
+                # !attempting free on address which was not malloc()-ed
+                
+                if func["return_type"] in malloc_free:
+                    f.write("    if(futag_target){\n");
+                    f.write("        free(futag_target);\n");
+                    f.write("        futag_target = NULL;\n");
+                    f.write("    }\n");
+
+                f.write("    //FREE\n")
+                for line in self.gen_free:
+                    f.write("    " + line)
+
+                f.write("    return 0;\n")
+                f.write("}")
+                f.close()
             else:
-                f.write("    " + func["func_name"] + "(")
-            
-            param_list = []
-            for arg in func["params"]:
-                param_list.append(arg["param_name"] + " ")
-            f.write(",".join(param_list))
-            f.write(");\n")
-            
-            # !attempting free on address which was not malloc()-ed
-            
-            if func["return_type"] in malloc_free:
-                f.write("    if(futag_target) free(futag_target);\n")
+                f.write('''__AFL_FUZZ_INIT();
 
-            f.write("    //FREE\n")
-            for line in self.gen_free:
-                f.write("    " + line)
+main() {
+// anything else here, e.g. command line arguments, initialization, etc.
 
-            f.write("    return 0;\n")
-            f.write("}")
-            f.close()
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+    __AFL_INIT();
+#endif
+
+unsigned char *Fuzz_Data = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT and before __AFL_LOOP!
+
+while (__AFL_LOOP(10000)) {
+    int Fuzz_Size = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
+    
+    // check for a required/useful minimum input length''')
+                if self.dyn_size > 0:
+                    f.write("    if (Fuzz_Size < " + str(self.dyn_size))
+                    if self.buf_size_arr:
+                        f.write(" + " + "+".join(self.buf_size_arr))
+                    f.write(") continue;\n")
+                    f.write(
+                        "    size_t dyn_size = (int) ((Fuzz_Size - (" +
+                        str(self.dyn_size))
+                    if self.buf_size_arr:
+                        f.write(" + " + "+".join(self.buf_size_arr))
+                    f.write("))/" + str(self.dyn_size) + ");\n")
+                else:
+                    if len(self.buf_size_arr) > 0:
+                        f.write("    if (Fuzz_Size < ")
+                        f.write("+".join(self.buf_size_arr))
+                        f.write(") continue;\n")
+
+                f.write("    uint8_t * pos = Fuzz_Data;\n")
+                for line in self.gen_func_params:
+                    f.write("    " + line)
+                f.write("    //Call function to be fuzzed, e.g.:\n")
+                if func["return_type"] in malloc_free:
+                    f.write("    " + func["return_type"] +
+                            " futag_target = " + func["func_name"] + "(")
+                else:
+                    f.write("    " + func["func_name"] + "(")
+                
+                param_list = []
+                for arg in func["params"]:
+                    param_list.append(arg["param_name"] + " ")
+                f.write(",".join(param_list))
+                f.write(");\n")
+                
+                # !attempting free on address which was not malloc()-ed
+                
+                if func["return_type"] in malloc_free:
+                    f.write("    if(futag_target){\n");
+                    f.write("        free(futag_target);\n");
+                    f.write("        futag_target = NULL;\n");
+                    f.write("    }\n");
+
+                f.write("    //FREE\n")
+                for line in self.gen_free:
+                    f.write("    " + line)
+
+                
+                f.write('''
+  }
+  return 0;
+}''')
+                f.close()
             return True
 
         curr_param = func["params"][param_id]
@@ -549,7 +625,8 @@ class Generator:
                                 "pos += sizeof(" + curr_param["param_type"].split(" ")[1] + ");\n",
                                 curr_param["param_type"] + " " + curr_param["param_name"] + " = u" +  curr_param["param_name"] + ";\n"
                             ],
-                            "gen_free":["free(u" + curr_param["param_name"] + ");\n"]
+                            # "gen_free":["free(u" + curr_param["param_name"] + ");\n"]
+                            "gen_free":[]
                         }
                         self.buf_size_arr.append("sizeof(" + curr_param["param_type"].split(" ")[1]+")")
                 else:
@@ -571,7 +648,8 @@ class Generator:
                                 "pos += sizeof(" + curr_param["param_type"].split(" ")[1] + ");\n",
                                 curr_param["param_type"] + " " + curr_param["param_name"] + " = u" +  curr_param["param_name"] + ";\n"
                             ],
-                            "gen_free":["free(u" + curr_param["param_name"] + ");\n"]
+                            # "gen_free":["free(u" + curr_param["param_name"] + ");\n"]
+                            "gen_free":[]
                         }
                         self.buf_size_arr.append("sizeof(" + curr_param["param_type"].split(" ")[1]+")")
             else:
@@ -614,9 +692,9 @@ class Generator:
                     curr_param["parent_type"])
                 self.dyn_size += 1
                 if (len(curr_param["parent_type"]) > 0):
-                    self.buf_size_arr.append("sizeof(" + curr_param["parent_type"]+")")
+                    self.buf_size_arr.append("sizeof(char)")
                 else:
-                    self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
+                    self.buf_size_arr.append("sizeof(char)")
                 if not curr_gen:
                     self.gen_this_function = False
 
@@ -679,7 +757,7 @@ class Generator:
             self.gen_func_params += curr_gen["gen_lines"]
             self.gen_free += curr_gen["gen_free"]
             if curr_gen["buf_size"]:
-                self.buf_size_arr.append("sizeof(" + curr_gen["buf_size"] + ")")
+                self.buf_size_arr.append(curr_param["buf_size"])
 
             param_id += 1
             self.gen_target_function(func, param_id)
@@ -818,12 +896,19 @@ class Generator:
         generated_functions = [x for x in self.output_path.iterdir() if x.is_dir()]
         generated_targets = 0
         compiler_flags = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined,fuzzer -fprofile-instr-generate -fcoverage-mapping"
-        compiler_path = self.futag_llvm_package / "bin/clang"
+        compiler_path = ""
+        if self.target_type == LIBFUZZER:
+            compiler_path = self.futag_llvm_package / "bin/clang"
+        else:
+            compiler_path = self.futag_llvm_package / "AFLplusplus/usr/bin/afl-clang"
         compile_cmd_list = []
-        static_lib = ["-Wl,--start-group"]
-        for target_lib in [u for u in (self.library_root).glob("**/*.a") if u.is_file()]:
-            static_lib.append(target_lib.as_posix())
-        static_lib.append("-Wl,--end-group")
+        static_lib = []
+        target_lib = [u for u in (self.library_root).glob("**/*.a") if u.is_file()]
+        if target_lib:
+            static_lib = ["-Wl,--start-group"]
+            for t in target_lib:
+                static_lib.append(t.as_posix())
+            static_lib.append("-Wl,--end-group")
         driver_output = []
         for func_dir in generated_functions:
             # Extract compiler cwd, to resolve relative includes
@@ -863,12 +948,13 @@ class Generator:
                     generated_targets += 1
                     driver_output.append([current_include, target_src.as_posix(), dir.as_posix() + "/" + target_src.stem + ".out"])
                     compiler_cmd = [compiler_path.as_posix() ] + compiler_flags.split(" ") + current_include + [target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
-                    target_file = open(target_src.as_posix(), "a")
-                    target_file.write("\n//Compile command:")
-                    target_file.write("\n/*\n")
-                    target_file.write(" ".join(compiler_cmd))
-                    target_file.write("\n*/\n")
-                    target_file.close()
+                    if self.target_type == LIBFUZZER:
+                        target_file = open(target_src.as_posix(), "a")
+                        target_file.write("\n//Compile command:")
+                        target_file.write("\n/*\n")
+                        target_file.write(" ".join(compiler_cmd))
+                        target_file.write("\n*/\n")
+                        target_file.close()
                     compile_cmd_list.append(compiler_cmd)
         if makefile:
             makefile = open((self.output_path / "Makefile.futag").as_posix(), "w")

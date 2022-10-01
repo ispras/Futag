@@ -46,16 +46,16 @@ FUTAG во время работы использует статический �
 
 ### 2.2. Установка:
 
-- Скачать последний релиз [futag-llvm-package.latest.tar.gz](https://github.com/ispras/Futag/releases/tag/latest) и разархивировать
+- Скачать последний релиз [futag-llvm.latest.tar.gz](https://github.com/ispras/Futag/releases/tag/latest) и разархивировать
 
 - Установить зависимости: 
 ```bash
-  ~$ pip install -r futag-llvm-package/python-package/requirements.txt
+  ~$ pip install -r futag-llvm/python-package/requirements.txt
 ```
 
-- Установить python-пакет Futag можно по пути futag-llvm-package/python-package/futag-1.1.tar.gz:
+- Установить python-пакет Futag можно по пути futag-llvm/python-package/futag-1.1.tar.gz:
 ```bash
-  ~$ pip install futag-llvm-package/python-package/futag-1.1.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-1.1.tar.gz
 ```
 
 ## 3. Использованиe
@@ -67,7 +67,7 @@ FUTAG во время работы использует статический �
 from futag.preprocessor import *
 
 testing_lib = Builder(
-    "futag-llvm-package/", # путь к директории "futag-llvm-package" [2.2.]
+    "futag-llvm/", # путь к директории "futag-llvm" [2.2.]
     "path/to/library/source/code" # путь к директории содержащей исходные кода исследуемого ПО
 )
 testing_lib.auto_build()
@@ -81,7 +81,7 @@ testing_lib.analyze()
 from futag.generator import *
 
 g = Generator(
-"futag-llvm-package/", # путь к директории "futag-llvm-package"
+"futag-llvm/", # путь к директории "futag-llvm"
 "path/to/library/source/code" # путь к директории содержащей исходные кода исследуемого ПО
 
 )
@@ -121,7 +121,7 @@ g.compile_targets()
   ~/Futag/build$ ./build.sh
 ```
 
-- В результате инструмент будет установлен в директорию Futag/futag-llvm-package
+- В результате инструмент будет установлен в директорию Futag/futag-llvm
 
 Можете попробовать сборку Futag с готовыми [Докер-файлами](https://github.com/ispras/Futag/tree/main/product-tests/build-test) для разных версий ОС Ubuntu.
 

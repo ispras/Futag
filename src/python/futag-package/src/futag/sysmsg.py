@@ -50,11 +50,12 @@ LIB_CLEAN_SUCCEEDED = "-- [Futag]: Clean successfully!"
 LIB_INSTALL_FAILED = "-- [Futag]: Install library failed, please install it your own!"
 LIB_INSTALL_SUCCEEDED = "-- [Futag]: Library was installed successfully!"
 LIB_INSTALL_COMMAND = "-- [Futag]: Install command: "
-AUTO_BUILD_MSG = "-- [Futag]: Futag is finding for configure or cmake in you library root"
+AUTO_BUILD_MSG = "-- [Futag]: Futag is finding for makefile, configure or cmake in you library root"
 AUTO_BUILD_FAILED = "-- [Futag]: Futag is unable to automatically build your library. Please do it yourself!"
 CONFIGURE_FOUND = "-- [Futag]: File configure found, trying to build library with configure... "
 CMAKE_FOUND = "-- [Futag]: File CMakeList.txt found, trying to build library with cmake... "
 MAKEFILE_FOUND = "-- [Futag]: File Makefile found, trying to build library with make... "
+INVALID_TARGET_TYPE = "-- [Futag] Error: Unknown type of fuzz-driver for generating!"
 
 # Constants for generator
 GEN_BUILTIN = 0
@@ -70,3 +71,7 @@ GEN_FUNCTION = 9
 GEN_INPUT_FILE = 10
 GEN_OUTPUT_FILE = 11
 GEN_UNKNOWN = 12
+
+# fuzz-driver format
+LIBFUZZER = 0
+AFLPLUSPLUS = 1

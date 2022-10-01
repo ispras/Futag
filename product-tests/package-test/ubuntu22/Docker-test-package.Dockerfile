@@ -13,12 +13,12 @@ RUN apt install -y libncurses5 gcc-multilib g++ make gdb binutils python3 git op
 
 USER futag
 WORKDIR /home/futag/
-ADD futag-llvm-package.latest.tar.xz /home/futag/
+ADD futag-llvm.latest.tar.xz /home/futag/
 
 USER root
 WORKDIR /home/futag/Futag/
-RUN pip install futag-llvm-package/python-package/futag-1.1.tar.gz
-RUN pip install -r futag-llvm-package/python-package/requirements.txt
+RUN pip install futag-llvm/python-package/futag-1.1.tar.gz
+RUN pip install -r futag-llvm/python-package/requirements.txt
 
 USER futag 
 WORKDIR /home/futag/Futag/

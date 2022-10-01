@@ -46,16 +46,16 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 
 ### Install
 
-- Download release package and extract it: [futag-llvm-package.latest.tar.gz](https://github.com/ispras/Futag/releases/tag/latest)
+- Download release package and extract it: [futag-llvm.latest.tar.gz](https://github.com/ispras/Futag/releases/tag/latest)
 
 - Install requirements: 
 ```bash
-  ~$ pip install -r futag-llvm-package/python-package/requirements.txt
+  ~$ pip install -r futag-llvm/python-package/requirements.txt
 ```
-- Install Futag python package from the extracted package futag-llvm-package/python-package/futag-1.1.tar.gz:
+- Install Futag python package from the extracted package futag-llvm/python-package/futag-1.1.tar.gz:
 
 ```bash
-  ~$ pip install futag-llvm-package/python-package/futag-1.1.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-1.1.tar.gz
 ```
 
 ## 3. Usage
@@ -67,7 +67,7 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 from futag.preprocessor import *
 
 testing_lib = Builder(
-    "futag-llvm-package/", # path to the futag-llvm-package
+    "futag-llvm/", # path to the futag-llvm
     "path/to/library/source/code" # library root
 )
 testing_lib.auto_build()
@@ -81,7 +81,7 @@ testing_lib.analyze()
 from futag.generator import *
 
 g = Generator(
-"futag-llvm-package/", # path to the futag-llvm-package
+"futag-llvm/", # path to the futag-llvm
 "path/to/library/source/code" # library root
 )
 g.gen_targets() # Generate fuzz drivers
@@ -116,7 +116,7 @@ This script creates directory Futag/build and copies script Futag/custom-llvm/bu
   ~/Futag/build$ ./build.sh
 ```
 
-After this stage, the instrument will be built and installed in folder Futag/futag-llvm-package
+After this stage, the instrument will be built and installed in folder Futag/futag-llvm
 
 You can try building Futag with ready [Dockerfiles](https://github.com/ispras/Futag/tree/main/product-tests/build-test) for different versions of Ubuntu OS.
 

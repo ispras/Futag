@@ -19,7 +19,7 @@ echo "************************************************"
 echo ""
 
 futag_src="../src"
-futag_install_folder="../futag-llvm-package"
+futag_install_folder="../futag-llvm"
 vendors="../vendors"
 custom_llvm="../custom-llvm"
 
@@ -48,6 +48,8 @@ mkdir $futag_install_folder/lib/bfd-plugins
 cp lib/LLVMgold.so $futag_install_folder/lib/bfd-plugins
 cp lib/libLTO.so $futag_install_folder/lib/bfd-plugins
 
+cp -r $custom_llvm/AFLplusplus $futag_install_folder/
+
 if [ -d $futag_install_folder/python-package ]
 then
     rm -rf $futag_install_folder/python-package
@@ -58,6 +60,9 @@ cp -r $futag_src/python/requirements.txt $futag_install_folder/python-package
 cp -r $futag_src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
+
+cd ../product-tests
+./prepare-package.sh
 
 echo ""
 echo "======== End of install script for FUTAG - a fuzzing target automated generator ========"

@@ -2,7 +2,7 @@
 from futag.preprocessor import *
 
 lib_test = Builder(
-"../futag-llvm-package",        #Путь к рабочей директории futag
+"../futag-llvm",        #Путь к рабочей директории futag
 "../json-c",                    #Путь к директории исходных текстов исследуемого приложения
 True,                           #Очистить каталоги futag-build, futag-install, futag-analysis перед запуском, допустимые значение: (True/False)(Необязательный параметр, по-умолчанию False)
 "../json-c/futag-build",        #Путь к директории futag-build (Необязательный параметр)
@@ -16,7 +16,7 @@ lib_test.auto_build()
 lib_test.analyze()
 
 lib_test = Generator(
-    "../futag-llvm-package/",
+    "../futag-llvm/",
     "json-c",
     )
 lib_test.gen_targets()

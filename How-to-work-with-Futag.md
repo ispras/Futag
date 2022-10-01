@@ -51,7 +51,7 @@ class Builder:
 from futag.preprocessor import *
 
 lib_test = Builder(
-    "Futag/futag-llvm-package/", # path to the futag-llvm-package
+    "Futag/futag-llvm/", # path to the futag-llvm
     "path/to/library/source/code" # library root
 )
 lib_test.auto_build()
@@ -62,7 +62,7 @@ lib_test.analyze()
 Если вы хотите скомпилировать библиотеку со своим флагами, вы сможете задать их с помощью параметра *flags*.
 ```python
 lib_test = Builder(
-    "/path/to/futag-llvm-package/", 
+    "/path/to/futag-llvm/", 
     ".", 
     flags="-g -O0",
 )
@@ -71,7 +71,7 @@ lib_test = Builder(
 Если вы повторно запускаете Futag в каталоге исходного кода библиотеки, задав параметр *clean=True* вы можете принудительно удалить сгенерированные ранее папки futag-build, futag-install и futag-analysis.
 ```python
 lib_test = Builder(
-    "/path/to/futag-llvm-package/", 
+    "/path/to/futag-llvm/", 
     ".", 
     flags="-g -O0",
     True, 
@@ -82,7 +82,7 @@ lib_test = Builder(
 
 ```python
 lib_test = Builder(
-    "/path/to/futag-llvm-package/", 
+    "/path/to/futag-llvm/", 
     ".", 
     flags="-g -O0",
     True, 
@@ -95,7 +95,7 @@ lib_test = Builder(
 
 ```python
 lib_test = Builder(
-    "/path/to/futag-llvm-package/", 
+    "/path/to/futag-llvm/", 
     ".", 
     flags="-g -O0",
     clean=True, 
@@ -110,7 +110,7 @@ lib_test = Builder(
 
 ```python
 lib_test = Builder(
-    "/path/to/futag-llvm-package/", 
+    "/path/to/futag-llvm/", 
     ".", 
     flags="-g -O0",
     True, 
@@ -150,7 +150,7 @@ $ /path/to/futag-llvm/package/bin/scan-build -enable-checker futag.FutagFunction
 from futag.preprocessor import *
 
 testing_lib = Builder(
-    "Futag/futag-llvm-package/", # path to the futag-llvm-package
+    "Futag/futag-llvm/", # path to the futag-llvm
     "path/to/library/source/code", # library root
     "/path/to/analysis/folder"
 )
@@ -164,7 +164,7 @@ testing_lib.analyze()
 from futag.generator import *
 
 g = Generator(
-"Futag/futag-llvm-package/", # path to the futag-llvm-package
+"Futag/futag-llvm/", # path to the futag-llvm
 "path/to/library/source/code", # library root
 "/path/to/analysis/folder/futag-analysis-result.json"#path to the futag-analysis-result.json file
 )

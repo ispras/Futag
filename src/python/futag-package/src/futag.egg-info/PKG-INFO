@@ -42,7 +42,7 @@ pip install dist/futag-1.0.tar.gz
 ## 2. Preprocessor
 * Prerequisite: You must have [llvm-package with Futag checker](https://github.com/ispras/Futag/blob/main/README.en.md#22-build-and-install) to analyze your library.
 
-The preprocessor module tries to configure and build your library with configure file or cmake, you should specify path to futag-llvm-package and path. The library then will be built with address sanitizer and Futag-checker. The class Builder of this module has 4 method:
+The preprocessor module tries to configure and build your library with configure file or cmake, you should specify path to futag-llvm and path. The library then will be built with address sanitizer and Futag-checker. The class Builder of this module has 4 method:
 - auto-build: automatically builds your library
 - build_configure(): builds your library with configure file
 - build_cmake(): builds your library with cmake
@@ -52,7 +52,7 @@ Example:
 ```python
 from futag.preprocessor import *
 
-json0_13 = Builder("../../futag-llvm-package", "json-c-json-c-0.13.1-20180305")
+json0_13 = Builder("../../futag-llvm", "json-c-json-c-0.13.1-20180305")
 json0_13.auto_build()
 json0_13.analyze()
 ```
@@ -60,7 +60,7 @@ or
 ```python
 from futag.preprocessor import *
 
-json0_13 = Builder("../../futag-llvm-package", "json-c-json-c-0.13.1-20180305")
+json0_13 = Builder("../../futag-llvm", "json-c-json-c-0.13.1-20180305")
 json0_13.build_configure()
 json0_13.analyze()
 ```
@@ -112,13 +112,13 @@ class Builder(builtins.object)
 ```
 
 ## 3. Generator
-The module Generator is for generating, compiling fuzz-drivers. You should specify path to analysis result (file futag-analysis-result.json), path to futag-llvm-package and the path to library. For more detail please refer to docstring of module.
+The module Generator is for generating, compiling fuzz-drivers. You should specify path to analysis result (file futag-analysis-result.json), path to futag-llvm and the path to library. For more detail please refer to docstring of module.
 
 Example:
 ```python
 from futag.generator import * 
 generator = Generator(
-    "../futag-llvm-package",
+    "../futag-llvm",
     "json-c-json-c-0.13.1-20180305" 
     "json-c-json-c-0.13.1-20180305/futag-analysis/futag-analysis-result.json", 
   )
@@ -142,6 +142,8 @@ class Generator(builtins.object)
  |          path to the futag llvm package (with binaries, scripts, etc)
  |      library_root: str
  |          path to the library root
+ |      target_type: int
+ |          format of fuzz-drivers (LIBFUZZER or AFLPLUSPLUS), default to LIBFUZZER 
  |      json_file: str
  |          path to the futag-analysis-result.json file
  |      output_path : str
@@ -168,7 +170,7 @@ The class Fuzzer helps automatically fuzz targets. It's just a simple script for
 
 ```python
 from futag.fuzzer import *
-f = Fuzzer("/Futag/futag-llvm-package", 
+f = Fuzzer("/Futag/futag-llvm", 
 "json-c-json-c-0.13.1-20180305/futag-fuzz-drivers")
 f.fuzz()
 ```

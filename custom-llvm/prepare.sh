@@ -23,28 +23,28 @@ echo "************************************************"
 
 set -x 
 
-futag_install_folder="../futag-llvm-package"
-build_folder="../build"
-if [ -d "llvm" ]
-then
-    rm -rf llvm
-fi
-tar xf llvm-14.0.6.src.tar.xz
-mv llvm-14.0.6.src llvm
+futag_install_folder="$(pwd)/../futag-llvm"
+build_folder="$(pwd)/../build"
 
-if [ -d "clang" ]
+if [ -d "AFLplusplus-4.02c" ]
 then
-    rm -rf clang
+    rm -rf AFLplusplus-4.02c
 fi
-tar xf clang-14.0.6.src.tar.xz
-mv clang-14.0.6.src clang
 
-if [ -d "compiler-rt" ]
+if [ -d "fuzz-introspector" ]
 then
-    rm -rf compiler-rt
+    rm -rf fuzz-introspector
 fi
-tar xf compiler-rt-14.0.6.src.tar.xz
-mv compiler-rt-14.0.6.src compiler-rt
+
+if [ -f llvm-project-14.0.6.src.tar.xz ]
+then
+    rm llvm-project-14.0.6.src.tar.xz
+fi
+
+if [ -d "llvm-project-14.0.6.src" ]
+then
+    rm -rf llvm-project-14.0.6.src
+fi
 
 #create build folder and copy script
 if [ -d $build_folder ]
@@ -52,6 +52,11 @@ then
     rm -rf $build_folder
 fi
 mkdir $build_folder
+
+#getting llvm-project 
+wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/llvm-project-14.0.6.src.tar.xz
+
+for f in *.tar.*; do tar xf "$f"; done
 
 # create futag installation folder
 if [ -d $futag_install_folder ]
@@ -62,29 +67,11 @@ mkdir $futag_install_folder
 
 # begin integrate with fuzz-introspector
 # extract and build binutils
-binutils_build="futag-build"
-tar xf binutils-futag.tar.xz -C $build_folder/
-# git clone --depth 1 git://sourceware.org/git/binutils-gdb.git binutils
-cd $build_folder
-cd binutils
-mkdir $binutils_build
-mkdir futag-install
-curr_dir="$PWD"
-cd $binutils_build
+binutils_build="binutils-build"
 
-../configure --prefix=$curr_dir/futag-install --enable-gold --enable-plugins --disable-werror
-make -j8 all-gold
-make -j8 
-make -j8 install
+mv binutils $build_folder/
+# git clone --depth 1 git://sourceware.org/git/binutils-gdb.git binutils
 
 set +x 
-cd ../../../custom-llvm/
-
-tar xf fuzz-introspector.tar.xz -C $futag_install_folder/
-fuzz_introspector=$futag_install_folder/fuzz-introspector
-
-$fuzz_introspector/sed_cmds.sh
-cp -rf $fuzz_introspector/frontends/llvm/include/llvm/Transforms/FuzzIntrospector/ ./llvm/include/llvm/Transforms/FuzzIntrospector
-cp -rf $fuzz_introspector/frontends/llvm/lib/Transforms/FuzzIntrospector ./llvm/lib/Transforms/FuzzIntrospector
-# end integrate with fuzz-introspector
-cp build.sh buildMacM.sh $build_folder
+mv fuzz-introspector $futag_install_folder/
+cp build*.sh  $build_folder

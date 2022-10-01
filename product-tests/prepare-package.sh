@@ -1,4 +1,4 @@
 #!/bin/bash
 
-XZ_OPT='-T16 -9' tar cJf futag-llvm-package.latest.tar.xz ../futag-llvm-package
-mv futag-llvm-package.latest.tar.xz package-test/
+XZ_OPT='-T8 -9' tar cJf futag-llvm.latest.tar.xz ../futag-llvm
+mv futag-llvm.latest.tar.xz package-test/

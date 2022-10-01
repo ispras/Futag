@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-if [ ! -f ../futag-llvm-package.latest.tar.xz]
+if [ ! -f ../futag-llvm.latest.tar.xz]
 then
     echo "-- [Futag]: missing latest package of Futag"
     exit
 fi
-cp ../futag-llvm-package.latest.tar.xz .
+cp ../futag-llvm.latest.tar.xz .
 
 docker build --network=host -t futag_libs_ubuntu22 -f Docker-test-package.Dockerfile .
