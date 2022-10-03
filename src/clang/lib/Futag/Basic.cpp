@@ -109,9 +109,12 @@ DataTypeDetail getDataTypeDetail(QualType type) {
       type.getCanonicalType().getAsString() == "unsigned char *") {
     qual_type_detail.parent_type = "";
     qual_type_detail.generator_type = DataType::_STRING;
-    vector<string> type_split = futag::explode(type.getAsString(), ' ');
-    if (type_split[0] == "const") {
-      qual_type_detail.parent_type = type_split[1];
+    // vector<string> type_split = futag::explode(type.getAsString(), ' ');
+    if (type.getCanonicalType().getAsString() == "const char *" ) {
+      qual_type_detail.parent_type = "char *";
+    }
+    if ( type.getCanonicalType().getAsString() == "const unsigned char *") {
+      qual_type_detail.parent_type = "unsigned char *";
     }
     return qual_type_detail;
   }

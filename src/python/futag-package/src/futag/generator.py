@@ -548,7 +548,7 @@ unsigned char *Fuzz_Data = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT
 while (__AFL_LOOP(10000)) {
     int Fuzz_Size = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
     
-    // check for a required/useful minimum input length''')
+    // check for a required/useful minimum input length\n''')
                 if self.dyn_size > 0:
                     f.write("    if (Fuzz_Size < " + str(self.dyn_size))
                     if self.buf_size_arr:
@@ -757,7 +757,7 @@ while (__AFL_LOOP(10000)) {
             self.gen_func_params += curr_gen["gen_lines"]
             self.gen_free += curr_gen["gen_free"]
             if curr_gen["buf_size"]:
-                self.buf_size_arr.append(curr_param["buf_size"])
+                self.buf_size_arr.append(curr_gen["buf_size"])
 
             param_id += 1
             self.gen_target_function(func, param_id)
@@ -895,12 +895,13 @@ while (__AFL_LOOP(10000)) {
                 [x for x in (self.install_path / "include" ).iterdir() if x.is_dir()]
         generated_functions = [x for x in self.output_path.iterdir() if x.is_dir()]
         generated_targets = 0
-        compiler_flags = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined,fuzzer -fprofile-instr-generate -fcoverage-mapping"
+        compiler_flags_libFuzzer = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined,fuzzer -fprofile-instr-generate -fcoverage-mapping"
+        compiler_flags_aflplusplus = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined -fprofile-instr-generate -fcoverage-mapping"
         compiler_path = ""
         if self.target_type == LIBFUZZER:
             compiler_path = self.futag_llvm_package / "bin/clang"
         else:
-            compiler_path = self.futag_llvm_package / "AFLplusplus/usr/bin/afl-clang"
+            compiler_path = self.futag_llvm_package / "AFLplusplus/usr/local/bin/afl-clang-fast"
         compile_cmd_list = []
         static_lib = []
         target_lib = [u for u in (self.library_root).glob("**/*.a") if u.is_file()]
@@ -946,15 +947,20 @@ while (__AFL_LOOP(10000)) {
             for dir in fuzz_driver_dirs:
                 for target_src in [t for t in dir.glob("*.c") if t.is_file()]:
                     generated_targets += 1
+                    
                     driver_output.append([current_include, target_src.as_posix(), dir.as_posix() + "/" + target_src.stem + ".out"])
-                    compiler_cmd = [compiler_path.as_posix() ] + compiler_flags.split(" ") + current_include + [target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
+                    
                     if self.target_type == LIBFUZZER:
-                        target_file = open(target_src.as_posix(), "a")
-                        target_file.write("\n//Compile command:")
-                        target_file.write("\n/*\n")
-                        target_file.write(" ".join(compiler_cmd))
-                        target_file.write("\n*/\n")
-                        target_file.close()
+                        compiler_cmd = [compiler_path.as_posix() ] + compiler_flags_libFuzzer.split(" ") + current_include + [target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
+                    else:
+                        compiler_cmd = [compiler_path.as_posix() ] + compiler_flags_aflplusplus.split(" ") + current_include + [target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
+
+                    target_file = open(target_src.as_posix(), "a")
+                    target_file.write("\n//Compile command:")
+                    target_file.write("\n/*\n")
+                    target_file.write(" ".join(compiler_cmd))
+                    target_file.write("\n*/\n")
+                    target_file.close()
                     compile_cmd_list.append(compiler_cmd)
         if makefile:
             makefile = open((self.output_path / "Makefile.futag").as_posix(), "w")
@@ -973,7 +979,7 @@ while (__AFL_LOOP(10000)) {
             makefile.write("#************************************************\n")
             makefile.write("\n")
             makefile.write("COMPILER=" + compiler_path.as_posix() + "\n")
-            makefile.write("FLAGS=" + compiler_flags + "\n")
+            makefile.write("FLAGS=" + compiler_flags_libFuzzer + "\n")
             makefile.write("STATIC_LIBS=" + " ".join(static_lib) + "\n")
             makefile.write("SYS_LIBS=\"\"\n")
 
