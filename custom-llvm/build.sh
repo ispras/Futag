@@ -21,38 +21,64 @@ echo ""
 futag_src="$(pwd)/../src"
 futag_install_folder="$(pwd)/../futag-llvm"
 vendors="$(pwd)/../vendors"
-custom_llvm="$(pwd)/../custom-llvm/llvm-project-14.0.6.src"
+custom_llvm="$(pwd)/../custom-llvm/llvm-project"
 custom_prepare="$(pwd)/../custom-llvm"
 
 #copy source code to llvm-project
 cp -r $vendors/json-3.10.5/single_include/nlohmann $custom_llvm/clang/include/
 
-cp -r $futag_src/clang/include/clang/ASTMatchFinder.h $custom_llvm/clang/include/clang/ASTMatchers/
-cp -r $futag_src/clang/lib/clang/ASTMatchFinder.cpp $custom_llvm/clang/lib/ASTMatchers/
+set -x
 
+llvmVersion=$(head -n 1 $custom_prepare/INFO)
+version=""
+
+if [ $llvmVersion == "LLVM=13.0.1" ]; then
+    version="13"
+fi
+if [ $llvmVersion == "LLVM=12.0.1" ]; then
+    version="12"
+fi
+
+clanglibCMakeLists="CMakeLists$version.txt"
+ASTMatchFinderh="ASTMatchFinder$version.h"
+ASTMatchFindercpp="ASTMatchFinder$version.cpp"
+Checkerstd="Checkers$version.td"
+CheckerCMakeLists="CMakeLists$version.txt"
+
+cp -r $futag_src/clang/include/clang/$ASTMatchFinderh $custom_llvm/clang/include/clang/ASTMatchers/ASTMatchFinder.h
+cp -r $futag_src/clang/lib/clang/$ASTMatchFindercpp $custom_llvm/clang/lib/ASTMatchers/ASTMatchFinder.cpp
 
 cp -r $futag_src/clang/include/Futag $custom_llvm/clang/include/
-cp $futag_src/clang/lib/CMakeLists.txt $custom_llvm/clang/lib/
+cp $futag_src/clang/lib/$clanglibCMakeLists $custom_llvm/clang/lib/CMakeLists.txt
 cp -r $futag_src/clang/lib/Futag $custom_llvm/clang/lib/
 
 # copy clang Checker
-cp -r $futag_src/Checkers/include/Checkers.td $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/
-cp -r $futag_src/Checkers/lib/* $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
+cp $futag_src/Checkers/include/$Checkerstd $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/Checkers.td
+cp $futag_src/Checkers/lib/FutagAnalyzer.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
+cp -r $futag_src/Checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
 
-cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=OFF  -DCMAKE_BUILD_TYPE=Release  -DLLVM_BINUTILS_INCDIR=/usr/include/  -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;lld'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt;libcxx;libcxxabi;libunwind;"  $custom_llvm/llvm
+# # copy clang Plugin
+# cp -r $futag_src/Plugins/* $custom_llvm/clang/
+
+# # copy Futag Slicer
+# cp -r $futag_src/Slicer/include/* $custom_llvm/clang/include/
+# cp -r $futag_src/Slicer/FutagSlicer $custom_llvm/clang-tools-extra/
+# cp $futag_src/Slicer/CMakeLists.txt $custom_llvm/clang-tools-extra/
+
+if [ $llvmVersion == "LLVM=14.0.6" ]; then
+    cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=OFF  -DCMAKE_BUILD_TYPE=Release  -DLLVM_BINUTILS_INCDIR=/usr/include/  -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt;"  $custom_llvm/llvm
+
+fi
+if [ $llvmVersion == "LLVM=13.0.1" ]; then
+    cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=OFF  -DCMAKE_BUILD_TYPE=Release  -DLLVM_BINUTILS_INCDIR=/usr/include/  -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;compiler-rt;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host"  $custom_llvm/llvm
+
+fi
+if [ $llvmVersion == "LLVM=12.0.1" ]; then
+    cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=OFF  -DCMAKE_BUILD_TYPE=Release  -DLLVM_BINUTILS_INCDIR=/usr/include/  -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;compiler-rt;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" $custom_llvm/llvm
+
+fi
 
 make -j8 && make -j8 install
-
-export PATH="$(pwd)/bin:$PATH"
-export LLVM_CONFIG="$(pwd)/bin/llvm-config"
-export LD_LIBRARY_PATH="$(llvm-config --libdir)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-#build AFLplusplus
-mv $custom_prepare/AFLplusplus-4.02c .
-cd AFLplusplus-4.02c
-make -j8 distrib
-make -j8 DESTDIR=$futag_install_folder/AFLplusplus install
-cd ..
 
 if [ -d $futag_install_folder/python-package ]
 then
@@ -64,10 +90,12 @@ cp -r $futag_src/python/requirements.txt $futag_install_folder/python-package
 cp -r $futag_src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
+cp $custom_prepare/INFO $futag_install_folder/
 
 cd ../product-tests
-./prepare-package.sh
+XZ_OPT='-T8 -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm
+mv futag-llvm.latest.tar.xz product-tests/
 
 echo ""
-echo "======== End of install script for FUTAG - a fuzzing target automated generator ========"
+echo "======== End of build script for FUTAG - a fuzzing target automated generator ========"
 echo ""

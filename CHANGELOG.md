@@ -40,3 +40,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add support for Makefile
 - Generation for global function of C++ libraries
 - Add testing repository: https://github.com/thientc/Futag-tests
+
+## 20221012
+- Add support for AFLplusplus
+- Add possibility of building LLVM with different version (12, 13, 14)
+- Add analysis for classes, structs, unions...
+- Add compilition database of building
+- Add analysis of headers

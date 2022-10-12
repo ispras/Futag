@@ -240,7 +240,7 @@ def NonnullGlobalConstantsChecker: Checker<"NonnilStringConstants">,
 //===----------------------------------------------------------------------===//
 let ParentPackage = Futag in {
 
-    def FutagFunctionAnalyzer : Checker<"FutagFunctionAnalyzer">,
+    def FutagAnalyzer : Checker<"FutagAnalyzer">,
     HelpText<"Futag Checker for finding potential fuzzing functions. Use scan-build for viewing result and generating list of needed function">,
     CheckerOptions<[
         CmdLineOption<String,

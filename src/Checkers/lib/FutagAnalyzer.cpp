@@ -20,6 +20,7 @@
 #include "Futag/MatchFinder.h"
 #include "nlohmann/json.hpp"
 #include "clang/AST/Decl.h"
+#include "clang/AST/ODRHash.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Type.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
@@ -40,6 +41,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+
 #include "llvm/Support/raw_ostream.h"
 
 #include "Futag/Basic.h"
@@ -80,7 +82,8 @@ private:
   void CollectBasicFunctionInfo(json &currJsonCtx, const FunctionDecl *func,
                                 AnalysisManager &Mgr, int32_t currFuncBeginLoc,
                                 const std::string &fileName,
-                                const std::string &currFuncName) const;
+                                const futag::FuncVision funcVision,
+                                const std::string &parentName) const;
 
   // Collects "advanced", context-related function information.
   // This information consists from a lot of different things. For example:
@@ -88,8 +91,7 @@ private:
   void CollectAdvancedFunctionsInfo(json &callContextJson,
                                     const FunctionDecl *func,
                                     AnalysisManager &Mgr,
-                                    const std::string &fileName,
-                                    const std::string &currFuncName) const;
+                                    const std::string &fileName) const;
 
   // Tries to identify how current function uses its arguments.
   // This method only performs elementary analysis, which consists
@@ -172,7 +174,7 @@ void FutagAnalyzer::WriteInfoToTheFile(const StringRef tCurrentReportPath,
 void FutagAnalyzer::CollectBasicFunctionInfo(
     json &currJsonCtx, const FunctionDecl *func, AnalysisManager &Mgr,
     int32_t currFuncBeginLoc, const std::string &fileName,
-    const std::string &currFuncName) const {
+    const futag::FuncVision funcVision, const std::string &parentName) const {
   // Use ODRHash as a key for a json object. This is required later due to the
   // fact that we need to update state for already existing functions, thus we
   // somehow should be able to find these functions in the json file.
@@ -182,8 +184,14 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
   // Write general info: function name, filename where the function is defined,
   // line on which function is defined, return type of the function and
   // if we should fuzz it or no
+  std::string currFuncQName(func->getQualifiedNameAsString());
+  std::string currFuncName(func->getDeclName().getAsString());
+
   json basicFunctionInfo = {
       {"func_name", currFuncName},
+      {"func_qname", currFuncQName},
+      {"vision", funcVision},
+      {"parent_name", parentName},
       {"location", fileName + ":" + std::to_string(currFuncBeginLoc)},
       {"return_type", func->getReturnType().getAsString()},
       {"return_type_pointer", func->getReturnType()->isPointerType()},
@@ -243,7 +251,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
 
 void FutagAnalyzer::CollectAdvancedFunctionsInfo(
     json &callContextJson, const FunctionDecl *func, AnalysisManager &Mgr,
-    const std::string &fileName, const std::string &currFuncName) const {
+    const std::string &fileName) const {
   MatchFinder Finder;
 
   auto MatchFuncCall =
@@ -286,7 +294,7 @@ FutagAnalyzer::FutagAnalyzer()
       includesInfoReportPath{}, rand{} {
   mTypesInfo = {{"enums", json::array()},
                 {"typedefs", json::array()},
-                {"structs", json::array()}};
+                {"records", json::array()}};
 
   mIncludesInfo =
       json{{"file", ""}, {"includes", json::array()}, {"compiler_opts", ""}};
@@ -323,12 +331,12 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
   }
   std::string compilerOpts = Mgr.getAnalyzerOptions().FullCompilerInvocation;
   auto fe = sm.getFileEntryForID(sm.getMainFileID());
-  if (fe->tryGetRealPathName().empty()){
-    if(fe->getName().empty()){
+  if (fe->tryGetRealPathName().empty()) {
+    if (fe->getName().empty()) {
       return;
     }
     mIncludesInfo["file"] = fe->getName();
-  }else{
+  } else {
     mIncludesInfo["file"] = fe->tryGetRealPathName();
   }
   mIncludesInfo["compiler_opts"] = compilerOpts;
@@ -373,14 +381,15 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
 // Called for every function declaration
 void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
                                   AnalysisManager &Mgr) const {
+
+  // FunctionTemplateDecl
   if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc())) {
     return;
   }
 
-  if (!func->isGlobal()) {
-    return;
-  }
-  if (isa<CXXMethodDecl>(func)) {
+  // If the provided function doesn't have a body or the function
+  // is a declaration (not a definition) -> skip this entry.
+  if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
     return;
   }
 
@@ -389,33 +398,62 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   if (!fBeginLoc.getFileEntry()) {
     return;
   }
-  // If the provided function doesn't have a body or the function
-  // is a declaration (not a definition) -> skip this entry.
-  if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
-    return;
-  }
-
   int32_t currFuncBeginLoc = fBeginLoc.getSpellingLineNumber();
-  // Preprocess current filename by deleting all ./ and ../
-  std::string fileName =
-      futag::utils::PathProcessor::RemoveUnnecessaryPathComponents(
-          fBeginLoc.getFileEntry()->getName().str());
+  auto fe = fBeginLoc.getFileEntry();
+  std::string fileName;
+  std::string parentName = "";
 
-  std::string currFuncName(func->getQualifiedNameAsString());
+  if (fe->tryGetRealPathName().empty()) {
+    if (fe->getName().empty()) {
+      std::cerr << " -- Debug info: Cannot find filename and filepath!\n";
+    } else {
+      fileName = fe->getName().str();
+    }
+  } else {
+    fileName = fe->tryGetRealPathName().str();
+  }
+  futag::FuncVision funcVision = futag::_FUNC_UNKNOW_RECORD;
+  if (isa<CXXMethodDecl>(func)) {
+    auto methodDecl = dyn_cast<CXXMethodDecl>(func);
+    parentName = methodDecl->getParent()->getNameAsString();
+    if (methodDecl->isStatic()) {
+      funcVision = futag::_FUNC_STATIC;
+      // If isStatic () ---> ok, we'll call without initializing class
+    }
+    // How to get Parent class:
+    //   const CXXRecordDecl *class_decl =
+    //   dyn_cast<CXXMethodDecl>(func)->getParent();
+
+    if (isa<CXXConstructorDecl>(func)) {
+      funcVision = futag::_FUNC_CONSTRUCTOR;
+    }
+    if (isa<CXXDestructorDecl>(func)) {
+      funcVision = futag::_FUNC_DESTRUCTOR;
+    }
+  }
+  if (func->isGlobal()) {
+    funcVision = futag::_FUNC_GLOBAL;
+  }
 
   // Collect basic information about current function
   CollectBasicFunctionInfo(mFunctionDeclInfo, func, Mgr, currFuncBeginLoc,
-                           fileName, currFuncName);
+                           fileName, funcVision, parentName);
 
   // Collect advanced information about function calls inside current function
-  CollectAdvancedFunctionsInfo(mCallContextInfo, func, Mgr, fileName,
-                               currFuncName);
-
+  CollectAdvancedFunctionsInfo(mCallContextInfo, func, Mgr, fileName);
   return;
 }
 
 void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
                                 AnalysisManager &Mgr) const {
+
+  // RecordDecl->getDefinition() Returns the RecordDecl that actually defines
+  // this struct/union/class. When determining whether or not a
+  // struct/union/class is completely defined, one should use this method as
+  // opposed to 'isCompleteDefinition'. 'isCompleteDefinition' indicates whether
+  // or not a specific RecordDecl is a completed definition, not whether or not
+  // the record type is defined. This method returns NULL if there is no
+  // RecordDecl that defines the struct/union/tag.
   bool definedInSystemHeader =
       Mgr.getSourceManager().isInSystemHeader(RD->getLocation());
 
@@ -432,18 +470,27 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
   if (definedInSystemHeader)
     return;
 
-  mTypesInfo["structs"].push_back({{"struct_name", RD->getNameAsString()},
-                                   {"struct_fields", json::array()}});
-  json &currentStruct = mTypesInfo["structs"].back();
-
+  futag::RecordType record_type = _UNKNOW_RECORD;
+  if (RD->isClass()) {
+    record_type = _CLASS_RECORD;
+  }
+  if (RD->isUnion()) {
+    record_type = _UNION_RECORD;
+  }
+  if (RD->isStruct()) {
+    record_type = _STRUCT_RECORD;
+  }
+  mTypesInfo["records"].push_back({{"name", RD->getNameAsString()},
+                                   {"type", record_type},
+                                   {"fields", json::array()}});
+  json &currentStruct = mTypesInfo["records"].back();
   for (auto it = RD->field_begin(); it != RD->field_end(); it++) {
-    currentStruct["struct_fields"].push_back(
+    currentStruct["fields"].push_back(
         {{"field_name", it->getNameAsString()},
          {"field_type", it->getType().getAsString()},
          {"is_builtin", it->getType().getCanonicalType()->isBuiltinType()},
          {"canonical_type", it->getType().getCanonicalType().getAsString()}});
   }
-
   return;
 }
 
@@ -503,7 +550,7 @@ void FutagAnalyzer::VisitEnum(const EnumDecl *ED, AnalysisManager &Mgr) const {
   return;
 }
 
-void ento::registerFutagFunctionAnalyzer(CheckerManager &Mgr) {
+void ento::registerFutagAnalyzer(CheckerManager &Mgr) {
   auto *Chk = Mgr.registerChecker<FutagAnalyzer>();
   Chk->reportDir = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
       Mgr.getCurrentCheckerName(), "report_dir"));
@@ -516,27 +563,27 @@ void ento::registerFutagFunctionAnalyzer(CheckerManager &Mgr) {
   sys::path::append(Chk->contextReportPath, Chk->reportDir,
                     "context-" +
                         Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-                        ".futag-function-analyzer");
+                        ".futag-analyzer.json");
 
   Chk->funcDeclReportPath = "";
   sys::path::append(Chk->funcDeclReportPath, Chk->reportDir,
                     "declaration-" +
                         Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-                        ".futag-function-analyzer");
+                        ".futag-analyzer.json");
 
   Chk->typesInfoReportPath = "";
   sys::path::append(Chk->typesInfoReportPath, Chk->reportDir,
                     "types-info-" +
                         Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-                        ".futag-function-analyzer");
+                        ".futag-analyzer.json");
 
   Chk->includesInfoReportPath = "";
   sys::path::append(Chk->includesInfoReportPath, Chk->reportDir,
                     "file-info-" +
                         Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-                        ".futag-function-analyzer");
+                        ".futag-analyzer.json");
 }
 
-bool ento::shouldRegisterFutagFunctionAnalyzer(const CheckerManager &mgr) {
+bool ento::shouldRegisterFutagAnalyzer(const CheckerManager &mgr) {
   return true;
 }

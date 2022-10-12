@@ -109,19 +109,31 @@ class Generator:
         defaults = ["stdio.h", "stddef.h", "stdlib.h", "string.h", "stdint.h"]
         compiled_files = self.target_library["compiled_files"]
         included_headers = []
+        found = False
         for f in compiled_files:
             if f["filename"] == target_function_fname:
+                found = True
                 for header in f["headers"]:
                     if not header[1:-1] in defaults:
                         included_headers.append(header)
                 break
-            
+        if not found:
+            print (target_function_fname, " not found!")
+            short_filename = target_function_fname.split('/')[-1]
+            print("short filename:", short_filename)
+            for f in compiled_files:
+                print("short compiled_files:", f["filename"].split('/')[-1])
+                if f["filename"].split('/')[-1] == short_filename:
+                    found = True
+                    for header in f["headers"]:
+                        if not header[1:-1] in defaults:
+                            included_headers.append(header)
+                    break
         include_lines = []
-        for i in included_headers:
-            include_lines.append("#include " + i +"\n")
         for i in defaults:
             include_lines.append("#include <" + i +">\n")
-
+        for i in included_headers:
+            include_lines.append("#include " + i +"\n")
         return include_lines
 
     def gen_builtin(self, type_name, var_name):
@@ -210,11 +222,12 @@ class Generator:
             "gen_free": []
         }
 
-    def gen_qualifier(self, type_name, var_name, parent_type, parent_gen):
+    def gen_qualifier(self, type_name, var_name, parent_type, parent_gen, param_id):
         
         if parent_type in ["const char *", "const unsigned char *"]:
             self.dyn_size += 1
             temp_type = parent_type[6:]
+            self.curr_gen_string = param_id 
             return {
                 "gen_lines": [
                     "//GEN_STRING\n",
@@ -237,6 +250,7 @@ class Generator:
             }
         if parent_type in ["char *", "unsigned char *"]:
             self.dyn_size += 1
+            self.curr_gen_string = param_id
             return {
                 "gen_lines": [
                     "//GEN_STRING\n",
@@ -438,8 +452,8 @@ class Generator:
             "unsigned char *",
             "char *",
         ]
+        
         if param_id == len(func['params']):
-            
             if not self.gen_this_function:
                 return False
             # If there is no buffer - return!
@@ -481,7 +495,7 @@ class Generator:
             f.write('\n')
             if self.target_type == LIBFUZZER:
                 f.write(
-                    "int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size)\n")
+                    "extern \"C\" int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size)\n")
                 f.write("{\n")
 
                 if self.dyn_size > 0:
@@ -603,7 +617,7 @@ while (__AFL_LOOP(10000)) {
             return True
 
         curr_param = func["params"][param_id]
-
+        print(" -- info: ", func["func_name"], ", id:", param_id, ", generator_type: ",curr_param["generator_type"])
         if curr_param["generator_type"] == GEN_BUILTIN: 
             if curr_param["param_type"].split(" ")[0] in ["volatile", "const"]:
                 if curr_param["param_usage"] == "SIZE_FIELD" and len(func["params"]) > 1:
@@ -749,7 +763,8 @@ while (__AFL_LOOP(10000)) {
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"],
-                curr_param["parent_gen"]
+                curr_param["parent_gen"],
+                param_id
                 )
             if not curr_gen:
                 self.gen_this_function = False
@@ -797,6 +812,7 @@ while (__AFL_LOOP(10000)) {
             old_buf_size_arr = copy.copy(self.buf_size_arr)
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
+            print (curr_param["param_type"])
             for f in self.target_library['functions']:
                 if f["return_type"] == curr_param["param_type"] and f["func_name"] != func["func_name"]:
                     # check for function call with simple data type!!!
@@ -899,7 +915,7 @@ while (__AFL_LOOP(10000)) {
         compiler_flags_aflplusplus = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined -fprofile-instr-generate -fcoverage-mapping"
         compiler_path = ""
         if self.target_type == LIBFUZZER:
-            compiler_path = self.futag_llvm_package / "bin/clang"
+            compiler_path = self.futag_llvm_package / "bin/clang++"
         else:
             compiler_path = self.futag_llvm_package / "AFLplusplus/usr/local/bin/afl-clang-fast"
         compile_cmd_list = []

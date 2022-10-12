@@ -150,9 +150,8 @@ $ /path/to/futag-llvm/package/bin/scan-build -enable-checker futag.FutagFunction
 from futag.preprocessor import *
 
 testing_lib = Builder(
-    "Futag/futag-llvm/", # path to the futag-llvm
-    "path/to/library/source/code", # library root
-    "/path/to/analysis/folder"
+    "Futag/futag-llvm/", #Путь к рабочей директории futag
+    "path/to/library/source/code", #Путь к директории исходных текстов исследуемого приложения
 )
 testing_lib.analyze()
 ```
@@ -160,13 +159,16 @@ testing_lib.analyze()
 4. Запустить генератор:
 
 ```python
-# package futag must be already installed
 from futag.generator import *
+from futag.sysmsg import *
 
 g = Generator(
-"Futag/futag-llvm/", # path to the futag-llvm
-"path/to/library/source/code", # library root
-"/path/to/analysis/folder/futag-analysis-result.json"#path to the futag-analysis-result.json file
+"Futag/futag-llvm/", #Путь к рабочей директории futag
+"path/to/library/source/code", #Путь к директории исходных текстов исследуемого приложения
+AFLPLUSPLUS, # Формат оберток LIBFUZZER или AFLPLUSPLUS
+"/path/to/analysis/folder/futag-analysis-result.json" #Путь к файлу результата анализа
 )
-g.gen_targets() # Generate fuzz drivers
-g.compile_targets() # Compile fuzz drivers
+g.gen_targets() # генерация фаззинг-оберток
+g.compile_targets( # компиляция фаззинг-оберток
+    True, # генерация Makefile
+    16) # количество потоков при компиляции
