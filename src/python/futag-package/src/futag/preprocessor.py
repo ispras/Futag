@@ -166,6 +166,7 @@ class Builder:
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
@@ -223,9 +224,9 @@ class Builder:
 
         # my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         # my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-        # my_env["CFLAGS"] = self.flags
-        # my_env["CPPFLAGS"] = self.flags
-        # my_env["LDFLAGS"] = self.flags
+        my_env["CFLAGS"] = self.flags
+        my_env["CPPFLAGS"] = self.flags
+        my_env["LDFLAGS"] = self.flags
 
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
@@ -595,7 +596,7 @@ class Builder:
             for enum_it in types["enums"]:
                 exist = False
                 for enum_exist_it in enum_list:
-                    if enum_it["enum_name"] == enum_exist_it["enum_name"]:
+                    if enum_it["qname"] == enum_exist_it["qname"]:
                         exist = True
                         break
                 if not exist:
@@ -605,7 +606,7 @@ class Builder:
                 if record["type"] == STRUCT_RECORD:
                     exist = False
                     for struct_iter in struct_list:
-                        if record["name"] == struct_iter["name"]:
+                        if record["qname"] == struct_iter["qname"]:
                             if len(record["fields"]) > len(struct_iter["fields"]):
                                 struct_iter["fields"] = record["fields"]
                             exist = True
@@ -615,7 +616,7 @@ class Builder:
                 if record["type"] == UNION_RECORD :
                     exist = False
                     for union_iter in union_list:
-                        if record["name"] == union_iter["name"]:
+                        if record["qname"] == union_iter["qname"]:
                             if len(record["fields"]) > len(union_iter["fields"]):
                                 union_iter["fields"] = record["fields"]
                             exist = True
@@ -625,7 +626,7 @@ class Builder:
                 if record["type"] == CLASS_RECORD :
                     exist = False
                     for class_iter in class_list:
-                        if record["name"] == class_iter["name"]:
+                        if record["qname"] == class_iter["qname"]:
                             if len(record["fields"]) > len(class_iter["fields"]):
                                 class_iter["fields"] = record["fields"]
                             exist = True
@@ -635,7 +636,7 @@ class Builder:
                 if record["type"] == UNKNOW_RECORD :
                     exist = False
                     for record_iter in unknown_record_list:
-                        if record["name"] == record_iter["name"]:
+                        if record["qname"] == record_iter["qname"]:
                             if len(record["fields"]) > len(record_iter["fields"]):
                                 record_iter["fields"] = record["fields"]
                             exist = True
@@ -647,7 +648,7 @@ class Builder:
             for typedef_it in types["typedefs"]:
                 exist = False
                 for typedef_exist_it in typedef_list:
-                    if typedef_it["typename"] == typedef_exist_it["typename"]:
+                    if typedef_it["qname"] == typedef_exist_it["qname"]:
                         exist = True
                         break
                 if not exist:
@@ -687,20 +688,21 @@ class Builder:
             contexts = []
             for f in function_list:
                 for call_func in function_list[f]["call_contexts"]:
-                    if call_func["called_from_func_name"] == function_list[func]["func_name"]:
+                    if call_func["called_from_func_name"] == function_list[func]["name"]:
                         contexts.append(call_func)
             fs = {
-                "func_name": function_list[func]["func_name"],
-                "func_qname": function_list[func]["func_qname"],
-                "vision": function_list[func]["vision"],
-                "parent_name": function_list[func]["parent_name"],
+                "name": function_list[func]["name"],
+                "qname": function_list[func]["qname"],
+                "func_type": function_list[func]["func_type"],
+                "access_type": function_list[func]["access_type"],
+                "storage_class": function_list[func]["storage_class"],
+                "parent_hash": function_list[func]["parent_hash"],
                 "return_type": function_list[func]["return_type"],
                 "return_type_pointer": function_list[func]["return_type_pointer"],
                 "params": function_list[func]["params"],
                 "fuzz_it": function_list[func]["fuzz_it"],
                 "contexts": contexts,
                 "location": function_list[func]["location"],
-
             }
             functions_w_contexts.append(fs)
 

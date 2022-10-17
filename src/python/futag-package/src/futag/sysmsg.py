@@ -82,8 +82,28 @@ UNION_RECORD = 1
 STRUCT_RECORD = 2
 UNKNOW_RECORD = 3
 
-# Function Vision
-FUNC_CONSTRUCTOR = 0
-FUNC_GLOBAL = 1
-FUNC_STATIC = 2
-FUNC_UNKNOW_RECORD = 4
+# Function Type
+FUNC_CXXMETHOD = 0
+FUNC_CONSTRUCTOR = 1
+FUNC_DEFAULT_CONSTRUCTOR = 2
+FUNC_DESTRUCTOR = 3
+FUNC_GLOBAL = 4
+FUNC_STATIC = 5
+FUNC_UNKNOW_RECORD = 6
+
+# Access type
+# A C++ access specifier (public, private, protected), plus the special value "none" which means different things in different contexts.
+AS_PUBLIC = 0
+AS_PROTECTED = 1
+AS_PRIVATE  = 2
+AS_NONE  = 3 # for only C
+
+# Storage class
+# These are legal on both functions and variables.
+SC_NONE = 0
+SC_EXTERN = 1
+SC_STATIC = 2
+SC_PRIVATEEXTERN = 3
+# These are only legal on variables.
+SC_AUTO = 4
+SC_REGISTER = 5

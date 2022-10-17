@@ -82,8 +82,8 @@ private:
   void CollectBasicFunctionInfo(json &currJsonCtx, const FunctionDecl *func,
                                 AnalysisManager &Mgr, int32_t currFuncBeginLoc,
                                 const std::string &fileName,
-                                const futag::FuncVision funcVision,
-                                const std::string &parentName) const;
+                                const futag::FunctionType function_type,
+                                const std::string &parentHash) const;
 
   // Collects "advanced", context-related function information.
   // This information consists from a lot of different things. For example:
@@ -174,7 +174,8 @@ void FutagAnalyzer::WriteInfoToTheFile(const StringRef tCurrentReportPath,
 void FutagAnalyzer::CollectBasicFunctionInfo(
     json &currJsonCtx, const FunctionDecl *func, AnalysisManager &Mgr,
     int32_t currFuncBeginLoc, const std::string &fileName,
-    const futag::FuncVision funcVision, const std::string &parentName) const {
+    const futag::FunctionType function_type,
+    const std::string &parentHash) const {
   // Use ODRHash as a key for a json object. This is required later due to the
   // fact that we need to update state for already existing functions, thus we
   // somehow should be able to find these functions in the json file.
@@ -188,10 +189,12 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
   std::string currFuncName(func->getDeclName().getAsString());
 
   json basicFunctionInfo = {
-      {"func_name", currFuncName},
-      {"func_qname", currFuncQName},
-      {"vision", funcVision},
-      {"parent_name", parentName},
+      {"name", currFuncName},
+      {"qname", currFuncQName},
+      {"func_type", function_type},
+      {"access_type", func->getAccess()},
+      {"storage_class", func->getStorageClass()},
+      {"parent_hash", parentHash},
       {"location", fileName + ":" + std::to_string(currFuncBeginLoc)},
       {"return_type", func->getReturnType().getAsString()},
       {"return_type_pointer", func->getReturnType()->isPointerType()},
@@ -222,6 +225,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
          {"array_size", datatypeDetail.array_size},
          {"parent_type", datatypeDetail.parent_type},
          {"parent_gen", datatypeDetail.parent_gen},
+         {"canonical_type", paramQualType.getCanonicalType().getAsString()},
          {"param_usage", "UNKNOWN"}});
 
     // Try to determine argument usage
@@ -232,8 +236,8 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
   if (mLogDebugMessages) {
     std::cerr << "Current function name: " << currFuncName << "\n"
               << "Old function name: "
-              << ((currJsonCtx[keyFuncHash].contains("func_name"))
-                      ? currJsonCtx[keyFuncHash]["func_name"]
+              << ((currJsonCtx[keyFuncHash].contains("name"))
+                      ? currJsonCtx[keyFuncHash]["name"]
                       : "null")
               << "\n"
               << "Current function hash: " << keyFuncHash << "\n"
@@ -401,7 +405,7 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   int32_t currFuncBeginLoc = fBeginLoc.getSpellingLineNumber();
   auto fe = fBeginLoc.getFileEntry();
   std::string fileName;
-  std::string parentName = "";
+  std::string parentHash = "";
 
   if (fe->tryGetRealPathName().empty()) {
     if (fe->getName().empty()) {
@@ -412,12 +416,15 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   } else {
     fileName = fe->tryGetRealPathName().str();
   }
-  futag::FuncVision funcVision = futag::_FUNC_UNKNOW_RECORD;
+  futag::FunctionType function_type = futag::_FUNC_UNKNOW_RECORD;
   if (isa<CXXMethodDecl>(func)) {
     auto methodDecl = dyn_cast<CXXMethodDecl>(func);
-    parentName = methodDecl->getParent()->getNameAsString();
+    function_type = futag::_FUNC_STATIC;
+    ODRHash Hash;
+    Hash.AddCXXRecordDecl(methodDecl->getParent());
+    parentHash = std::to_string(Hash.CalculateHash());
     if (methodDecl->isStatic()) {
-      funcVision = futag::_FUNC_STATIC;
+      function_type = futag::_FUNC_STATIC;
       // If isStatic () ---> ok, we'll call without initializing class
     }
     // How to get Parent class:
@@ -425,19 +432,23 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     //   dyn_cast<CXXMethodDecl>(func)->getParent();
 
     if (isa<CXXConstructorDecl>(func)) {
-      funcVision = futag::_FUNC_CONSTRUCTOR;
+      auto constructor = dyn_cast<CXXConstructorDecl>(func);
+      function_type = futag::_FUNC_CONSTRUCTOR;
+      if (constructor->isDefaultConstructor()) {
+        function_type = futag::_FUNC_DEFAULT_CONSTRUCTOR;
+      }
     }
     if (isa<CXXDestructorDecl>(func)) {
-      funcVision = futag::_FUNC_DESTRUCTOR;
+      function_type = futag::_FUNC_DESTRUCTOR;
     }
   }
   if (func->isGlobal()) {
-    funcVision = futag::_FUNC_GLOBAL;
+    function_type = futag::_FUNC_GLOBAL;
   }
 
   // Collect basic information about current function
   CollectBasicFunctionInfo(mFunctionDeclInfo, func, Mgr, currFuncBeginLoc,
-                           fileName, funcVision, parentName);
+                           fileName, function_type, parentHash);
 
   // Collect advanced information about function calls inside current function
   CollectAdvancedFunctionsInfo(mCallContextInfo, func, Mgr, fileName);
@@ -469,6 +480,8 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
 
   if (definedInSystemHeader)
     return;
+  if (!RD->getDefinition())
+    return;
 
   futag::RecordType record_type = _UNKNOW_RECORD;
   if (RD->isClass()) {
@@ -480,11 +493,32 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
   if (RD->isStruct()) {
     record_type = _STRUCT_RECORD;
   }
+  // llvm::outs() << "Record visit: " << RD->getNameAsString() << "\n";
+  // Calculate hash of record for
+  std::string hash = "";
+  if (isa<CXXRecordDecl>(RD)) {
+    auto cxxRecordDecl = dyn_cast_or_null<CXXRecordDecl>(RD);
+    // llvm::outs() << "Record cast: " << cxxRecordDecl->getNameAsString() <<
+    // "\n";
+    if (cxxRecordDecl && cxxRecordDecl->hasDefinition()) {
+      // llvm::outs() << "Record has definition: "
+      //              << cxxRecordDecl->getNameAsString() << "\n";
+      ODRHash Hash;
+      Hash.AddCXXRecordDecl(cxxRecordDecl->getDefinition());
+      hash = std::to_string(Hash.CalculateHash());
+    }
+    // } else {
+    //   llvm::outs() << "Record uncast!!!!\n";
+  }
   mTypesInfo["records"].push_back({{"name", RD->getNameAsString()},
+                                   {"qname", RD->getQualifiedNameAsString()},
+                                   {"access_type", RD->getAccess()},
                                    {"type", record_type},
+                                   {"hash", hash},
                                    {"fields", json::array()}});
   json &currentStruct = mTypesInfo["records"].back();
-  for (auto it = RD->field_begin(); it != RD->field_end(); it++) {
+  for (auto it = RD->getDefinition()->field_begin();
+       it != RD->getDefinition()->field_end(); it++) {
     currentStruct["fields"].push_back(
         {{"field_name", it->getNameAsString()},
          {"field_type", it->getType().getAsString()},
@@ -496,6 +530,8 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
 
 void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
                                  AnalysisManager &Mgr) const {
+  ODRHash Hash;
+  std::string hash = "";
   bool definedInSystemHeader =
       Mgr.getSourceManager().isInSystemHeader(TD->getLocation());
 
@@ -508,10 +544,55 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
 
   if (definedInSystemHeader)
     return;
+  QualType type_source = TD->getTypeSourceInfo()->getType();
 
+  while (const ElaboratedType *elabTy =
+             dyn_cast<ElaboratedType>(type_source.getTypePtr())) {
+    type_source = elabTy->desugar();
+  }
+
+  const Type *canonical_type = dyn_cast<Type>(type_source);
+  if (canonical_type) {
+    TagDecl *tag_decl = canonical_type->getAsTagDecl();
+    if (tag_decl) {
+      // llvm::outs() << TD->getNameAsString()
+      //              << " - getKindName: " << tag_decl->getKindName();
+      if (tag_decl->isClass() || tag_decl->isStruct() || tag_decl->isUnion()) {
+        auto RD = type_source->getAsRecordDecl();
+        if (RD) {
+          if (isa<CXXRecordDecl>(RD)) {
+            auto cxxRecordDecl = dyn_cast_or_null<CXXRecordDecl>(RD);
+            if (cxxRecordDecl && cxxRecordDecl->hasDefinition()) {
+              // llvm::outs() << "Record has definition: "
+              //              << cxxRecordDecl->getNameAsString() << "\n";
+              Hash.AddCXXRecordDecl(cxxRecordDecl->getDefinition());
+              hash = std::to_string(Hash.CalculateHash());
+            }
+          }
+        }
+      }
+
+      if (tag_decl->isEnum()) {
+        // llvm::outs() << " - isEnum tag ";
+        const EnumType *enum_type = dyn_cast<EnumType>(type_source);
+        auto enum_type_decl = enum_type->getDecl();
+        // for (auto it = enum_type_decl->enumerator_begin();
+        //      it != enum_type_decl->enumerator_end(); it++) {
+        //   llvm::outs() << "-- field_value" << it->getInitVal().getExtValue()
+        //                << "; field_name: " << it->getNameAsString() << "\n";
+        // }
+        Hash.AddEnumDecl(enum_type_decl);
+        hash = std::to_string(Hash.CalculateHash());
+      }
+    }
+  }
   mTypesInfo["typedefs"].push_back(
-      {{"typename", TD->getNameAsString()},
+      {{"name", TD->getNameAsString()},
+       {"qname", TD->getQualifiedNameAsString()},
+       {"access_type", TD->getAccess()},
        {"underlying_type", TD->getUnderlyingType().getAsString()},
+       {"type_source", type_source.getAsString()},
+       {"type_source_hash", hash},
        {"is_builtin",
         TD->getUnderlyingType().getCanonicalType()->isBuiltinType()},
        {"canonical_type",
@@ -537,8 +618,14 @@ void FutagAnalyzer::VisitEnum(const EnumDecl *ED, AnalysisManager &Mgr) const {
   if (definedInSystemHeader)
     return;
 
-  mTypesInfo["enums"].push_back(
-      {{"enum_name", ED->getNameAsString()}, {"enum_values", json::array()}});
+  ODRHash Hash;
+  Hash.AddEnumDecl(ED);
+
+  mTypesInfo["enums"].push_back({{"name", ED->getNameAsString()},
+                                 {"qname", ED->getQualifiedNameAsString()},
+                                 {"access_type", ED->getAccess()},
+                                 {"hash", std::to_string(Hash.CalculateHash())},
+                                 {"enum_values", json::array()}});
   json &currentEnum = mTypesInfo["enums"].back();
 
   for (auto it = ED->enumerator_begin(); it != ED->enumerator_end(); it++) {

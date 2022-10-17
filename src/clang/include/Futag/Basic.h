@@ -103,12 +103,14 @@ typedef enum {
 } RecordType;
 
 typedef enum {
+  _FUNC_CXXMETHOD,
   _FUNC_CONSTRUCTOR,
+  _FUNC_DEFAULT_CONSTRUCTOR,
   _FUNC_DESTRUCTOR,
   _FUNC_GLOBAL,
   _FUNC_STATIC,
   _FUNC_UNKNOW_RECORD
-} FuncVision;
+} FunctionType;
 
 typedef struct {
   DataType generator_type;
