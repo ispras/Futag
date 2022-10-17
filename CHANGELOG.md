@@ -47,3 +47,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add analysis for classes, structs, unions...
 - Add compilition database of building
 - Add analysis of headers
+
+## 20221018
+- Add support for C++, generate for constructors and for method of class, which has default constructors
+- Tested on FreeImage and Pugixml

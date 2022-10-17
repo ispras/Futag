@@ -528,10 +528,7 @@ class Builder:
         function_list = {}
         enum_list = []
         typedef_list = []
-        struct_list = []
-        class_list = []
-        union_list = []
-        unknown_record_list = []
+        record_list = []
         compiled_files = []
 
         print("")
@@ -603,47 +600,15 @@ class Builder:
                     enum_list.append(enum_it)
 
             for record in types["records"]:
-                if record["type"] == STRUCT_RECORD:
-                    exist = False
-                    for struct_iter in struct_list:
-                        if record["qname"] == struct_iter["qname"]:
-                            if len(record["fields"]) > len(struct_iter["fields"]):
-                                struct_iter["fields"] = record["fields"]
-                            exist = True
-                            break
-                    if not exist:
-                        struct_list.append(record)
-                if record["type"] == UNION_RECORD :
-                    exist = False
-                    for union_iter in union_list:
-                        if record["qname"] == union_iter["qname"]:
-                            if len(record["fields"]) > len(union_iter["fields"]):
-                                union_iter["fields"] = record["fields"]
-                            exist = True
-                            break
-                    if not exist:
-                        union_list.append(record)
-                if record["type"] == CLASS_RECORD :
-                    exist = False
-                    for class_iter in class_list:
-                        if record["qname"] == class_iter["qname"]:
-                            if len(record["fields"]) > len(class_iter["fields"]):
-                                class_iter["fields"] = record["fields"]
-                            exist = True
-                            break
-                    if not exist:
-                        class_list.append(record)
-                if record["type"] == UNKNOW_RECORD :
-                    exist = False
-                    for record_iter in unknown_record_list:
-                        if record["qname"] == record_iter["qname"]:
-                            if len(record["fields"]) > len(record_iter["fields"]):
-                                record_iter["fields"] = record["fields"]
-                            exist = True
-                            break
-                    if not exist:
-                        unknown_record_list.append(record)
-                
+                exist = False
+                for record_iter in record_list:
+                    if record["qname"] == record_iter["qname"]:
+                        if len(record["fields"]) > len(record_iter["fields"]):
+                            record_iter["fields"] = record["fields"]
+                        exist = True
+                        break
+                if not exist:
+                    record_list.append(record)
 
             for typedef_it in types["typedefs"]:
                 exist = False
@@ -709,10 +674,7 @@ class Builder:
         result = {
             "functions": functions_w_contexts,
             "enums": enum_list,
-            "structs": struct_list,
-            "unions": union_list,
-            "classes": class_list,
-            "unknown_records": unknown_record_list,
+            "records": record_list,
             "typedefs": typedef_list,
             "compiled_files": compiled_files,
         }
@@ -721,10 +683,7 @@ class Builder:
 
         print("Total functions: ", str(len(result["functions"])))
         print("Total enums: ", str(len(result["enums"])))
-        print("Total structs: ", str(len(result["structs"])))
-        print("Total unions: ", str(len(result["unions"])))
-        print("Total classes: ", str(len(result["classes"])))
-        print("Total unknown records: ", str(len(result["unknown_records"])))
+        print("Total records: ", str(len(result["records"])))
         print("Total typedefs: ", str(len(result["typedefs"])))
         print("Analysis result: ", (self.analysis_path /
               "futag-analysis-result.json").as_posix())

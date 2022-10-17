@@ -107,3 +107,27 @@ SC_PRIVATEEXTERN = 3
 # These are only legal on variables.
 SC_AUTO = 4
 SC_REGISTER = 5
+
+AFLPLUSPLUS_PREFIX = '''__AFL_FUZZ_INIT();
+
+main() {
+// anything else here, e.g. command line arguments, initialization, etc.
+
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+    __AFL_INIT();
+#endif
+
+unsigned char *Fuzz_Data = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT and before __AFL_LOOP!
+
+while (__AFL_LOOP(10000)) {
+    int Fuzz_Size = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
+    
+    // check for a required/useful minimum input length\n'''
+AFLPLUSPLUS_SUFFIX = '''
+  }
+  return 0;
+}'''
+
+LIBFUZZER_PREFIX = '''extern "C" int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size)\n
+    {\n'''
+LIBFUZZER_SUFFIX = '''    return 0;\n}'''

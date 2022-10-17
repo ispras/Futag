@@ -23,8 +23,7 @@ This project is based on llvm-project with Clang statistic analysis, LLVM lto an
 
 Currently Futag supports:
 - automatically compiling libraries with Makefile, cmake and configure;
-- automatically generating fuzzing-targets for libraries in C language.
-- automatically generating fuzzing-targets for global functions of libraries in C language.
+- automatically generating fuzzing-targets for functions of libraries in C/C++ languages.
 Additionally, Futag provides the ability to test compiled targets.
 
 ## 2. Install
