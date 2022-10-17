@@ -522,7 +522,7 @@ class Generator:
                 for line in self.gen_func_params:
                     f.write("    " + line)
 
-                f.write("    //FUNCTION_CALL\n")
+                f.write("    //FUNCTION_CALL!!!\n")
                 if func["return_type"] in malloc_free:
                     f.write("    " + func["return_type"] +
                             " futag_target = " + func["name"] + "(")
@@ -1354,8 +1354,8 @@ while (__AFL_LOOP(10000)) {
                 # Find default constructor
                 # TODO: add code for other constructors
                 found_default_constructor = False
-                for f in self.target_library["functions"]:
-                    if f["parent_hash"] == func["parent_hash"] and f["func_type"] == FUNC_DEFAULT_CONSTRUCTOR:
+                for fu in self.target_library["functions"]:
+                    if fu["parent_hash"] == func["parent_hash"] and fu["func_type"] == FUNC_DEFAULT_CONSTRUCTOR:
                         found_default_constructor = True
                 
                 # TODO: add code for other constructors!!!
@@ -1366,7 +1366,7 @@ while (__AFL_LOOP(10000)) {
                 class_name = found_parent["qname"]
                 # print ("Function: ", func["qname"], ", class: ", class_name)
                 # declare the RECORD
-                f.write("    " + class_name + "futag_target;")
+                f.write("    " + class_name + " futag_target;")
                 # call the method
                 f.write("    //METHOD CALL\n")
                 f.write("    futag_target."+ func["name"]+"(")
@@ -1526,7 +1526,7 @@ while (__AFL_LOOP(10000)) {
             self.gen_free += curr_gen["gen_free"]
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRING:
             if(curr_param["param_usage"] == "FILE_PATH" or curr_param["param_usage"] == "FILE_PATH_READ" or curr_param["param_usage"] == "FILE_PATH_WRITE" or curr_param["param_usage"] == "FILE_PATH_RW" or curr_param["param_name"] == "filename"):
@@ -1556,7 +1556,7 @@ while (__AFL_LOOP(10000)) {
                 self.curr_gen_string = param_id
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_ENUM:  # GEN_ENUM
             self.gen_this_function = False
@@ -1569,7 +1569,7 @@ while (__AFL_LOOP(10000)) {
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_ARRAY:  # GEN_ARRAY
             self.gen_this_function = False
@@ -1582,7 +1582,7 @@ while (__AFL_LOOP(10000)) {
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_VOID: 
             self.gen_this_function = False
@@ -1595,7 +1595,7 @@ while (__AFL_LOOP(10000)) {
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_QUALIFIER:
             curr_gen = self.gen_qualifier(
@@ -1614,7 +1614,7 @@ while (__AFL_LOOP(10000)) {
                 self.buf_size_arr.append(curr_gen["buf_size"])
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_POINTER:
             curr_gen = self.gen_pointer(
@@ -1629,7 +1629,7 @@ while (__AFL_LOOP(10000)) {
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRUCT:
             curr_gen = self.gen_struct(curr_param["param_name"], curr_param["param_type"])
@@ -1641,7 +1641,7 @@ while (__AFL_LOOP(10000)) {
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_INCOMPLETE:
             # iterate all possible variants for generating
@@ -1671,7 +1671,7 @@ while (__AFL_LOOP(10000)) {
                     self.dyn_size += curr_gen["dyn_size"]
                     self.buf_size_arr += curr_gen["buf_size_arr"]
                     param_id += 1
-                    self.gen_target_function(func, param_id)
+                    self.gen_class_method(func, param_id)
 
                     param_id -= 1
 
@@ -1697,7 +1697,7 @@ while (__AFL_LOOP(10000)) {
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
             self.gen_this_function = False
@@ -1709,8 +1709,8 @@ while (__AFL_LOOP(10000)) {
         Cplusplus_static_class_method = []
         for func in self.target_library["functions"]:
             # For C
-            if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (not "(anonymous namespace)" in func["qname"]):
-                # print("-- [Futag] Trying generate fuzz-driver for function: ",func["name"], "!")
+            if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (not "(anonymous namespace)" in func["qname"]) and (func["parent_hash"] == ""):
+                print("-- [Futag] Trying generate fuzz-driver for function: ",func["name"], "!")
                 self.gen_func_params = []
                 self.gen_free = []
                 self.gen_this_function = True
@@ -1721,7 +1721,7 @@ while (__AFL_LOOP(10000)) {
                 if self.gen_this_function:
                     print("-- [Futag] Fuzz-driver for function: ",func["name"], " generated!")
                     C_generated_function.append(func["name"])
-
+                # C_generated_function.append(func["name"])
             # For C++, Declare object of class and then call the method
             if func["access_type"] == AS_PUBLIC and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR, FUNC_GLOBAL, FUNC_STATIC]:
                 if (not "(anonymous namespace)" in func["qname"]) and (not "::operator" in func["qname"]):
