@@ -551,39 +551,71 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
     type_source = elabTy->desugar();
   }
 
-  const Type *canonical_type = dyn_cast<Type>(type_source);
-  if (canonical_type) {
-    TagDecl *tag_decl = canonical_type->getAsTagDecl();
-    if (tag_decl) {
-      // llvm::outs() << TD->getNameAsString()
-      //              << " - getKindName: " << tag_decl->getKindName();
-      if (tag_decl->isClass() || tag_decl->isStruct() || tag_decl->isUnion()) {
-        auto RD = type_source->getAsRecordDecl();
-        if (RD) {
-          if (isa<CXXRecordDecl>(RD)) {
-            auto cxxRecordDecl = dyn_cast_or_null<CXXRecordDecl>(RD);
-            if (cxxRecordDecl && cxxRecordDecl->hasDefinition()) {
-              // llvm::outs() << "Record has definition: "
-              //              << cxxRecordDecl->getNameAsString() << "\n";
-              Hash.AddCXXRecordDecl(cxxRecordDecl->getDefinition());
-              hash = std::to_string(Hash.CalculateHash());
-            }
+  // auto canonical_type = dyn_cast<Type>(type_source);
+  // if (canonical_type) {
+  //   TagDecl *tag_decl = canonical_type->getAsTagDecl();
+  //   if (tag_decl) {
+  //     // llvm::outs() << TD->getNameAsString()
+  //     //              << " - getKindName: " << tag_decl->getKindName();
+  //     if (tag_decl->isClass() || tag_decl->isStruct() || tag_decl->isUnion()) {
+  //       auto RD = type_source->getAsRecordDecl();
+  //       if (RD) {
+  //         if (isa<CXXRecordDecl>(RD)) {
+  //           auto cxxRecordDecl = dyn_cast_or_null<CXXRecordDecl>(RD);
+  //           if (cxxRecordDecl && cxxRecordDecl->hasDefinition()) {
+  //             // llvm::outs() << "Record has definition: "
+  //             //              << cxxRecordDecl->getNameAsString() << "\n";
+  //             Hash.AddCXXRecordDecl(cxxRecordDecl->getDefinition());
+  //             hash = std::to_string(Hash.CalculateHash());
+  //           }
+  //         }
+  //       }
+  //     }
+
+  //     if (tag_decl->isEnum()) {
+  //       // llvm::outs() << " - isEnum tag ";
+  //       const EnumType *enum_type = dyn_cast<EnumType>(type_source);
+  //       auto enum_type_decl = enum_type->getDecl();
+  //       // for (auto it = enum_type_decl->enumerator_begin();
+  //       //      it != enum_type_decl->enumerator_end(); it++) {
+  //       //   llvm::outs() << "-- field_value" << it->getInitVal().getExtValue()
+  //       //                << "; field_name: " << it->getNameAsString() << "\n";
+  //       // }
+  //       Hash.AddEnumDecl(enum_type_decl);
+  //       hash = std::to_string(Hash.CalculateHash());
+  //     }
+  //   }
+  // }
+  TagDecl *tag_decl = type_source->getAsTagDecl();
+  if (tag_decl) {
+    // llvm::outs() << TD->getNameAsString()
+    //              << " - getKindName: " << tag_decl->getKindName();
+    if (tag_decl->isClass() || tag_decl->isStruct() || tag_decl->isUnion()) {
+      auto RD = type_source->getAsRecordDecl();
+      if (RD) {
+        if (isa<CXXRecordDecl>(RD)) {
+          auto cxxRecordDecl = dyn_cast_or_null<CXXRecordDecl>(RD);
+          if (cxxRecordDecl && cxxRecordDecl->hasDefinition()) {
+            // llvm::outs() << "Record has definition: "
+            //              << cxxRecordDecl->getNameAsString() << "\n";
+            Hash.AddCXXRecordDecl(cxxRecordDecl->getDefinition());
+            hash = std::to_string(Hash.CalculateHash());
           }
         }
       }
+    }
 
-      if (tag_decl->isEnum()) {
-        // llvm::outs() << " - isEnum tag ";
-        const EnumType *enum_type = dyn_cast<EnumType>(type_source);
-        auto enum_type_decl = enum_type->getDecl();
-        // for (auto it = enum_type_decl->enumerator_begin();
-        //      it != enum_type_decl->enumerator_end(); it++) {
-        //   llvm::outs() << "-- field_value" << it->getInitVal().getExtValue()
-        //                << "; field_name: " << it->getNameAsString() << "\n";
-        // }
-        Hash.AddEnumDecl(enum_type_decl);
-        hash = std::to_string(Hash.CalculateHash());
-      }
+    if (tag_decl->isEnum()) {
+      // llvm::outs() << " - isEnum tag ";
+      const EnumType *enum_type = dyn_cast<EnumType>(type_source);
+      auto enum_type_decl = enum_type->getDecl();
+      // for (auto it = enum_type_decl->enumerator_begin();
+      //      it != enum_type_decl->enumerator_end(); it++) {
+      //   llvm::outs() << "-- field_value" << it->getInitVal().getExtValue()
+      //                << "; field_name: " << it->getNameAsString() << "\n";
+      // }
+      Hash.AddEnumDecl(enum_type_decl);
+      hash = std::to_string(Hash.CalculateHash());
     }
   }
   mTypesInfo["typedefs"].push_back(

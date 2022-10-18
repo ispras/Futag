@@ -255,7 +255,7 @@ void PDGBuilder::run(const MatchFinder::MatchResult &result) {
     stmt_map[ret]->addUse(var);
     setSlicingStmt(result, ret);
   }
-  // save sourcemanager, we'll need it later for dot creation.
+  // save SourceManager, we'll need it later for dot creation.
   if (sm == nullptr) {
     sm = result.SourceManager;
   }
