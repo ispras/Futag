@@ -41,15 +41,16 @@ if [[ ! $wAFLplusplus == [yYnN] ]]; then
     echo "-- [Futag] Wrong input! Please enter y or n! Exit..."
     exit
 fi
-# https://github.com/ossf/fuzz-introspector/archive/refs/tags/v1.0.0.tar.gz
-echo "========================================================="
-read -p "-- [Futag] Build with fuzz-introspector? (y/n): " fuzzintro
-if [[ ! $fuzzintro == [yYnN] ]]; then
-    echo "-- [Futag] Wrong input! Please enter y or n! Exit..."
-    exit
-fi
-echo "========================================================="
-echo
+
+# # https://github.com/ossf/fuzz-introspector/archive/refs/tags/v1.0.0.tar.gz
+# echo "========================================================="
+# read -p "-- [Futag] Build with fuzz-introspector? (y/n): " fuzzintro
+# if [[ ! $fuzzintro == [yYnN] ]]; then
+#     echo "-- [Futag] Wrong input! Please enter y or n! Exit..."
+#     exit
+# fi
+# echo "========================================================="
+# echo
 echo "-- [Futag] Preparing .. "
 
 futag_install_folder="$(pwd)/../futag-llvm"
@@ -118,23 +119,23 @@ else
     echo "AFLplusplus=no" >> $file_info
 fi
 
-if [ $fuzzintro == "Y" ] || [ $fuzzintro == "y" ]; then
-    echo "FuzzIntrospector=yes" >> $file_info
-    if [ -d fuzz-introspector-1.0.0 ]; then
-        rm -rf fuzz-introspector-1.0.0
-    fi
-    if [ ! -f v1.0.0.tar.gz ]; then
-        wget https://github.com/ossf/fuzz-introspector/archive/refs/tags/v1.0.0.tar.gz
-    fi
-    tar xf v1.0.0.tar.gz
-    cp -r fuzz-introspector-1.0.0 $futag_install_folder/
-    if [ $wAFLplusplus == "Y" ] || [ $wAFLplusplus == "y" ]; then
-        build_script="buildwAFLplusplusFuzzIntro.sh"
-    else
-        build_script="buildwFuzzIntro.sh"
-    fi
-else
-    echo "FuzzIntrospector=no" >> $file_info
-fi
+# if [ $fuzzintro == "Y" ] || [ $fuzzintro == "y" ]; then
+#     echo "FuzzIntrospector=yes" >> $file_info
+#     if [ -d fuzz-introspector-1.0.0 ]; then
+#         rm -rf fuzz-introspector-1.0.0
+#     fi
+#     if [ ! -f v1.0.0.tar.gz ]; then
+#         wget https://github.com/ossf/fuzz-introspector/archive/refs/tags/v1.0.0.tar.gz
+#     fi
+#     tar xf v1.0.0.tar.gz
+#     cp -r fuzz-introspector-1.0.0 $futag_install_folder/
+#     if [ $wAFLplusplus == "Y" ] || [ $wAFLplusplus == "y" ]; then
+#         build_script="buildwAFLplusplusFuzzIntro.sh"
+#     else
+#         build_script="buildwFuzzIntro.sh"
+#     fi
+# else
+#     echo "FuzzIntrospector=no" >> $file_info
+# fi
 git rev-parse HEAD >> $file_info
 cp $build_script  $build_folder/build.sh

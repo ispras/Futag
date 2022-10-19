@@ -53,9 +53,9 @@ FUTAG во время работы использует статический �
   ~$ pip install -r futag-llvm/python-package/requirements.txt
 ```
 
-- Установить python-пакет Futag можно по пути futag-llvm/python-package/futag-1.1.tar.gz:
+- Установить python-пакет Futag можно по пути futag-llvm/python-package/futag-1.2.tar.gz:
 ```bash
-  ~$ pip install futag-llvm/python-package/futag-1.1.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-1.2.tar.gz
 ```
 
 ## 3. Примеры использования
@@ -81,9 +81,8 @@ testing_lib.analyze()
 from futag.generator import *
 
 g = Generator(
-"futag-llvm/", # путь к директории "futag-llvm"
-"path/to/library/source/code" # путь к директории содержащей исходные кода исследуемого ПО
-
+    "futag-llvm/", # путь к директории "futag-llvm"
+    "path/to/library/source/code" # путь к директории содержащей исходные кода исследуемого ПО
 )
 
 # Generate fuzz drivers

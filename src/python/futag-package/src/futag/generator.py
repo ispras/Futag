@@ -23,6 +23,7 @@ from futag.preprocessor import *
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
 from typing import List
+from distutils.dir_util import copy_tree
 
 
 class Generator:
@@ -49,6 +50,7 @@ class Generator:
         """
 
         self.output_path = None  # Path for saving fuzzing drivers
+        self.tmp_output_path  = None  # Path for saving fuzzing drivers
         self.json_file = json_file
         self.futag_llvm_package = futag_llvm_package
         self.library_root = library_root
@@ -89,14 +91,19 @@ class Generator:
             f = open(self.json_file.as_posix())
             if not f.closed:
                 self.target_library = json.load(f)
-
+            tmp_output_path = "." + output_path
             # create directory for function targets if not exists
             # TODO: set option for deleting
             if (self.library_root / output_path).exists():
                 delete_folder(self.library_root / output_path)
+            if (self.library_root / tmp_output_path).exists():
+                delete_folder(self.library_root / tmp_output_path)
 
             (self.library_root / output_path).mkdir(parents=True, exist_ok=True)
+            (self.library_root / tmp_output_path).mkdir(parents=True, exist_ok=True)
             self.output_path = self.library_root / output_path
+            self.tmp_output_path = self.library_root / tmp_output_path
+            
         else:
             raise ValueError(INVALID_ANALYSIS_FILE)
 
@@ -477,24 +484,24 @@ class Generator:
         file_index = 1
         dir_name = func["qname"] + str(file_index)
 
-        if not (self.output_path / func["qname"]).exists():
-            (self.output_path / func["qname"]
+        if not (self.tmp_output_path / func["qname"]).exists():
+            (self.tmp_output_path / func["qname"]
              ).mkdir(parents=True, exist_ok=True)
 
         # Each variant of fuzz-driver will be save in separated directory
         # inside the directory of function
 
-        while (self.output_path / func["qname"] / dir_name).exists():
+        while (self.tmp_output_path / func["qname"] / dir_name).exists():
             file_index += 1
             dir_name = func["qname"] + str(file_index)
 
-        (self.output_path / func["qname"] /
+        (self.tmp_output_path / func["qname"] /
          dir_name).mkdir(parents=True, exist_ok=True)
 
         file_name = func["qname"] + \
             str(file_index) + "." + self.target_extension
 
-        full_path = (self.output_path /
+        full_path = (self.tmp_output_path /
                      func["qname"] / dir_name / file_name).as_posix()
         f = open(full_path, 'w')
         if f.closed:
@@ -1636,7 +1643,7 @@ class Generator:
             "Cplusplus_usual_class_method": Cplusplus_usual_class_method
         }
         json.dump(self.result_report, open(
-            (self.output_path / "result-report.json").as_posix(), "w"))
+            (self.tmp_output_path / "result-report.json").as_posix(), "w"))
 
     def compile_driver_worker(self, bgen_args):
         p = Popen(
@@ -1652,14 +1659,14 @@ class Generator:
         else:
             print("-- [Futag] Fuzz-driver has been compiled successfully!")
 
-    def compile_targets(self, makefile: bool = True, workers: int = 4):
+    def compile_targets(self, workers: int = 4, flags: str = FUZZ_COMPILER_FLAGS):
         """
         Parameters
         ----------
-        makefile: bool
-            option for generating makefile (Makefile.futag), default to True.
         workers: int
             number of processes for compiling, default to 4.
+        flags: str
+            flags for compiling fuzz-drivers, default to "-fsanitize=address,fuzzer -g -O0".
         """
         include_subdir: List[pathlib.Path] = [
             x for x in (self.library_root).iterdir() if x.is_dir()]
@@ -1672,10 +1679,10 @@ class Generator:
                 [x for x in (self.install_path /
                              "include").iterdir() if x.is_dir()]
         generated_functions = [
-            x for x in self.output_path.iterdir() if x.is_dir()]
+            x for x in self.tmp_output_path.iterdir() if x.is_dir()]
         generated_targets = 0
-        compiler_flags_libFuzzer = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined,fuzzer -fprofile-instr-generate -fcoverage-mapping"
-        compiler_flags_aflplusplus = "-ferror-limit=1 -g -O0 -fsanitize=address,undefined -fprofile-instr-generate -fcoverage-mapping"
+        compiler_flags_libFuzzer = flags
+        compiler_flags_aflplusplus = flags
         compiler_path = ""
         if self.target_type == LIBFUZZER:
             compiler_path = self.futag_llvm_package / "bin/clang++"
@@ -1750,68 +1757,16 @@ class Generator:
                     target_file.write("\n*/\n")
                     target_file.close()
                     compile_cmd_list.append(compiler_cmd)
-        if makefile:
-            makefile = open(
-                (self.output_path / "Makefile.futag").as_posix(), "w")
-            makefile.write(
-                "#************************************************\n")
-            makefile.write(
-                "#*      ______  __  __  ______  ___     ______  *\n")
-            makefile.write(
-                "#*     / ____/ / / / / /_  __/ /   |   / ____/  *\n")
-            makefile.write(
-                "#*    / /_    / / / /   / /   / /| |  / / __    *\n")
-            makefile.write(
-                "#*   / __/   / /_/ /   / /   / ___ | / /_/ /    *\n")
-            makefile.write(
-                "#*  /_/      \____/   /_/   /_/  |_| \____/     *\n")
-            makefile.write(
-                "#*                                              *\n")
-            makefile.write(
-                "#*     Fuzzing target Automated Generator       *\n")
-            makefile.write(
-                "#*             a tool of ISP RAS                *\n")
-            makefile.write(
-                "#*                                              *\n")
-            makefile.write(
-                "#************************************************\n")
-            makefile.write(
-                "#*This script is used for compiling fuzz drivers*\n")
-            makefile.write(
-                "#************************************************\n")
-            makefile.write("\n")
-            makefile.write("COMPILER=" + compiler_path.as_posix() + "\n")
-            makefile.write("FLAGS=" + compiler_flags_libFuzzer + "\n")
-            makefile.write("STATIC_LIBS=" + " ".join(static_lib) + "\n")
-            makefile.write("SYS_LIBS=\"\"\n")
-
-            makefile.write("default: \n")
-            for d in driver_output:
-                makefile.write(
-                    "\t"
-                    + "${COMPILER} ${FLAGS} "
-                    + " ".join(d[0])
-                    + d[1]
-                    + " -o "
-                    + d[2]
-                    + " ${STATIC_LIBS} ${SYS_LIBS}\n"
-                )
-            makefile.write("clean: \n")
-            for d in driver_output:
-                makefile.write("\trm " + d[1] + "\n")
-            makefile.close()
-        multi = 1
-
         with Pool(workers) as p:
             p.map(self.compile_driver_worker, compile_cmd_list)
 
         # Extract the results of compilation
-        compile_targets_list = [
-            x for x in self.output_path.glob("**/*.out") if x.is_file()]
+        compiled_targets_list = [
+            x for x in self.tmp_output_path.glob("**/*.out") if x.is_file()]
+        for compiled_target in compiled_targets_list:
+            copy_tree(compiled_target.parents[1].as_posix(), self.output_path.as_posix())
         print(
             "-- [Futag] Result of compiling: "
-            + str(len(compile_targets_list))
-            + " of "
-            + str(generated_targets)
+            + str(len(compiled_targets_list))
             + " fuzz-driver(s)\n"
         )

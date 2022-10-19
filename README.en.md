@@ -51,10 +51,10 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 ```bash
   ~$ pip install -r futag-llvm/python-package/requirements.txt
 ```
-- Install Futag python package from the extracted package futag-llvm/python-package/futag-1.1.tar.gz:
+- Install Futag python package from the extracted package futag-llvm/python-package/futag-1.2.tar.gz:
 
 ```bash
-  ~$ pip install futag-llvm/python-package/futag-1.1.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-1.2.tar.gz
 ```
 
 ## 3. Usage
@@ -80,11 +80,12 @@ testing_lib.analyze()
 from futag.generator import *
 
 g = Generator(
-"futag-llvm/", # path to the futag-llvm
-"path/to/library/source/code" # library root
+    "futag-llvm/", # path to the futag-llvm
+    "path/to/library/source/code" # library root
+    # target_type = LIBFUZZER, # or AFLPLUSPLUS
 )
 g.gen_targets() # Generate fuzz drivers
-g.compile_targets() # Compile fuzz drivers
+g.compile_targets(8) # Compile fuzz drivers with 8 processes
 ```
 By default, successfully compiled fuzz-drivers for target functions are located in the futag-fuzz-drivers directory, where each target function is in its own subdirectory, the name of which matches the name of the target function.
 If several fuzz-drivers have been generated for a function, corresponding directories are created in the subdirectory of the target function, where a serial number is added to the name of the target function.

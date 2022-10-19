@@ -14,13 +14,15 @@
 """
 
 # constants of Futag
-BUILD_PATH = "futag-build"
+BUILD_PATH = ".futag-build"
 BUILD_EX_PARAMS = ""
-INSTALL_PATH = "futag-install"
-ANALYSIS_PATH = "futag-analysis"
-COMPILER_FLAGS = "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
+INSTALL_PATH = ".futag-install"
+ANALYSIS_PATH = ".futag-analysis"
+COMPILER_FLAGS = "-fsanitize=address -g -O0"
+COMPILER_COVERAGE_FLAGS = "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
+FUZZ_COMPILER_FLAGS = "-fsanitize=address,fuzzer -g -O0"
 FUZZ_DRIVER_PATH = "futag-fuzz-drivers"
-ANALYSIS_FILE_PATH="futag-analysis/futag-analysis-result.json"
+ANALYSIS_FILE_PATH=".futag-analysis/futag-analysis-result.json"
 CMAKE_PATH_ERROR="Please specify other directory for building with cmake."
 
 # messages of Futag

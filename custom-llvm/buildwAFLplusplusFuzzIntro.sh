@@ -112,7 +112,7 @@ then
 fi
 mkdir $futag_install_folder/python-package
 cp -r $futag_src/python/futag-package/dist/*.tar.gz $futag_install_folder/python-package
-cp -r $futag_src/python/requirements.txt $futag_install_folder/python-package
+cp -r $futag_src/python/futag-package/requirements.txt $futag_install_folder/python-package
 cp -r $futag_src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
