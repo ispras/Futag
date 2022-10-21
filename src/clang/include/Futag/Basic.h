@@ -28,11 +28,38 @@
 #include "clang/AST/Type.h"
 #include "clang/Tooling/Tooling.h"
 
+#include <map>
+#include <string>
+
 using namespace std;
 using namespace llvm;
 using namespace clang;
 
 namespace futag {
+
+class FutagType {
+public:
+  enum Type { CONST_VAL, DECL_REF, FUNCTION_CALL_RESULT, UNKNOWN };
+
+  static const std::map<Type, std::string> c_typesToNames;
+  static const std::map<std::string, Type> c_namesToTypes;
+
+  static inline std::string TypeToString(Type type) {
+    return c_typesToNames.at(type);
+  }
+
+  static std::string ConstValStr() { return TypeToString(CONST_VAL); }
+
+  static std::string DeclRefStr() { return TypeToString(DECL_REF); }
+
+  static std::string FuncCallResStr() {
+    return TypeToString(FUNCTION_CALL_RESULT);
+  }
+
+  static std::string UnknownStr() { return TypeToString(UNKNOWN); }
+
+  static Type NameToType(std::string type) { return c_namesToTypes.at(type); }
+};
 
 char *replace_char(char *str, char find, char replace);
 
@@ -51,23 +78,39 @@ string trim(string str);
 
 vector<string> explode(string line, char delimiter);
 
-
 // * Data types followed by: https://en.cppreference.com/w/c/language/type
 typedef enum {
-  _BUILTIN,    // 0: All basic types: int, float, double,...
-  _STRING,     // 1: char *, const char *
-  _ENUM,       // 2
-  _ARRAY,      // 3
-  _VOIDP,      // 4
-  _QUALIFIER,  // 5: const, volatile, and restrict qualifiers
-  _POINTER,    // 6
-  _STRUCT,     // 7
-  _INCOMPLETE, // 8
-  _FUNCTION,   // 9
-  _INPUT_FILE, //10
-  _OUTPUT_FILE,//11
-  _UNKNOWN,    // 12
+  _BUILTIN,     // 0: All basic types: int, float, double,...
+  _STRING,      // 1: char *, const char *
+  _ENUM,        // 2
+  _ARRAY,       // 3
+  _VOIDP,       // 4
+  _QUALIFIER,   // 5: const, volatile, and restrict qualifiers
+  _POINTER,     // 6
+  _STRUCT,      // 7
+  _INCOMPLETE,  // 8
+  _FUNCTION,    // 9
+  _INPUT_FILE,  // 10
+  _OUTPUT_FILE, // 11
+  _UNKNOWN,     // 12
 } DataType;
+
+typedef enum {
+  _CLASS_RECORD,
+  _UNION_RECORD,
+  _STRUCT_RECORD,
+  _UNKNOW_RECORD
+} RecordType;
+
+typedef enum {
+  _FUNC_CXXMETHOD,
+  _FUNC_CONSTRUCTOR,
+  _FUNC_DEFAULT_CONSTRUCTOR,
+  _FUNC_DESTRUCTOR,
+  _FUNC_GLOBAL,
+  _FUNC_STATIC,
+  _FUNC_UNKNOW_RECORD
+} FunctionType;
 
 typedef struct {
   DataType generator_type;
@@ -76,7 +119,7 @@ typedef struct {
   std::string type_name = "";
   std::string parent_type = "";
   std::string parent_gen = ""; // save the function name for generating if
-                                   // generator_type == GEN_STRUCT
+                               // generator_type == GEN_STRUCT
 } DataTypeDetail;
 
 DataTypeDetail getDataTypeDetail(QualType type);

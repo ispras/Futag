@@ -110,25 +110,27 @@ DataTypeDetail getDataTypeDetail(QualType type) {
     qual_type_detail.parent_type = "";
     qual_type_detail.generator_type = DataType::_STRING;
     // vector<string> type_split = futag::explode(type.getAsString(), ' ');
-    if (type.getCanonicalType().getAsString() == "const char *" ) {
+    if (type.getCanonicalType().getAsString() == "const char *") {
       qual_type_detail.parent_type = "char *";
     }
-    if ( type.getCanonicalType().getAsString() == "const unsigned char *") {
+    if (type.getCanonicalType().getAsString() == "const unsigned char *") {
       qual_type_detail.parent_type = "unsigned char *";
     }
     return qual_type_detail;
   }
 
   if (type.hasLocalQualifiers()) {
+    auto unqualifiedType = type.getUnqualifiedType();
     qual_type_detail.generator_type = DataType::_QUALIFIER;
-    qual_type_detail.parent_type = type.getUnqualifiedType().getAsString();
-    if(qual_type_detail.parent_type == "const char *" || qual_type_detail.parent_type == "const unsigned char *")
-    {
+    qual_type_detail.parent_type = unqualifiedType.getAsString();
+    if (qual_type_detail.parent_type == "const char *" ||
+        qual_type_detail.parent_type == "const unsigned char *") {
       qual_type_detail.parent_gen = "string";
       return qual_type_detail;
     }
-    if(type.getUnqualifiedType()->isIncompleteType())
-    {
+    if (type.getUnqualifiedType()->isIncompleteType()) {
+      qual_type_detail.parent_gen = "incomplete";
+      return qual_type_detail;
       qual_type_detail.parent_gen = "incomplete";
       return qual_type_detail;
     }
@@ -139,7 +141,7 @@ DataTypeDetail getDataTypeDetail(QualType type) {
     qual_type_detail.generator_type = DataType::_BUILTIN;
     return qual_type_detail;
   }
-  
+
   if (!type->isIncompleteOrObjectType()) {
     qual_type_detail.generator_type = DataType::_FUNCTION;
     return qual_type_detail;
@@ -156,28 +158,15 @@ DataTypeDetail getDataTypeDetail(QualType type) {
   }
 
   if (type->isPointerType()) {
-    if (type->getPointeeType()->isIncompleteType()) {
-      qual_type_detail.generator_type = DataType::_INCOMPLETE;
+    if (type->getPointeeType()->isBuiltinType()) {
+      qual_type_detail.generator_type = DataType::_POINTER;
+      qual_type_detail.is_pointer = true;
+      qual_type_detail.parent_type = type->getPointeeType().getAsString();
       return qual_type_detail;
     } else {
-      if (type->getPointeeType()->isBuiltinType()) {
-        qual_type_detail.generator_type = DataType::_POINTER;
-        qual_type_detail.is_pointer = true;
-        qual_type_detail.parent_type = type->getPointeeType().getAsString();
-        return qual_type_detail;
-      } else {
-        vector<string> type_split =
-            futag::explode(qual_type_detail.type_name, ' ');
-        if (std::find(type_split.begin(), type_split.end(), "struct") !=
-            type_split.end()) {
-          qual_type_detail.generator_type = DataType::_INCOMPLETE;
-          return qual_type_detail;
-        }
-      }
+      qual_type_detail.generator_type = DataType::_INCOMPLETE;
+      return qual_type_detail;
     }
-
-    qual_type_detail.generator_type = DataType::_UNKNOWN;
-    return qual_type_detail;
   }
 
   if (type->isConstantArrayType()) {
@@ -201,4 +190,17 @@ DataTypeDetail getDataTypeDetail(QualType type) {
   }
   return qual_type_detail;
 }
+
+const std::map<FutagType::Type, std::string> FutagType::c_typesToNames = {
+    {FutagType::CONST_VAL, "CONST_VAL"},
+    {FutagType::DECL_REF, "DECL_REF"},
+    {FutagType::FUNCTION_CALL_RESULT, "FUNCTION_CALL_RESULT"},
+    {FutagType::UNKNOWN, "UNKNOWN"}};
+
+const std::map<std::string, FutagType::Type> FutagType::c_namesToTypes = {
+    {"CONST_VAL", FutagType::CONST_VAL},
+    {"DECL_REF", FutagType::DECL_REF},
+    {"FUNCTION_CALL_RESULT", FutagType::FUNCTION_CALL_RESULT},
+    {"UNKNOWN", FutagType::UNKNOWN}};
+
 } // namespace futag

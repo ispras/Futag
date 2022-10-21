@@ -7,7 +7,7 @@
 #include <iostream>
 
 #include "Futag/ArgumentsUsage.h"
-#include "Futag/FutagTypes.h"
+#include "Futag/Basic.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/raw_ostream.h"

@@ -52,13 +52,13 @@ json0_13.analyze()
 For more parameters of Builder please refer to docstring of this class.
 ```bash
 class Builder(builtins.object)
- |  Builder(futag_llvm_package: str, library_root: str, analysis_path: str = 'futag-analysis', flags: str = '-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping', clean: bool = False, build_path: str = 'futag-build', install_path: str = 'futag-install', processes: int = 4, build_ex_params='')
+ |  Builder(futag_llvm_package: str, library_root: str, flags: str = COMPILER_FLAGS, clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int = 4, build_ex_params= BUILD_EX_PARAMS)
  |  
  |  Futag Builder Class
  |  
  |  Methods defined here:
  |  
- |  __init__(self, futag_llvm_package: str, library_root: str, flags: str = '-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping', clean: bool = False, build_path: str = 'futag-build', install_path: str = 'futag-install', analysis_path: str = 'futag-analysis', processes: int = 4, build_ex_params='')
+ |  __init__(self, futag_llvm_package: str, library_root: str, flags: str = COMPILER_FLAGS, clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int = 4, build_ex_params= BUILD_EX_PARAMS)
  |      Parameters
  |      ----------
  |      futag_llvm_package: str
@@ -66,7 +66,7 @@ class Builder(builtins.object)
  |      library_root: str
  |          (*required) path to the library root
  |      flags: str
- |          flags for compiling. Default to "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
+ |          flags for compiling. Default to "-fsanitize=address -g -O0"
  |      clean: bool
  |          Option for deleting futag folders if they are exist, default to False (futag-build, futag-install, futag-analysis). 
  |      build_path: str
@@ -119,7 +119,7 @@ class Generator(builtins.object)
  |  
  |  Methods defined here:
  |  
- |  __init__(self, futag_llvm_package: str, library_root: str, json_file: str = 'futag-analysis/futag-analysis-result.json', output_path='futag-fuzz-drivers', build_path='futag-build', install_path='futag-install')
+ |  __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH)
  |      Parameters
  |      ----------
  |      futag_llvm_package: str
@@ -137,13 +137,13 @@ class Generator(builtins.object)
  |      install_path: str
  |          path to the install directory.
  |  
- |  compile_targets(self, makefile: bool = True, workers: int = 4)
+ |  compile_targets(self, workers: int = 4, flags: str = FUZZ_COMPILER_FLAGS)
  |      Parameters
  |      ----------
- |      makefile: bool
- |          option for generating makefile (Makefile.futag), default to True.
  |      workers: int
  |          number of processes for compiling, default to 4.
+ |      flags: str
+ |          flags for compiling fuzz-drivers, default to "-fsanitize=address,fuzzer -g -O0".
  |  
  |  ----------------------------------------------------------------------
 ```
@@ -155,13 +155,14 @@ The class Fuzzer helps automatically fuzz targets. It's just a simple script for
 ```python
 from futag.fuzzer import *
 f = Fuzzer("/Futag/futag-llvm", 
-"json-c-json-c-0.13.1-20180305/futag-fuzz-drivers")
+  "json-c-json-c-0.13.1-20180305/futag-fuzz-drivers"
+)
 f.fuzz()
 ```
 
 ```bash
 class Fuzzer(builtins.object)
- |  Fuzzer(futag_llvm_package: str, fuzz_driver_path: str = 'futag-fuzz-drivers', debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False)
+ |  Fuzzer(futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False)
  |  
  |  Futag Fuzzer
  |  

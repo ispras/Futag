@@ -19,7 +19,7 @@ import os
 import re
 
 from futag.sysmsg import *
-from subprocess import Popen, PIPE
+from subprocess import Popen, PIPE, run
 
 def delete_folder(pth):
     """
@@ -166,6 +166,7 @@ class Builder:
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
         p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
@@ -191,9 +192,9 @@ class Builder:
             "-disable-checker",
             "cplusplus",
             "-enable-checker",
-            "futag.FutagFunctionAnalyzer",
+            "futag.FutagAnalyzer",
             "-analyzer-config",
-            "futag.FutagFunctionAnalyzer:report_dir=" + self.analysis_path.as_posix(),
+            "futag.FutagAnalyzer:report_dir=" + self.analysis_path.as_posix(),
             "make",
             "-j" + str(self.processes)
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
@@ -223,9 +224,9 @@ class Builder:
 
         # my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         # my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-        # my_env["CFLAGS"] = self.flags
-        # my_env["CPPFLAGS"] = self.flags
-        # my_env["LDFLAGS"] = self.flags
+        my_env["CFLAGS"] = self.flags
+        my_env["CPPFLAGS"] = self.flags
+        my_env["LDFLAGS"] = self.flags
 
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
@@ -243,6 +244,7 @@ class Builder:
         # Doing make for building
 
         p = Popen([
+            (self.futag_llvm_package / "bin/intercept-build").as_posix(),
             "make",
             "-j" + str(self.processes)
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
@@ -324,9 +326,9 @@ class Builder:
             "-disable-checker",
             "cplusplus",
             "-enable-checker",
-            "futag.FutagFunctionAnalyzer",
+            "futag.FutagAnalyzer",
             "-analyzer-config",
-            "futag.FutagFunctionAnalyzer:report_dir=" + self.analysis_path.as_posix(),
+            "futag.FutagAnalyzer:report_dir=" + self.analysis_path.as_posix(),
             "make",
             "-j" + str(self.processes)
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
@@ -373,6 +375,7 @@ class Builder:
             print(LIB_CONFIGURE_SUCCEEDED)
 
         p = Popen([
+            (self.futag_llvm_package / "bin/intercept-build").as_posix(),
             "make",
             "-j" + str(self.processes)
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
@@ -428,9 +431,9 @@ class Builder:
             "-disable-checker",
             "cplusplus",
             "-enable-checker",
-            "futag.FutagFunctionAnalyzer",
+            "futag.FutagAnalyzer",
             "-analyzer-config",
-            "futag.FutagFunctionAnalyzer:report_dir=" + self.analysis_path.as_posix(),
+            "futag.FutagAnalyzer:report_dir=" + self.analysis_path.as_posix(),
             "make",
             "-j" + str(self.processes)
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
@@ -459,6 +462,7 @@ class Builder:
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
 
         p = Popen([
+            (self.futag_llvm_package / "bin/intercept-build").as_posix(),
             "make",
             "-j" + str(self.processes)
         # ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
@@ -497,26 +501,26 @@ class Builder:
         """
         decl_files = [
             x
-            for x in self.analysis_path.glob("**/declaration-*.futag-function-analyzer")
+            for x in self.analysis_path.glob("**/declaration-*.futag-analyzer.json")
             if x.is_file()
         ]
 
-        # Find all context files in given location
-        context_files = [
-            x for x in self.analysis_path.glob("**/context-*.futag-function-analyzer") if x.is_file()
-        ]
+        # # Find all context files in given location
+        # context_files = [
+        #     x for x in self.analysis_path.glob("**/context-*.futag-function-analyzer.json") if x.is_file()
+        # ]
 
         # Find all type_info files in given location
         typeinfo_files = [
             x
-            for x in self.analysis_path.glob("**/types-info-*.futag-function-analyzer")
+            for x in self.analysis_path.glob("**/types-info-*.futag-analyzer.json")
             if x.is_file()
         ]
 
         # Find all includes info files in given location
         info_files = [
             x
-            for x in self.analysis_path.glob("**/file-info-*.futag-function-analyzer")
+            for x in self.analysis_path.glob("**/file-info-*.futag-analyzer.json")
             if x.is_file()
         ]
 
@@ -524,50 +528,55 @@ class Builder:
         function_list = {}
         enum_list = []
         typedef_list = []
-        struct_list = []
+        record_list = []
         compiled_files = []
 
         print("")
         print(" -- [Futag]: Analysing fuctions for generating fuzz-drivers..." )
+        print (decl_files)
         for jf in decl_files:
             functions = json.load(open(jf.as_posix()))
             if functions is None:
                 print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
+            else:
+                print(" -- [Futag]: Analyzing file %s ..." %
+                      (jf.as_posix()))
             # get global hash of all functions
             global_hash = [x for x in function_list]
             # iterate function hash for adding to global hash list
             for hash in functions:
+                curr_func = functions[hash]
                 if not hash in global_hash:
                     function_list[hash] = functions[hash]
 
-        for jf in context_files:
-            contexts = json.load(open(jf.as_posix()))
-            if contexts is None:
-                print(" -- [Futag]: Warning: loading json from file %s failed!" %
-                      (jf.as_posix()))
-                continue
-            # get global hash of all functions
-            global_hash = [x for x in function_list]
+        # for jf in context_files:
+        #     contexts = json.load(open(jf.as_posix()))
+        #     if contexts is None:
+        #         print(" -- [Futag]: Warning: loading json from file %s failed!" %
+        #               (jf.as_posix()))
+        #         continue
+        #     # get global hash of all functions
+        #     global_hash = [x for x in function_list]
 
-            # iterate function hash for adding to global hash list
-            for hash in contexts:
-                if hash in global_hash:
-                    called_from_list = [
-                        x["called_from"] + x["called_from_func_name"]
-                        for x in function_list[hash]["call_contexts"]
-                    ]
-                    for call_xref in contexts[hash]["call_contexts"]:
-                        if (
-                            not call_xref["called_from"] +
-                                call_xref["called_from_func_name"]
-                            in called_from_list
-                        ):
-                            function_list[hash]["call_contexts"].append(
-                                call_xref)
-                else:
-                    print(" -- %s not found in global hash list!" % (hash))
+        #     # iterate function hash for adding to global hash list
+        #     for hash in contexts:
+        #         if hash in global_hash:
+        #             called_from_list = [
+        #                 x["called_from"] + x["called_from_func_name"]
+        #                 for x in function_list[hash]["call_contexts"]
+        #             ]
+        #             for call_xref in contexts[hash]["call_contexts"]:
+        #                 if (
+        #                     not call_xref["called_from"] +
+        #                         call_xref["called_from_func_name"]
+        #                     in called_from_list
+        #                 ):
+        #                     function_list[hash]["call_contexts"].append(
+        #                         call_xref)
+        #         else:
+        #             print(" -- %s not found in global hash list!" % (hash))
 
         print("")
         print(" -- [Futag]: Analysing data types ..." )
@@ -578,31 +587,33 @@ class Builder:
                 print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
+            else:
+                print(" -- [Futag]: Analyzing file %s ..." % (jf.as_posix()))
             # get global hash of all functions
             for enum_it in types["enums"]:
                 exist = False
                 for enum_exist_it in enum_list:
-                    if enum_it["enum_name"] == enum_exist_it["enum_name"]:
+                    if enum_it["qname"] == enum_exist_it["qname"]:
                         exist = True
                         break
                 if not exist:
                     enum_list.append(enum_it)
 
-            for struct_it in types["structs"]:
+            for record in types["records"]:
                 exist = False
-                for struct_exist_it in struct_list:
-                    if struct_it["struct_name"] == struct_exist_it["struct_name"]:
-                        if len(struct_it["struct_fields"]) > len(struct_exist_it["struct_fields"]):
-                            struct_exist_it["struct_fields"] = struct_it["struct_fields"]
+                for record_iter in record_list:
+                    if record["qname"] == record_iter["qname"]:
+                        if len(record["fields"]) > len(record_iter["fields"]):
+                            record_iter["fields"] = record["fields"]
                         exist = True
                         break
                 if not exist:
-                    struct_list.append(struct_it)
+                    record_list.append(record)
 
             for typedef_it in types["typedefs"]:
                 exist = False
                 for typedef_exist_it in typedef_list:
-                    if typedef_it["typename"] == typedef_exist_it["typename"]:
+                    if typedef_it["qname"] == typedef_exist_it["qname"]:
                         exist = True
                         break
                 if not exist:
@@ -642,24 +653,28 @@ class Builder:
             contexts = []
             for f in function_list:
                 for call_func in function_list[f]["call_contexts"]:
-                    if call_func["called_from_func_name"] == function_list[func]["func_name"]:
+                    if call_func["called_from_func_name"] == function_list[func]["name"]:
                         contexts.append(call_func)
             fs = {
-                "func_name": function_list[func]["func_name"],
+                "name": function_list[func]["name"],
+                "qname": function_list[func]["qname"],
+                "func_type": function_list[func]["func_type"],
+                "access_type": function_list[func]["access_type"],
+                "storage_class": function_list[func]["storage_class"],
+                "parent_hash": function_list[func]["parent_hash"],
                 "return_type": function_list[func]["return_type"],
                 "return_type_pointer": function_list[func]["return_type_pointer"],
                 "params": function_list[func]["params"],
                 "fuzz_it": function_list[func]["fuzz_it"],
                 "contexts": contexts,
                 "location": function_list[func]["location"],
-
             }
             functions_w_contexts.append(fs)
 
         result = {
             "functions": functions_w_contexts,
             "enums": enum_list,
-            "structs": struct_list,
+            "records": record_list,
             "typedefs": typedef_list,
             "compiled_files": compiled_files,
         }
@@ -668,7 +683,7 @@ class Builder:
 
         print("Total functions: ", str(len(result["functions"])))
         print("Total enums: ", str(len(result["enums"])))
-        print("Total structs: ", str(len(result["structs"])))
+        print("Total records: ", str(len(result["records"])))
         print("Total typedefs: ", str(len(result["typedefs"])))
         print("Analysis result: ", (self.analysis_path /
               "futag-analysis-result.json").as_posix())

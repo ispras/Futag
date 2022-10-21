@@ -14,13 +14,15 @@
 """
 
 # constants of Futag
-BUILD_PATH = "futag-build"
+BUILD_PATH = ".futag-build"
 BUILD_EX_PARAMS = ""
-INSTALL_PATH = "futag-install"
-ANALYSIS_PATH = "futag-analysis"
-COMPILER_FLAGS = "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
+INSTALL_PATH = ".futag-install"
+ANALYSIS_PATH = ".futag-analysis"
+COMPILER_FLAGS = "-fsanitize=address -g -O0"
+COMPILER_COVERAGE_FLAGS = "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
+FUZZ_COMPILER_FLAGS = "-fsanitize=address,fuzzer -g -O0"
 FUZZ_DRIVER_PATH = "futag-fuzz-drivers"
-ANALYSIS_FILE_PATH="futag-analysis/futag-analysis-result.json"
+ANALYSIS_FILE_PATH=".futag-analysis/futag-analysis-result.json"
 CMAKE_PATH_ERROR="Please specify other directory for building with cmake."
 
 # messages of Futag
@@ -75,3 +77,59 @@ GEN_UNKNOWN = 12
 # fuzz-driver format
 LIBFUZZER = 0
 AFLPLUSPLUS = 1
+
+# RecordType
+CLASS_RECORD = 0
+UNION_RECORD = 1
+STRUCT_RECORD = 2
+UNKNOW_RECORD = 3
+
+# Function Type
+FUNC_CXXMETHOD = 0
+FUNC_CONSTRUCTOR = 1
+FUNC_DEFAULT_CONSTRUCTOR = 2
+FUNC_DESTRUCTOR = 3
+FUNC_GLOBAL = 4
+FUNC_STATIC = 5
+FUNC_UNKNOW_RECORD = 6
+
+# Access type
+# A C++ access specifier (public, private, protected), plus the special value "none" which means different things in different contexts.
+AS_PUBLIC = 0
+AS_PROTECTED = 1
+AS_PRIVATE  = 2
+AS_NONE  = 3 # for only C
+
+# Storage class
+# These are legal on both functions and variables.
+SC_NONE = 0
+SC_EXTERN = 1
+SC_STATIC = 2
+SC_PRIVATEEXTERN = 3
+# These are only legal on variables.
+SC_AUTO = 4
+SC_REGISTER = 5
+
+AFLPLUSPLUS_PREFIX = '''__AFL_FUZZ_INIT();
+
+main() {
+// anything else here, e.g. command line arguments, initialization, etc.
+
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+    __AFL_INIT();
+#endif
+
+unsigned char *Fuzz_Data = __AFL_FUZZ_TESTCASE_BUF;  // must be after __AFL_INIT and before __AFL_LOOP!
+
+while (__AFL_LOOP(10000)) {
+    int Fuzz_Size = __AFL_FUZZ_TESTCASE_LEN;  // don't use the macro directly in a call!
+    
+    // check for a required/useful minimum input length\n'''
+AFLPLUSPLUS_SUFFIX = '''
+  }
+  return 0;
+}'''
+
+LIBFUZZER_PREFIX = '''extern "C" int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size)\n
+    {\n'''
+LIBFUZZER_SUFFIX = '''    return 0;\n}'''
