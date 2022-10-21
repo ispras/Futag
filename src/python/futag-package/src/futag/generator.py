@@ -800,7 +800,7 @@ class Generator:
             old_buf_size_arr = copy.copy(self.buf_size_arr)
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
-            print(curr_param["param_type"])
+            # print(curr_param["param_type"])
             for f in self.target_library['functions']:
                 if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"]:
                     # check for function call with simple data type!!!
@@ -1159,7 +1159,7 @@ class Generator:
             old_buf_size_arr = copy.copy(self.buf_size_arr)
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
-            print(curr_param["param_type"])
+            # print(curr_param["param_type"])
             for f in self.target_library['functions']:
                 if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"]:
                     # check for function call with simple data type!!!
@@ -1524,7 +1524,7 @@ class Generator:
             old_buf_size_arr = copy.copy(self.buf_size_arr)
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
-            print(curr_param["param_type"])
+            # print(curr_param["param_type"])
             for f in self.target_library['functions']:
                 if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"]:
                     # check for function call with simple data type!!!
@@ -1583,8 +1583,7 @@ class Generator:
         for func in self.target_library["functions"]:
             # For C
             if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (not "(anonymous namespace)" in func["qname"]) and (func["parent_hash"] == ""):
-                print(
-                    "-- [Futag] Trying generate fuzz-driver for function: ", func["name"], "!")
+                print("-- [Futag] Trying generate fuzz-driver for function: ", func["name"], "!")
                 self.gen_func_params = []
                 self.gen_free = []
                 self.gen_this_function = True
@@ -1610,8 +1609,7 @@ class Generator:
                     if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
                         self.gen_class_constructor(func, 0)
                         if self.gen_this_function:
-                            print(
-                                "-- [Futag] Fuzz-driver for for constructor: ", func["name"], " generated!")
+                            print("-- [Futag] Fuzz-driver for for constructor: ", func["name"], " generated!")
                     else:
                         self.gen_class_method(func, 0)
                         if self.gen_this_function:

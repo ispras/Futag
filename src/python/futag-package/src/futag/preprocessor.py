@@ -533,7 +533,6 @@ class Builder:
 
         print("")
         print(" -- [Futag]: Analysing fuctions for generating fuzz-drivers..." )
-        print (decl_files)
         for jf in decl_files:
             functions = json.load(open(jf.as_posix()))
             if functions is None:
