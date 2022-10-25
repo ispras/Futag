@@ -241,12 +241,33 @@ def NonnullGlobalConstantsChecker: Checker<"NonnilStringConstants">,
 let ParentPackage = Futag in {
 
     def FutagAnalyzer : Checker<"FutagAnalyzer">,
-    HelpText<"Futag Checker for finding potential fuzzing functions. Use scan-build for viewing result and generating list of needed function">,
+    HelpText<"Futag Checker for finding potential fuzzing functions.">,
     CheckerOptions<[
         CmdLineOption<String,
                     "report_dir",
-                    "Absolute path to the directory, where to write results of the analyzis",
+                    "Absolute path to the directory, where to write results of the analysis",
                     "/tmp/futag-function-analyzer-reports/",
+                    Released>,
+    ]>,
+    Documentation<NotDocumented>;
+
+    def FutagContextConsumer : Checker<"FutagContextConsumer">,
+    HelpText<"Checker for finding context in consumer libraries.">,
+    CheckerOptions<[
+        CmdLineOption<String,
+                    "FuncName",
+                    "Name of function to slice",
+                    "main",
+                    Released>,
+        CmdLineOption<Integer,
+                    "LineNumber",
+                    "0",
+                    "main",
+                    Released>,
+        CmdLineOption<Integer,
+                    "ColNumber",
+                    "0",
+                    "main",
                     Released>,
     ]>,
     Documentation<NotDocumented>;

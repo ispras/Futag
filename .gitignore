@@ -19,3 +19,4 @@ custom-llvm/*.tar.xz
 **/futag-llvm.*.tar.xz
 TODO
 product-tests/*.tar.xz
+futag-llvm*
