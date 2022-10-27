@@ -191,6 +191,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
   json basicFunctionInfo = {
       {"name", currFuncName},
       {"qname", currFuncQName},
+      {"is_simple", futag::isSimpleFunction(func)},
       {"func_type", function_type},
       {"access_type", func->getAccess()},
       {"storage_class", func->getStorageClass()},

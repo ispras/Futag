@@ -78,6 +78,11 @@ string trim(string str);
 
 vector<string> explode(string line, char delimiter);
 
+//Function for check if current type is simple type: a type or its qualified, pointee type is builtin
+bool isSimpleType(QualType type);
+bool isSimpleRecord(const RecordDecl *rd);
+bool isSimpleFunction(const FunctionDecl *fd);
+
 // * Data types followed by: https://en.cppreference.com/w/c/language/type
 typedef enum {
   _BUILTIN,     // 0: All basic types: int, float, double,...

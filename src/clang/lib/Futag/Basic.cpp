@@ -69,6 +69,58 @@ vector<string> explode(string line, char delimiter) {
   result.insert(result.end(), trim(copy_line));
   return result;
 }
+bool isSimpleType(QualType type) {
+  if (type.isCanonical()) {
+    type = type.getCanonicalType();
+  }
+  while (type.hasLocalQualifiers()) {
+    type = type.getLocalUnqualifiedType();
+  }
+  while (type->isPointerType()) {
+    type = type->getPointeeType();
+  }
+  while (type.hasLocalQualifiers()) {
+    type = type.getLocalUnqualifiedType();
+  }
+  while (type->isPointerType()) {
+    type = type->getPointeeType();
+  }
+
+  if (type->isBuiltinType()) {
+    return true;
+  }
+  return false;
+}
+
+bool isSimpleRecord(const RecordDecl *rd) {
+  bool simple = true;
+  for (auto it = rd->field_begin(); it != rd->field_end(); it++) {
+    if (!isSimpleType(it->getType())) {
+      simple = false;
+      break;
+    }
+  }
+  return simple;
+}
+bool isSimpleFunction(const FunctionDecl *fd) {
+  bool simple = true;
+  for (size_t i = 0; i < fd->getNumParams(); ++i) {
+    auto param_type = fd->parameters()[i]->getType();
+    if (param_type->isRecordType()) {
+      auto rd = param_type->getAsRecordDecl();
+      if (rd && !isSimpleRecord(rd)) {
+        simple = false;
+        break;
+      }
+    } else {
+      if (!isSimpleType(param_type)) {
+        simple = false;
+        break;
+      }
+    }
+  }
+  return simple;
+}
 
 bool dir_exists(const char *path) {
   struct stat info;

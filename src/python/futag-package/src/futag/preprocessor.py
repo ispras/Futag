@@ -628,9 +628,13 @@ class Builder:
                 print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
-
-            with open(compiled_file['file'], "r", errors="ignore") as f:
-                code = f.readlines()
+            else:
+                print(" -- [Futag]: Analyzing file %s ..." % (infofile.as_posix()))
+            code = []
+            if os.path.exists(compiled_file['file']):
+                print(" -- [Futag]: Getting info from file %s ..." % (compiled_file['file']))
+                with open(compiled_file['file'], "r", errors="ignore") as f:
+                    code = f.readlines()
             headers = []
             for line in code:
                 include = re.match(match_include, line)
@@ -657,6 +661,7 @@ class Builder:
             fs = {
                 "name": function_list[func]["name"],
                 "qname": function_list[func]["qname"],
+                "is_simple": function_list[func]["is_simple"],
                 "func_type": function_list[func]["func_type"],
                 "access_type": function_list[func]["access_type"],
                 "storage_class": function_list[func]["storage_class"],
