@@ -66,6 +66,8 @@ class Builder:
         # self.target_project_archive = target_project_archive
         self.futag_llvm_package = futag_llvm_package
         self.library_root = library_root
+        # Save all subdirectories of library
+        self.subdirs = []
 
         try:
             processes = int(processes)
@@ -88,7 +90,9 @@ class Builder:
 
         if (self.library_root / build_path).exists() and clean:
             delete_folder(self.library_root / build_path)
-
+        
+        self.subdirs = [x.as_posix() for x in (self.library_root).glob("**/*") if x.is_dir()] + [self.library_root.as_posix()]
+        
         (self.library_root / build_path).mkdir(parents=True, exist_ok=True)
         self.build_path = self.library_root / build_path
 
@@ -105,6 +109,7 @@ class Builder:
         self.analysis_path = self.library_root / analysis_path
         self.flags = flags
         self.build_ex_params = build_ex_params
+        
 
     def auto_build(self) -> int:
         """
@@ -674,13 +679,13 @@ class Builder:
                 "location": function_list[func]["location"],
             }
             functions_w_contexts.append(fs)
-
         result = {
             "functions": functions_w_contexts,
             "enums": enum_list,
             "records": record_list,
             "typedefs": typedef_list,
             "compiled_files": compiled_files,
+            "subdirs" : self.subdirs
         }
         json.dump(result, open(
             (self.analysis_path / "futag-analysis-result.json").as_posix(), "w"))
