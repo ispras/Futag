@@ -2572,16 +2572,14 @@ class Generator:
         #     x for x in (self.library_root).iterdir() if x.is_dir()]
         # include_subdir = [
         #     x for x in (self.library_root).iterdir() if x.is_dir()]
-        include_subdir = self.target_library["subdirs"]
-        include_subdir = include_subdir + [self.build_path.as_posix()]
-        include_subdir = include_subdir + \
-            [x.as_posix() for x in (self.build_path).iterdir() if x.is_dir()]
+        include_subdir = self.target_library["header_dirs"]
+        include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.hpp")] + [self.build_path.as_posix()]
+
         # include_subdir = include_subdir + \
         #     [x for x in (self.install_path).iterdir() if x.is_dir()]
         if (self.install_path / "include").exists():
-            include_subdir = include_subdir + \
-                [x.as_posix() for x in (self.install_path /
-                             "include").iterdir() if x.is_dir()]
+            include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.hpp")]
+        include_subdir = list(set(include_subdir))
         generated_functions = [
             x for x in self.tmp_output_path.iterdir() if x.is_dir()]
 
