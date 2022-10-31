@@ -84,7 +84,9 @@ g = Generator(
     "path/to/library/source/code" # library root
     # target_type = LIBFUZZER, # or AFLPLUSPLUS
 )
-g.gen_targets() # Generate fuzz drivers
+g.gen_targets(
+  anonymous=False # Option for generating fuzzing-wrapper of private functions
+)
 g.compile_targets(8) # Compile fuzz drivers with 8 processes
 ```
 By default, successfully compiled fuzz-drivers for target functions are located in the futag-fuzz-drivers directory, where each target function is in its own subdirectory, the name of which matches the name of the target function.

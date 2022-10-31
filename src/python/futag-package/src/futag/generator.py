@@ -2455,7 +2455,7 @@ class Generator:
             self.gen_this_function = False
             return None
 
-    def gen_targets(self):
+    def gen_targets(self, anonymous=False):
         C_generated_function = []
         Cplusplus_usual_class_method = []
         Cplusplus_static_class_method = []
@@ -2498,23 +2498,24 @@ class Generator:
                             print("-- [Futag] Fuzz-driver for for method: ",
                                   func["name"], " generated!")
                 else:
-                    Cplusplus_anonymous_class_method.append(func["qname"])
-                    self.gen_func_params = []
-                    self.gen_free = []
-                    self.gen_this_function = True
-                    self.buf_size_arr = []
-                    self.dyn_size = 0
-                    self.curr_gen_string = -1
-                    if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
-                        self.gen_anonymous_constructor(func, 0)
-                        if self.gen_this_function:
-                            print(
-                                "-- [Futag] Fuzz-driver for for constructor: ", func["name"], " generated!")
-                    else:
-                        self.gen_anonymous_method(func, 0)
-                        if self.gen_this_function:
-                            print("-- [Futag] Fuzz-driver for for method: ",
-                                  func["name"], " generated!")
+                    if anonymous:
+                        Cplusplus_anonymous_class_method.append(func["qname"])
+                        self.gen_func_params = []
+                        self.gen_free = []
+                        self.gen_this_function = True
+                        self.buf_size_arr = []
+                        self.dyn_size = 0
+                        self.curr_gen_string = -1
+                        if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
+                            self.gen_anonymous_constructor(func, 0)
+                            if self.gen_this_function:
+                                print(
+                                    "-- [Futag] Fuzz-driver for for constructor: ", func["name"], " generated!")
+                        else:
+                            self.gen_anonymous_method(func, 0)
+                            if self.gen_this_function:
+                                print("-- [Futag] Fuzz-driver for for method: ",
+                                    func["name"], " generated!")
 
             # For C++, Call the static function of class without declaring object
             if func["access_type"] in [AS_NONE, AS_PUBLIC] and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_GLOBAL, FUNC_STATIC] and func["storage_class"] == SC_STATIC:

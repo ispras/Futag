@@ -85,8 +85,10 @@ g = Generator(
     "path/to/library/source/code" # путь к директории содержащей исходные кода исследуемого ПО
 )
 
-# Generate fuzz drivers
-g.gen_targets()
+# Генерация фаззинг-оберток 
+g.gen_targets(
+  anonymous=False # опция для генерации фаззинг-обертки для функций, которые не имеют публичный доступ
+)
 
 # Compile fuzz drivers
 g.compile_targets()
