@@ -17,6 +17,8 @@
 import json
 import pathlib
 import copy
+import os
+import string
 from futag.sysmsg import *
 from futag.preprocessor import *
 
@@ -2547,7 +2549,7 @@ class Generator:
 
     def compile_driver_worker(self, bgen_args):
         p = Popen(
-            bgen_args,
+            bgen_args["compiler_cmd"],
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,
@@ -2555,9 +2557,9 @@ class Generator:
         output, errors = p.communicate()
         if p.returncode:
             print(" ".join(p.args))
-            print("\n-- [Futag] ERROR:", errors)
+            print("\n-- [Futag] ERROR on target ", bgen_args["target_name"], ":\n", errors)
         else:
-            print("-- [Futag] Fuzz-driver has been compiled successfully!")
+            print("-- [Futag] Fuzz-driver ", bgen_args["target_name"], " was compiled successfully!")
 
     def compile_targets(self, workers: int = 4, flags: str = FUZZ_COMPILER_FLAGS):
         """
@@ -2568,18 +2570,12 @@ class Generator:
         flags: str
             flags for compiling fuzz-drivers, default to "-fsanitize=address,fuzzer -g -O0".
         """
-        # include_subdir: List[pathlib.Path] = [
-        #     x for x in (self.library_root).iterdir() if x.is_dir()]
-        # include_subdir = [
-        #     x for x in (self.library_root).iterdir() if x.is_dir()]
-        include_subdir = self.target_library["header_dirs"]
-        include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.hpp")] + [self.build_path.as_posix()]
+        # include_subdir = self.target_library["header_dirs"]
+        # include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.hpp")] + [self.build_path.as_posix()]
 
-        # include_subdir = include_subdir + \
-        #     [x for x in (self.install_path).iterdir() if x.is_dir()]
-        if (self.install_path / "include").exists():
-            include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.hpp")]
-        include_subdir = list(set(include_subdir))
+        # if (self.install_path / "include").exists():
+        #     include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.hpp")]
+        # include_subdir = list(set(include_subdir))
         generated_functions = [
             x for x in self.tmp_output_path.iterdir() if x.is_dir()]
 
@@ -2605,6 +2601,25 @@ class Generator:
             current_func = search_curr_func[0]
             func_file_location = current_func["location"].split(':')[0]
             compiler_info = self.get_compile_command(func_file_location)
+            include_subdir = []
+            
+            current_location = os.getcwd()
+            os.chdir(compiler_info["location"])
+            for iter in compiler_info["command"].split(" "):
+                if iter[0:2] == "-I":
+                    if pathlib.Path(iter[2:]).exists():
+                        include_subdir.append("-I" + pathlib.Path(iter[2:]).as_posix() + "/")
+                ### Check code for other parameters        
+                # letters = set(iter[1:])
+                # all_cap = True
+                # for l in letters:
+                #     if l not in list(string.ascii_uppercase):
+                #         all_cap = False
+                #         break
+                # if all_cap:
+                #     include_subdir.append(pathlib.Path(iter).as_posix())
+            os.chdir(current_location)
+
             compiler_flags_libFuzzer = flags
             compiler_flags_aflplusplus = flags
             compiler_path = ""
@@ -2643,8 +2658,19 @@ class Generator:
                         pathlib.Path(include_path).absolute())
 
             current_include = []
-            for i in include_subdir:
-                current_include.append("-I" + i)
+            if not include_subdir:
+                for i in resolved_include_paths:
+                    current_include.append("-I" + i + "/")
+            else:
+                for i in include_subdir:
+                    current_include.append(i)
+
+            # if (self.install_path / "include").exists():
+            #     current_include = current_include + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.hpp")] 
+            
+            # current_include = current_include + [(self.build_path).as_posix()]
+            # current_include = list(set(current_include))
+            
             # for i in resolved_include_paths:
             #     current_include.append("-I" + i.as_posix())
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
@@ -2652,10 +2678,10 @@ class Generator:
                 for target_src in [t for t in dir.glob("*"+self.target_extension) if t.is_file()]:
                     generated_targets += 1
                     if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + [
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + ["-ferror-limit=1"] + current_include + [
                             target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + [
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + ["-ferror-limit=1"] + current_include + [
                             target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
 
                     target_file = open(target_src.as_posix(), "a")
@@ -2666,14 +2692,16 @@ class Generator:
                     target_file.write("// Compile database: \n")
                     target_file.write("/*\n")
                     target_file.write(
-                        "// command: " + compiler_info['command'] + "\n")
-                    target_file.write("// location: " +
+                        "command: " + compiler_info['command'] + "\n")
+                    target_file.write("location: " +
                                       compiler_info['location'] + "\n")
-                    target_file.write("// file: " + compiler_info['file'])
+                    target_file.write("file: " + compiler_info['file'])
                     target_file.write("\n*/")
                     target_file.close()
-                    compile_cmd_list.append(compiler_cmd)
-                    compile_cmd_list.append(compiler_cmd)
+                    compile_cmd_list.append({
+                        "compiler_cmd" : compiler_cmd,
+                        "target_name": target_src.stem
+                    })
         with Pool(workers) as p:
             p.map(self.compile_driver_worker, compile_cmd_list)
 
@@ -2681,7 +2709,7 @@ class Generator:
 
         compiled_targets_list = [
             x for x in self.tmp_output_path.glob("**/*.out") if x.is_file()]
-        print("-- [Futag]: collecting result ...")
+        print("-- [Futag] collecting result ...")
 
         succeeded_path = self.output_path / "succeeded"
         if not succeeded_path.exists():
@@ -2690,13 +2718,17 @@ class Generator:
         if not failed_path.exists():
             (failed_path).mkdir(parents=True, exist_ok=True)
 
-        failed_path = self.output_path / "failed"
         succeeded_tree = set()
+        # for compiled_target in compiled_targets_list:
+        #     if compiled_target.parents[0].as_posix() not in succeeded_tree:
+        #         succeeded_tree.add(compiled_target.parents[0].as_posix())
         for compiled_target in compiled_targets_list:
-            if compiled_target.parents[0].as_posix() not in succeeded_tree:
-                succeeded_tree.add(compiled_target.parents[0].as_posix())
+            if compiled_target not in succeeded_tree:
+                succeeded_tree.add(compiled_target)
         for dir in succeeded_tree:
-            shutil.move(dir, succeeded_path.as_posix(),copy_function=shutil.copytree)
+            if not (succeeded_path / dir.parents[1].name).exists():
+                ((succeeded_path / dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
+            shutil.move(dir.parents[0].as_posix(), (succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
 
         failed_tree = set()
         not_compiled_targets_list = [
@@ -2705,13 +2737,16 @@ class Generator:
             x for x in self.tmp_output_path.glob("**/*.c") if x.is_file()]
         not_compiled_targets_list = not_compiled_targets_list + [
             x for x in self.tmp_output_path.glob("**/*.cpp") if x.is_file()]
-        for compiled_target in not_compiled_targets_list:
-            if compiled_target.parents[0].as_posix() not in failed_tree:
-                failed_tree.add(compiled_target.parents[0].as_posix())
+        for target in not_compiled_targets_list:
+            if target not in failed_tree:
+                failed_tree.add(target)
         for dir in failed_tree:
-            shutil.move(dir, failed_path.as_posix(), copy_function=shutil.copytree)
+            if not (failed_path / dir.parents[1].name).exists():
+                ((failed_path / dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
+            shutil.move(dir.parents[0].as_posix(), (failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
 
-        # delete_folder(self.tmp_output_path)
+        delete_folder(self.tmp_output_path)
+
         print(
             "-- [Futag] Result of compiling: "
             + str(len(compiled_targets_list))

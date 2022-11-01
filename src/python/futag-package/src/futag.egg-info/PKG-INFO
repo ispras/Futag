@@ -122,7 +122,7 @@ generator = Generator(
     "json-c-json-c-0.13.1-20180305" 
     "json-c-json-c-0.13.1-20180305/futag-analysis/futag-analysis-result.json", 
   )
-generator.gen_targets()
+generator.gen_targets(anonymous=False) #generate fuzzing wrapper for private function
 generator.compile_targets(True, 16) #number of processes while compiling
 ```
 The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the library root.

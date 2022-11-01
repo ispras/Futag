@@ -348,13 +348,20 @@ class Builder:
         else:
             print(LIB_ANALYZING_SUCCEEDED)
 
-        # Doing make for building
+        p = Popen([
+            "make",
+            "clean",
+        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        
+        output, errors = p.communicate()
+
         p = Popen([
             "make",
             "distclean",
         ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
         
         output, errors = p.communicate()
+        # Doing make for building
 
         my_env = os.environ.copy()
         my_env["CFLAGS"] = self.flags
@@ -369,8 +376,7 @@ class Builder:
         ]
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
-        # p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
-        p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        p = Popen(config_cmd, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
 
         output, errors = p.communicate()
         print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
