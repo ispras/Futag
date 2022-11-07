@@ -90,17 +90,17 @@ class Fuzzer:
             set()
         )
 
-    def get_id_from_error(self, error_string):
+    def __get_id_from_error(self, error_string):
         error_id = 0
         for c in error_string:
             error_id += ord(c)
         return str(error_id)
 
-    def Printer(self, data):
+    def __Printer(self, data):
         sys.stdout.write("\r\x1b[K" + data.__str__())
         sys.stdout.flush()
 
-    def futag_escape(self, str):
+    def __futag_escape(self, str):
         str = str.replace("&", "&amp;")
         str = str.replace("<", "&lt;")
         str = str.replace(">", "&gt;")
@@ -108,7 +108,7 @@ class Fuzzer:
         str = str.replace("\n", " ")
         return str
 
-    def get_backtrace_hash(self, backtrace):
+    def __get_backtrace_hash(self, backtrace):
         '''
         # Format of backtrace:
         # backtrace= {
@@ -142,7 +142,7 @@ class Fuzzer:
                 )
         return hash(str(backtrace["warnID"]) + input_str)
 
-    def libFuzzerLog_parser(self, fuzz_driver: str, libFuzzer_log: str, gdb: bool = False):
+    def __libFuzzerLog_parser(self, fuzz_driver: str, libFuzzer_log: str, gdb: bool = False):
         """
         Parameters
         ----------
@@ -205,7 +205,7 @@ class Fuzzer:
                 if role_traces:
                     backtrace = {
                         "warnClass": warnClass,
-                        "warnID": self.get_id_from_error(
+                        "warnID": self.__get_id_from_error(
                             warnClass + msg + crash_file + str(crash_line)
                         ),
                         "msg": msg,
@@ -527,9 +527,9 @@ class Fuzzer:
                                 lines = info_file.read()
 
                             for line in lines:
-                                info += self.futag_escape(line)
+                                info += self.__futag_escape(line)
                         stack["info"] = info
-        hash_backtrace = self.get_backtrace_hash(backtrace)
+        hash_backtrace = self.__get_backtrace_hash(backtrace)
         if not hash_backtrace in self.backtrace_hashes:
             self.backtrace_hashes.add(hash_backtrace)
             curren_explanation = ""
@@ -583,8 +583,9 @@ class Fuzzer:
 
     def fuzz(self):
         symbolizer = self.futag_llvm_package / "bin/llvm-symbolizer"
+        print (self.fuzz_driver_path.as_posix())
         generated_functions = [
-            x for x in self.fuzz_driver_path.iterdir() if x.is_dir()]
+            x for x in (self.fuzz_driver_path / "succeeded").iterdir() if x.is_dir()]
         # for dir in generated_functions:
         for func_dir in generated_functions:
             self.backtraces = []
@@ -656,12 +657,12 @@ class Fuzzer:
                         if self.gdb:
                             print(
                                 "-- [Futag]: Parsing crashes with GDB: ", x.as_posix())
-                            self.libFuzzerLog_parser(
+                            self.__libFuzzerLog_parser(
                                 x.as_posix(), crashlog_filename, True)
                         else:
                             print(
                                 "-- [Futag]: Parsing crash without GDB: ", x.as_posix())
-                            self.libFuzzerLog_parser(
+                            self.__libFuzzerLog_parser(
                                 x.as_posix(), crashlog_filename, False)
 
                     # if self.coverage:

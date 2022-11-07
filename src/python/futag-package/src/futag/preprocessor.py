@@ -166,6 +166,7 @@ class Builder:
             "-disable-checker",
             "cplusplus",
             "cmake",
+            # f"-DLLVM_CONFIG_PATH={(self.futag_llvm_package / 'bin/llvm-config').as_posix()}",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
@@ -220,6 +221,7 @@ class Builder:
 
         config_cmd = [
             "cmake",
+            f"-DLLVM_CONFIG_PATH={(self.futag_llvm_package / 'bin/llvm-config').as_posix()}",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
             f"-DCMAKE_CXX_FLAGS='{self.flags}'",
             f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
@@ -369,7 +371,7 @@ class Builder:
         my_env["LDFLAGS"] = self.flags
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-
+        my_env["LLVM_CONFIG"] = (self.futag_llvm_package / 'bin/llvm-config').as_posix()
         config_cmd = [
             (self.library_root / "configure").as_posix(),
             f"--prefix=" + self.install_path.as_posix(),
@@ -473,7 +475,7 @@ class Builder:
         my_env["LDFLAGS"] = self.flags
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-
+        my_env["LLVM_CONFIG"] = (self.futag_llvm_package / 'bin/llvm-config').as_posix()
         p = Popen([
             (self.futag_llvm_package / "bin/intercept-build").as_posix(),
             "make",

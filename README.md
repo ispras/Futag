@@ -53,9 +53,9 @@ FUTAG во время работы использует статический �
   ~$ pip install -r futag-llvm/python-package/requirements.txt
 ```
 
-- Установить python-пакет Futag можно по пути futag-llvm/python-package/futag-1.2.tar.gz:
+- Установить python-пакет Futag можно по пути futag-llvm/python-package/futag-1.2.1.tar.gz:
 ```bash
-  ~$ pip install futag-llvm/python-package/futag-1.2.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-1.2.1.tar.gz
 ```
 
 ## 3. Примеры использования

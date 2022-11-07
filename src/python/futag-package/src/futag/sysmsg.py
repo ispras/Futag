@@ -130,7 +130,6 @@ AFLPLUSPLUS_SUFFIX = '''
   return 0;
 }'''
 
-LIBFUZZER_PREFIX_C = '''int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size)\n
-    {\n'''
+LIBFUZZER_PREFIX_C = '''int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size){\n'''
 LIBFUZZER_PREFIX_CXX = '''extern "C" int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size){\n'''
 LIBFUZZER_SUFFIX = '''    return 0;\n}'''

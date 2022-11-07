@@ -51,3 +51,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## 20221018
 - Add support for C++, generate for constructors and for method of class, which has default constructors
 - Tested on FreeImage and Pugixml
+
+## 22021107
+- And generation for anonymous functions
+- Reformat Python classes 
+- Fix included paths of compiling command

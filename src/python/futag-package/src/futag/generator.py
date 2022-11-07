@@ -100,12 +100,27 @@ class Generator:
                 delete_folder(self.library_root / output_path)
             if (self.library_root / tmp_output_path).exists():
                 delete_folder(self.library_root / tmp_output_path)
-
+            
+            simple_functions = []
+            if self.target_library["functions"]:
+                for f_iter in self.target_library["functions"]:
+                    if f_iter["is_simple"]:
+                        simple_functions.append(f_iter)
+            self.simple_functions = simple_functions
             (self.library_root / output_path).mkdir(parents=True, exist_ok=True)
             (self.library_root / tmp_output_path).mkdir(parents=True, exist_ok=True)
-            self.output_path = self.library_root / output_path
-            self.tmp_output_path = self.library_root / tmp_output_path
-
+            self.output_path = (self.library_root / output_path).absolute()
+            self.tmp_output_path = (self.library_root / tmp_output_path).absolute()
+            
+            succeeded_path = self.output_path / "succeeded"
+            if not succeeded_path.exists():
+                (succeeded_path).mkdir(parents=True, exist_ok=True)
+            self.succeeded_path = succeeded_path
+            
+            failed_path = self.output_path / "failed"
+            if not failed_path.exists():
+                (failed_path).mkdir(parents=True, exist_ok=True)
+            self.failed_path = failed_path
         else:
             raise ValueError(INVALID_ANALYSIS_FILE)
 
@@ -119,7 +134,7 @@ class Generator:
         self.var_function = 0
         self.var_files = 0
 
-    def get_compile_command(self, file):
+    def __get_compile_command(self, file):
         if (self.build_path / "compile_commands.json").exists():
             compile_commands = self.build_path / "compile_commands.json"
             commands = json.load(open(compile_commands.as_posix()))
@@ -153,7 +168,7 @@ class Generator:
                 "location": ""
             }
 
-    def gen_header(self, target_function_fname):
+    def __gen_header(self, target_function_fname):
         defaults = ["stdio.h", "stddef.h", "stdlib.h", "string.h", "stdint.h"]
         compiled_files = self.target_library["compiled_files"]
         included_headers = []
@@ -184,7 +199,7 @@ class Generator:
             include_lines.append("#include " + i + "\n")
         return include_lines
 
-    def gen_builtin(self, type_name, var_name):
+    def __gen_builtin(self, type_name, var_name):
 
         return {
             "gen_lines": [
@@ -196,7 +211,7 @@ class Generator:
             "gen_free": []
         }
 
-    def gen_size(self, type_name, var_name):
+    def __gen_size(self, type_name, var_name):
         return {
             "gen_lines": [
                 "//GEN_SIZE\n",
@@ -206,7 +221,7 @@ class Generator:
             "gen_free": []
         }
 
-    def gen_string(self, type_name, var_name, parent_type):
+    def __gen_string(self, type_name, var_name, parent_type):
         if (len(parent_type) > 0):
             return {
                 "gen_lines": [
@@ -246,7 +261,7 @@ class Generator:
             ]
         }
 
-    def gen_enum(self, enum_record, var_name, compiler_info):
+    def __gen_enum(self, enum_record, var_name, compiler_info):
         enum_length = len(enum_record["enum_values"])
         if compiler_info["compiler"] == "CC":
             return {
@@ -271,7 +286,7 @@ class Generator:
                 ],
             }
 
-    def gen_anonymous_enum(self, enum_record, var_name, compiler_info):
+    def __gen_anonymous_enum(self, enum_record, var_name, compiler_info):
         enum_length = len(enum_record["enum_values"])
         if compiler_info["compiler"] == "CC":
             return {
@@ -296,7 +311,7 @@ class Generator:
                 ],
             }
 
-    def gen_array(self, type_name, var_name):
+    def __gen_array(self, type_name, var_name):
         return {
             "gen_lines": [
                 "//GEN_ARRAY\n"
@@ -304,7 +319,7 @@ class Generator:
             "gen_free": []
         }
 
-    def gen_void(self, var_name):
+    def __gen_void(self, var_name):
         return {
             "gen_lines": [
                 "//GEN_VOID\n"
@@ -312,7 +327,7 @@ class Generator:
             "gen_free": []
         }
 
-    def gen_qualifier(self, type_name, var_name, parent_type, parent_gen, param_id):
+    def __gen_qualifier(self, type_name, var_name, parent_type, parent_gen, param_id):
 
         if parent_type in ["const char *", "const unsigned char *"]:
             self.dyn_size += 1
@@ -381,7 +396,7 @@ class Generator:
             "buf_size": ""
         }
 
-    def gen_pointer(self, type_name, var_name, parent_type):
+    def __gen_pointer(self, type_name, var_name, parent_type):
         return {
             "gen_lines": [
                 "//GEN_POINTER\n",
@@ -393,7 +408,7 @@ class Generator:
             "gen_free": []
         }
 
-    def gen_struct(self, type_name, var_name):
+    def __gen_struct(self, type_name, var_name):
         return False
         # return {
         #     "gen_lines": [
@@ -402,7 +417,7 @@ class Generator:
         #     "gen_free": []
         # }
 
-    def gen_input_file(self, var_name):
+    def __gen_input_file(self, var_name):
         cur_gen_free = ["    " + x for x in self.gen_free]
         gen_lines = [
             "//GEN_INPUT_FILE\n",
@@ -422,11 +437,7 @@ class Generator:
             "gen_free": []
         }
 
-    def check_gen_function(self, function):
-        """ Check if we can initialize argument as function call """
-        return True
-
-    def gen_var_function(self, parent_func, func, var_name):
+    def __gen_var_function(self, parent_func, func, var_name):
         """ Initialize for argument of function call """
         curr_gen_func_params = []
         curr_gen_free = []
@@ -497,19 +508,19 @@ class Generator:
                 else:
                     if arg["param_usage"] == "SIZE_FIELD" and len(func["params"]) > 1:
                         if curr_gen_string >= 0:
-                            var_curr_gen = self.gen_size(
+                            var_curr_gen = self.__gen_size(
                                 arg["param_type"], "f"+str(self.var_function)+"_" + arg["param_name"])
                         else:
-                            var_curr_gen = self.gen_builtin(
+                            var_curr_gen = self.__gen_builtin(
                                 arg["param_type"], "f"+str(self.var_function)+"_" + arg["param_name"])
                             curr_buf_size_arr.append(
                                 "sizeof(" + arg["param_type"]+")")
                     else:
                         if curr_gen_string == param_id - 1 and curr_gen_string >= 0:
-                            var_curr_gen = self.gen_size(
+                            var_curr_gen = self.__gen_size(
                                 arg["param_type"], "f"+str(self.var_function)+"_" + arg["param_name"])
                         else:
-                            var_curr_gen = self.gen_builtin(
+                            var_curr_gen = self.__gen_builtin(
                                 arg["param_type"], "f"+str(self.var_function)+"_" + arg["param_name"])
                             curr_buf_size_arr.append(
                                 "sizeof(" + arg["param_type"]+")")
@@ -517,7 +528,7 @@ class Generator:
 
             if arg["generator_type"] == GEN_STRING:
                 if (arg["param_usage"] == "FILE_PATH" or arg["param_usage"] == "FILE_PATH_READ" or arg["param_usage"] == "FILE_PATH_WRITE" or arg["param_usage"] == "FILE_PATH_RW"):
-                    var_curr_gen = self.gen_input_file(
+                    var_curr_gen = self.__gen_input_file(
                         "f"+str(self.var_function)+"_" + arg["param_name"])
                     self.var_files += 1
                     curr_dyn_size += 1
@@ -527,7 +538,7 @@ class Generator:
                     curr_gen_func_params += var_curr_gen["gen_lines"]
 
                 else:
-                    var_curr_gen = self.gen_string(
+                    var_curr_gen = self.__gen_string(
                         arg["param_type"],
                         "f"+str(self.var_function)+"_" + arg["param_name"],
                         arg["parent_type"])
@@ -557,7 +568,7 @@ class Generator:
             "buf_size_arr": curr_buf_size_arr,
         }
 
-    def wrapper_file(self, func):
+    def __wrapper_file(self, func):
         self.target_extension = func["location"].split(":")[-2].split(".")[-1]
         file_index = 1
         qname = func["qname"]
@@ -589,7 +600,7 @@ class Generator:
             return None
         return f
 
-    def wrapper_anonymous_file(self, func):
+    def __wrapper_anonymous_file(self, func):
         self.target_extension = func["location"].split(":")[-2].split(".")[-1]
         file_index = 1
         anonymous_path = self.tmp_output_path / "anonymous"
@@ -624,27 +635,32 @@ class Generator:
             return None
         return f
 
-    def gen_target_function(self, func, param_id) -> bool:
+    def __gen_target_function(self, func, param_id) -> bool:
         malloc_free = [
             "unsigned char *",
             "char *",
         ]
 
         if param_id == len(func['params']):
+            # print("To the end of params!!!! ", param_id)
             if not self.gen_this_function:
                 return False
             # If there is no buffer - return!
             if not self.buf_size_arr:
+                # print("buf_size failed!!!")
                 return False
             # generate file name
-            f = self.wrapper_file(func)
+            f = self.__wrapper_file(func)
+            # print("file ok failed!!!")
             if not f:
+                # print("File created failed!!!")
                 return False
-            for line in self.gen_header(func["location"].split(':')[0]):
+            for line in self.__gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
-            compiler_info = self.get_compile_command(
+            compiler_info = self.__get_compile_command(
                 func["location"].split(':')[0])
+            # print("here1!!!")
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
                     f.write(LIBFUZZER_PREFIX_C)
@@ -652,6 +668,7 @@ class Generator:
                     f.write(LIBFUZZER_PREFIX_CXX)
             else:
                 f.write(AFLPLUSPLUS_PREFIX)
+            # print("here2!!!")
             if self.dyn_size > 0:
                 f.write("    if (Fuzz_Size < " + str(self.dyn_size))
                 if self.buf_size_arr:
@@ -668,7 +685,7 @@ class Generator:
                     f.write("    if (Fuzz_Size < ")
                     f.write("+".join(self.buf_size_arr))
                     f.write(") return 0;\n")
-
+            # print("here!!!")
             f.write("    uint8_t * pos = Fuzz_Data;\n")
             for line in self.gen_func_params:
                 f.write("    " + line)
@@ -775,19 +792,19 @@ class Generator:
             else:
                 if curr_param["param_usage"] == "SIZE_FIELD" and len(func["params"]) > 1:
                     if self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
                 else:
                     if self.curr_gen_string == param_id - 1 and self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
@@ -795,11 +812,11 @@ class Generator:
             self.gen_free += curr_gen["gen_free"]
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRING:
             if (curr_param["param_usage"] == "FILE_PATH" or curr_param["param_usage"] == "FILE_PATH_READ" or curr_param["param_usage"] == "FILE_PATH_WRITE" or curr_param["param_usage"] == "FILE_PATH_RW" or curr_param["param_name"] == "filename"):
-                curr_gen = self.gen_input_file(curr_param["param_name"])
+                curr_gen = self.__gen_input_file(curr_param["param_name"])
                 self.var_files += 1
                 self.dyn_size += 1
                 if not curr_gen:
@@ -808,7 +825,7 @@ class Generator:
                 self.gen_func_params += curr_gen["gen_lines"]
                 self.gen_free += curr_gen["gen_free"]
             else:
-                curr_gen = self.gen_string(
+                curr_gen = self.__gen_string(
                     curr_param["param_type"],
                     curr_param["param_name"],
                     curr_param["parent_type"])
@@ -825,16 +842,16 @@ class Generator:
                 self.curr_gen_string = param_id
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_ENUM:  # GEN_ENUM
             found = False
             for enum in self.target_library["enums"]:
                 if enum["qname"] == curr_param["param_type"].split(" ")[1]:
                     found = True
-                    compiler_info = self.get_compile_command(
+                    compiler_info = self.__get_compile_command(
                         func["location"].split(':')[0])
-                    curr_gen = self.gen_enum(
+                    curr_gen = self.__gen_enum(
                         enum, curr_param["param_name"], compiler_info)
                     self.gen_func_params += curr_gen["gen_lines"]
                     self.buf_size_arr.append("sizeof(unsigned int)")
@@ -842,11 +859,11 @@ class Generator:
                 self.gen_this_function = False
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_ARRAY:  # GEN_ARRAY
             self.gen_this_function = False
-            curr_gen = self.gen_array(curr_param["param_name"])
+            curr_gen = self.__gen_array(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -855,11 +872,11 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_VOID:
             self.gen_this_function = False
-            curr_gen = self.gen_void(curr_param["param_name"])
+            curr_gen = self.__gen_void(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -868,10 +885,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_QUALIFIER:
-            curr_gen = self.gen_qualifier(
+            curr_gen = self.__gen_qualifier(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"],
@@ -887,10 +904,10 @@ class Generator:
                 self.buf_size_arr.append(curr_gen["buf_size"])
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_POINTER:
-            curr_gen = self.gen_pointer(
+            curr_gen = self.__gen_pointer(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"])
@@ -902,10 +919,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRUCT:
-            curr_gen = self.gen_struct(
+            curr_gen = self.__gen_struct(
                 curr_param["param_name"], curr_param["param_type"])
             if not curr_gen:
                 self.gen_this_function = False
@@ -916,7 +933,7 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_INCOMPLETE:
             # iterate all possible variants for generating
@@ -926,39 +943,43 @@ class Generator:
             old_buf_size_arr = copy.copy(self.buf_size_arr)
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
-            # print(curr_param["param_type"])
-            for f in self.target_library['functions']:
-                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"] and f["is_simple"]:
+            # print("Search for: ", func["name"], ", ", curr_param["param_name"], " ", curr_param["param_type"])
+            found = False
+            for f_iter in self.simple_functions:
+                # print("Processing: ", f["name"])
+                if f_iter["return_type"] == curr_param["param_type"] and f_iter["name"] != func["name"]:
+                    found = True
                     # check for function call with simple data type!!!
                     check_params = True
-                    for arg in f["params"]:
+                    for arg in f_iter["params"]:
                         if arg["generator_type"] not in [GEN_BUILTIN, GEN_STRING]:
                             check_params = False
                             break
                     if not check_params:
                         continue
-
-                    curr_gen = self.gen_var_function(func,
-                                                     f, curr_param["param_name"])
+                    curr_gen = self.__gen_var_function(func, f_iter, curr_param["param_name"])
                     self.var_function += 1
                     self.gen_func_params += curr_gen["gen_lines"]
                     self.gen_free += curr_gen["gen_free"]
                     self.dyn_size += curr_gen["dyn_size"]
                     self.buf_size_arr += curr_gen["buf_size_arr"]
+                    # print("param id old: ", param_id)
                     param_id += 1
-                    self.gen_target_function(func, param_id)
-
+                    # print("param id new: ", param_id)
+                    self.__gen_target_function(func, param_id)
                     param_id -= 1
-
+                    # print("param id old2: ", param_id)
+                    self.var_function = copy.copy(old_var_function)
                     self.gen_func_params = copy.copy(old_func_params)
                     self.gen_free = copy.copy(old_gen_free)
                     self.dyn_size = copy.copy(old_dyn_size)
                     self.buf_size_arr = copy.copy(old_buf_size_arr)
-                    self.var_function = copy.copy(old_var_function)
 
             # curr_gen = self.gen_incomplete(curr_param["param_name"])
-            if not curr_gen:
+            if not curr_gen or not found:
                 self.gen_this_function = False
+            # else:
+            #     print("gen_var_function ok")
 
         if curr_param["generator_type"] == GEN_FUNCTION:
             self.gen_this_function = False
@@ -972,13 +993,13 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_target_function(func, param_id)
+            self.__gen_target_function(func, param_id)
 
         if curr_param["generator_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
             self.gen_this_function = False
             return None
 
-    def gen_class_constructor(self, func, param_id) -> bool:
+    def __gen_class_constructor(self, func, param_id) -> bool:
         malloc_free = [
             "unsigned char *",
             "char *",
@@ -992,15 +1013,15 @@ class Generator:
                 return False
 
             # generate file name
-            f = self.wrapper_file(func)
+            f = self.__wrapper_file(func)
             if not f:
                 return False
 
-            for line in self.gen_header(func["location"].split(':')[0]):
+            for line in self.__gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
 
-            compiler_info = self.get_compile_command(
+            compiler_info = self.__get_compile_command(
                 func["location"].split(':')[0])
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
@@ -1138,19 +1159,19 @@ class Generator:
             else:
                 if curr_param["param_usage"] == "SIZE_FIELD" and len(func["params"]) > 1:
                     if self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
                 else:
                     if self.curr_gen_string == param_id - 1 and self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
@@ -1158,11 +1179,11 @@ class Generator:
             self.gen_free += curr_gen["gen_free"]
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRING:
             if (curr_param["param_usage"] == "FILE_PATH" or curr_param["param_usage"] == "FILE_PATH_READ" or curr_param["param_usage"] == "FILE_PATH_WRITE" or curr_param["param_usage"] == "FILE_PATH_RW" or curr_param["param_name"] == "filename"):
-                curr_gen = self.gen_input_file(curr_param["param_name"])
+                curr_gen = self.__gen_input_file(curr_param["param_name"])
                 self.var_files += 1
                 self.dyn_size += 1
                 if not curr_gen:
@@ -1171,7 +1192,7 @@ class Generator:
                 self.gen_func_params += curr_gen["gen_lines"]
                 self.gen_free += curr_gen["gen_free"]
             else:
-                curr_gen = self.gen_string(
+                curr_gen = self.__gen_string(
                     curr_param["param_type"],
                     curr_param["param_name"],
                     curr_param["parent_type"])
@@ -1188,16 +1209,16 @@ class Generator:
                 self.curr_gen_string = param_id
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_ENUM:  # GEN_ENUM
             found = False
             for enum in self.target_library["enums"]:
                 if enum["name"] == curr_param["param_type"].split(" ")[1]:
                     found = True
-                    compiler_info = self.get_compile_command(
+                    compiler_info = self.__get_compile_command(
                         func["location"].split(':')[0])
-                    curr_gen = self.gen_enum(
+                    curr_gen = self.__gen_enum(
                         enum, curr_param["param_name"], compiler_info)
                     self.gen_func_params += curr_gen["gen_lines"]
                     self.buf_size_arr.append("sizeof(unsigned int)")
@@ -1205,11 +1226,11 @@ class Generator:
                 self.gen_this_function = False
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_ARRAY:  # GEN_ARRAY
             self.gen_this_function = False
-            curr_gen = self.gen_array(curr_param["param_name"])
+            curr_gen = self.__gen_array(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -1218,11 +1239,11 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_VOID:
             self.gen_this_function = False
-            curr_gen = self.gen_void(curr_param["param_name"])
+            curr_gen = self.__gen_void(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -1231,10 +1252,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_QUALIFIER:
-            curr_gen = self.gen_qualifier(
+            curr_gen = self.__gen_qualifier(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"],
@@ -1250,10 +1271,10 @@ class Generator:
                 self.buf_size_arr.append(curr_gen["buf_size"])
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_POINTER:
-            curr_gen = self.gen_pointer(
+            curr_gen = self.__gen_pointer(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"])
@@ -1265,10 +1286,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRUCT:
-            curr_gen = self.gen_struct(
+            curr_gen = self.__gen_struct(
                 curr_param["param_name"], curr_param["param_type"])
             if not curr_gen:
                 self.gen_this_function = False
@@ -1279,7 +1300,7 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_INCOMPLETE:
             # iterate all possible variants for generating
@@ -1290,8 +1311,8 @@ class Generator:
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
             # print(curr_param["param_type"])
-            for f in self.target_library['functions']:
-                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"] and f["is_simple"]:
+            for f in self.simple_functions:
+                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"]:
                     # check for function call with simple data type!!!
                     check_params = True
                     for arg in f["params"]:
@@ -1301,7 +1322,7 @@ class Generator:
                     if not check_params:
                         continue
 
-                    curr_gen = self.gen_var_function(func,
+                    curr_gen = self.__gen_var_function(func,
                                                      f, curr_param["param_name"])
                     self.var_function += 1
                     self.gen_func_params += curr_gen["gen_lines"]
@@ -1309,7 +1330,7 @@ class Generator:
                     self.dyn_size += curr_gen["dyn_size"]
                     self.buf_size_arr += curr_gen["buf_size_arr"]
                     param_id += 1
-                    self.gen_class_constructor(func, param_id)
+                    self.__gen_class_constructor(func, param_id)
 
                     param_id -= 1
 
@@ -1335,13 +1356,13 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_constructor(func, param_id)
+            self.__gen_class_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
             self.gen_this_function = False
             return None
 
-    def gen_anonymous_constructor(self, func, param_id) -> bool:
+    def __gen_anonymous_constructor(self, func, param_id) -> bool:
         malloc_free = [
             "unsigned char *",
             "char *",
@@ -1354,22 +1375,22 @@ class Generator:
             if not self.buf_size_arr:
                 return False
 
-            f = self.wrapper_anonymous_file(func)
+            f = self.__wrapper_anonymous_file(func)
             if not f:
                 return False
 
-            for line in self.gen_header(func["location"].split(':')[0]):
+            for line in self.__gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
             # generate file name
-            f = self.wrapper_file(func)
+            f = self.__wrapper_file(func)
             if not f:
                 return False
 
-            for line in self.gen_header(func["location"].split(':')[0]):
+            for line in self.__gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
-            compiler_info = self.get_compile_command(
+            compiler_info = self.__get_compile_command(
                 func["location"].split(':')[0])
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
@@ -1507,19 +1528,19 @@ class Generator:
             else:
                 if curr_param["param_usage"] == "SIZE_FIELD" and len(func["params"]) > 1:
                     if self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
                 else:
                     if self.curr_gen_string == param_id - 1 and self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
@@ -1527,11 +1548,11 @@ class Generator:
             self.gen_free += curr_gen["gen_free"]
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRING:
             if (curr_param["param_usage"] == "FILE_PATH" or curr_param["param_usage"] == "FILE_PATH_READ" or curr_param["param_usage"] == "FILE_PATH_WRITE" or curr_param["param_usage"] == "FILE_PATH_RW" or curr_param["param_name"] == "filename"):
-                curr_gen = self.gen_input_file(curr_param["param_name"])
+                curr_gen = self.__gen_input_file(curr_param["param_name"])
                 self.var_files += 1
                 self.dyn_size += 1
                 if not curr_gen:
@@ -1540,7 +1561,7 @@ class Generator:
                 self.gen_func_params += curr_gen["gen_lines"]
                 self.gen_free += curr_gen["gen_free"]
             else:
-                curr_gen = self.gen_string(
+                curr_gen = self.__gen_string(
                     curr_param["param_type"].split("::")[-1],
                     curr_param["param_name"],
                     curr_param["parent_type"])
@@ -1554,16 +1575,16 @@ class Generator:
                 self.curr_gen_string = param_id
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_ENUM:  # GEN_ENUM
             found = False
             for enum in self.target_library["enums"]:
                 if enum["name"] == curr_param["param_type"].split(" ")[1].split("::")[-1]:
                     found = True
-                    compiler_info = self.get_compile_command(
+                    compiler_info = self.__get_compile_command(
                         func["location"].split(':')[0])
-                    curr_gen = self.gen_anonymous_enum(
+                    curr_gen = self.__gen_anonymous_enum(
                         enum, curr_param["param_name"], compiler_info)
                     self.gen_func_params += curr_gen["gen_lines"]
                     self.buf_size_arr.append("sizeof(unsigned int)")
@@ -1571,11 +1592,11 @@ class Generator:
                 self.gen_this_function = False
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_ARRAY:  # GEN_ARRAY
             self.gen_this_function = False
-            curr_gen = self.gen_array(curr_param["param_name"])
+            curr_gen = self.__gen_array(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -1584,11 +1605,11 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_VOID:
             self.gen_this_function = False
-            curr_gen = self.gen_void(curr_param["param_name"])
+            curr_gen = self.__gen_void(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -1597,10 +1618,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_QUALIFIER:
-            curr_gen = self.gen_qualifier(
+            curr_gen = self.__gen_qualifier(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"],
@@ -1616,10 +1637,10 @@ class Generator:
                 self.buf_size_arr.append(curr_gen["buf_size"])
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_POINTER:
-            curr_gen = self.gen_pointer(
+            curr_gen = self.__gen_pointer(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"])
@@ -1631,10 +1652,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRUCT:
-            curr_gen = self.gen_struct(
+            curr_gen = self.__gen_struct(
                 curr_param["param_name"], curr_param["param_type"])
             if not curr_gen:
                 self.gen_this_function = False
@@ -1645,7 +1666,7 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_INCOMPLETE:
             # iterate all possible variants for generating
@@ -1656,8 +1677,8 @@ class Generator:
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
             # print(curr_param["param_type"])
-            for f in self.target_library['functions']:
-                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"] and f["is_simple"]:
+            for f in self.simple_functions:
+                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"]:
                     # check for function call with simple data type!!!
                     check_params = True
                     for arg in f["params"]:
@@ -1667,7 +1688,7 @@ class Generator:
                     if not check_params:
                         continue
 
-                    curr_gen = self.gen_var_function(func,
+                    curr_gen = self.__gen_var_function(func,
                                                      f, curr_param["param_name"])
                     self.var_function += 1
                     self.gen_func_params += curr_gen["gen_lines"]
@@ -1675,7 +1696,7 @@ class Generator:
                     self.dyn_size += curr_gen["dyn_size"]
                     self.buf_size_arr += curr_gen["buf_size_arr"]
                     param_id += 1
-                    self.gen_anonymous_constructor(func, param_id)
+                    self.__gen_anonymous_constructor(func, param_id)
 
                     param_id -= 1
 
@@ -1701,13 +1722,13 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_constructor(func, param_id)
+            self.__gen_anonymous_constructor(func, param_id)
 
         if curr_param["generator_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
             self.gen_this_function = False
             return None
 
-    def gen_class_method(self, func, param_id) -> bool:
+    def __gen_class_method(self, func, param_id) -> bool:
         malloc_free = [
             "unsigned char *",
             "char *",
@@ -1723,14 +1744,14 @@ class Generator:
                 return False
 
             # generate file name
-            f = self.wrapper_file(func)
+            f = self.__wrapper_file(func)
             if not f:
                 return False
 
-            for line in self.gen_header(func["location"].split(':')[0]):
+            for line in self.__gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
-            compiler_info = self.get_compile_command(
+            compiler_info = self.__get_compile_command(
                 func["location"].split(':')[0])
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
@@ -1879,19 +1900,19 @@ class Generator:
             else:
                 if curr_param["param_usage"] == "SIZE_FIELD" and len(func["params"]) > 1:
                     if self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
                 else:
                     if self.curr_gen_string == param_id - 1 and self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
@@ -1899,11 +1920,11 @@ class Generator:
             self.gen_free += curr_gen["gen_free"]
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRING:
             if (curr_param["param_usage"] == "FILE_PATH" or curr_param["param_usage"] == "FILE_PATH_READ" or curr_param["param_usage"] == "FILE_PATH_WRITE" or curr_param["param_usage"] == "FILE_PATH_RW" or curr_param["param_name"] == "filename"):
-                curr_gen = self.gen_input_file(curr_param["param_name"])
+                curr_gen = self.__gen_input_file(curr_param["param_name"])
                 self.var_files += 1
                 self.dyn_size += 1
                 if not curr_gen:
@@ -1912,7 +1933,7 @@ class Generator:
                 self.gen_func_params += curr_gen["gen_lines"]
                 self.gen_free += curr_gen["gen_free"]
             else:
-                curr_gen = self.gen_string(
+                curr_gen = self.__gen_string(
                     curr_param["param_type"],
                     curr_param["param_name"],
                     curr_param["parent_type"])
@@ -1929,16 +1950,16 @@ class Generator:
                 self.curr_gen_string = param_id
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_ENUM:  # GEN_ENUM
             found = False
             for enum in self.target_library["enums"]:
                 if enum["qname"] == curr_param["param_type"].split(" ")[1]:
                     found = True
-                    compiler_info = self.get_compile_command(
+                    compiler_info = self.__get_compile_command(
                         func["location"].split(':')[0])
-                    curr_gen = self.gen_enum(
+                    curr_gen = self.__gen_enum(
                         enum, curr_param["param_name"], compiler_info)
                     self.gen_func_params += curr_gen["gen_lines"]
                     self.buf_size_arr.append("sizeof(unsigned int)")
@@ -1946,11 +1967,11 @@ class Generator:
                 self.gen_this_function = False
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_ARRAY:  # GEN_ARRAY
             self.gen_this_function = False
-            curr_gen = self.gen_array(curr_param["param_name"])
+            curr_gen = self.__gen_array(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -1959,11 +1980,11 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_VOID:
             self.gen_this_function = False
-            curr_gen = self.gen_void(curr_param["param_name"])
+            curr_gen = self.__gen_void(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -1972,10 +1993,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_QUALIFIER:
-            curr_gen = self.gen_qualifier(
+            curr_gen = self.__gen_qualifier(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"],
@@ -1991,10 +2012,10 @@ class Generator:
                 self.buf_size_arr.append(curr_gen["buf_size"])
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_POINTER:
-            curr_gen = self.gen_pointer(
+            curr_gen = self.__gen_pointer(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"])
@@ -2006,10 +2027,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRUCT:
-            curr_gen = self.gen_struct(
+            curr_gen = self.__gen_struct(
                 curr_param["param_name"], curr_param["param_type"])
             if not curr_gen:
                 self.gen_this_function = False
@@ -2020,7 +2041,7 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_INCOMPLETE:
             # iterate all possible variants for generating
@@ -2031,8 +2052,8 @@ class Generator:
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
             # print(curr_param["param_type"])
-            for f in self.target_library['functions']:
-                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"] and f["is_simple"]:
+            for f in self.simple_functions:
+                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"]:
                     # check for function call with simple data type!!!
                     check_params = True
                     for arg in f["params"]:
@@ -2042,7 +2063,7 @@ class Generator:
                     if not check_params:
                         continue
 
-                    curr_gen = self.gen_var_function(func,
+                    curr_gen = self.__gen_var_function(func,
                                                      f, curr_param["param_name"])
                     self.var_function += 1
                     self.gen_func_params += curr_gen["gen_lines"]
@@ -2050,7 +2071,7 @@ class Generator:
                     self.dyn_size += curr_gen["dyn_size"]
                     self.buf_size_arr += curr_gen["buf_size_arr"]
                     param_id += 1
-                    self.gen_class_method(func, param_id)
+                    self.__gen_class_method(func, param_id)
 
                     param_id -= 1
 
@@ -2076,13 +2097,13 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_class_method(func, param_id)
+            self.__gen_class_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
             self.gen_this_function = False
             return None
 
-    def gen_anonymous_method(self, func, param_id) -> bool:
+    def __gen_anonymous_method(self, func, param_id) -> bool:
         malloc_free = [
             "unsigned char *",
             "char *",
@@ -2098,14 +2119,14 @@ class Generator:
                 return False
 
             # generate file name
-            f = self.wrapper_anonymous_file(func)
+            f = self.__wrapper_anonymous_file(func)
             if not f:
                 return False
 
-            for line in self.gen_header(func["location"].split(':')[0]):
+            for line in self.__gen_header(func["location"].split(':')[0]):
                 f.write(line)
             f.write('\n')
-            compiler_info = self.get_compile_command(
+            compiler_info = self.__get_compile_command(
                 func["location"].split(':')[0])
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
@@ -2254,19 +2275,19 @@ class Generator:
             else:
                 if curr_param["param_usage"] == "SIZE_FIELD" and len(func["params"]) > 1:
                     if self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
                 else:
                     if self.curr_gen_string == param_id - 1 and self.curr_gen_string >= 0:
-                        curr_gen = self.gen_size(
+                        curr_gen = self.__gen_size(
                             curr_param["param_type"], curr_param["param_name"])
                     else:
-                        curr_gen = self.gen_builtin(
+                        curr_gen = self.__gen_builtin(
                             curr_param["param_type"], curr_param["param_name"])
                         self.buf_size_arr.append(
                             "sizeof(" + curr_param["param_type"]+")")
@@ -2274,11 +2295,11 @@ class Generator:
             self.gen_free += curr_gen["gen_free"]
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRING:
             if (curr_param["param_usage"] == "FILE_PATH" or curr_param["param_usage"] == "FILE_PATH_READ" or curr_param["param_usage"] == "FILE_PATH_WRITE" or curr_param["param_usage"] == "FILE_PATH_RW" or curr_param["param_name"] == "filename"):
-                curr_gen = self.gen_input_file(curr_param["param_name"])
+                curr_gen = self.__gen_input_file(curr_param["param_name"])
                 self.var_files += 1
                 self.dyn_size += 1
                 if not curr_gen:
@@ -2287,7 +2308,7 @@ class Generator:
                 self.gen_func_params += curr_gen["gen_lines"]
                 self.gen_free += curr_gen["gen_free"]
             else:
-                curr_gen = self.gen_string(
+                curr_gen = self.__gen_string(
                     curr_param["param_type"].split("::")[-1],
                     curr_param["param_name"],
                     curr_param["parent_type"])
@@ -2304,16 +2325,16 @@ class Generator:
                 self.curr_gen_string = param_id
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_ENUM:  # GEN_ENUM
             found = False
             for enum in self.target_library["enums"]:
                 if enum["name"] == curr_param["param_type"].split(" ")[1]:
                     found = True
-                    compiler_info = self.get_compile_command(
+                    compiler_info = self.__get_compile_command(
                         func["location"].split(':')[0])
-                    curr_gen = self.gen_enum(
+                    curr_gen = self.__gen_enum(
                         enum, curr_param["param_name"], compiler_info)
                     self.gen_func_params += curr_gen["gen_lines"]
                     self.buf_size_arr.append("sizeof(unsigned int)")
@@ -2321,11 +2342,11 @@ class Generator:
                 self.gen_this_function = False
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_ARRAY:  # GEN_ARRAY
             self.gen_this_function = False
-            curr_gen = self.gen_array(curr_param["param_name"])
+            curr_gen = self.__gen_array(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -2334,11 +2355,11 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_VOID:
             self.gen_this_function = False
-            curr_gen = self.gen_void(curr_param["param_name"])
+            curr_gen = self.__gen_void(curr_param["param_name"])
             if not curr_gen:
                 self.gen_this_function = False
 
@@ -2347,10 +2368,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_QUALIFIER:
-            curr_gen = self.gen_qualifier(
+            curr_gen = self.__gen_qualifier(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"],
@@ -2366,10 +2387,10 @@ class Generator:
                 self.buf_size_arr.append(curr_gen["buf_size"])
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_POINTER:
-            curr_gen = self.gen_pointer(
+            curr_gen = self.__gen_pointer(
                 curr_param["param_type"],
                 curr_param["param_name"],
                 curr_param["parent_type"])
@@ -2381,10 +2402,10 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_STRUCT:
-            curr_gen = self.gen_struct(
+            curr_gen = self.__gen_struct(
                 curr_param["param_name"], curr_param["param_type"])
             if not curr_gen:
                 self.gen_this_function = False
@@ -2395,7 +2416,7 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_INCOMPLETE:
             # iterate all possible variants for generating
@@ -2406,8 +2427,8 @@ class Generator:
             old_var_function = copy.copy(self.var_function)
             curr_gen = False
             # print(curr_param["param_type"])
-            for f in self.target_library['functions']:
-                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"] and f["is_simple"]:
+            for f in self.simple_functions:
+                if f["return_type"] == curr_param["param_type"] and f["name"] != func["name"]:
                     # check for function call with simple data type!!!
                     check_params = True
                     for arg in f["params"]:
@@ -2417,7 +2438,7 @@ class Generator:
                     if not check_params:
                         continue
 
-                    curr_gen = self.gen_var_function(func,
+                    curr_gen = self.__gen_var_function(func,
                                                      f, curr_param["param_name"])
                     self.var_function += 1
                     self.gen_func_params += curr_gen["gen_lines"]
@@ -2425,7 +2446,7 @@ class Generator:
                     self.dyn_size += curr_gen["dyn_size"]
                     self.buf_size_arr += curr_gen["buf_size_arr"]
                     param_id += 1
-                    self.gen_anonymous_method(func, param_id)
+                    self.__gen_anonymous_method(func, param_id)
 
                     param_id -= 1
 
@@ -2451,14 +2472,21 @@ class Generator:
             self.buf_size_arr.append("sizeof(" + curr_param["param_type"]+")")
 
             param_id += 1
-            self.gen_anonymous_method(func, param_id)
+            self.__gen_anonymous_method(func, param_id)
 
         if curr_param["generator_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
             self.gen_this_function = False
             return None
 
-    def gen_targets(self, anonymous=False):
+    def gen_targets(self, anonymous: bool = False):
+        """
+        Parameters
+        ----------
+        anonymous: bool
+            option for generating fuzz-targets of non-public functions, default to False.
+        """
         C_generated_function = []
+        C_unknown_function = []
         Cplusplus_usual_class_method = []
         Cplusplus_static_class_method = []
         Cplusplus_anonymous_class_method = []
@@ -2467,17 +2495,18 @@ class Generator:
             if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (not "(anonymous namespace)" in func["qname"]) and (func["parent_hash"] == ""):
                 print(
                     "-- [Futag] Trying generate fuzz-driver for function: ", func["name"], "!")
+                C_generated_function.append(func["name"])
                 self.gen_func_params = []
                 self.gen_free = []
                 self.gen_this_function = True
                 self.buf_size_arr = []
                 self.dyn_size = 0
                 self.curr_gen_string = -1
-                self.gen_target_function(func, 0)
+                self.__gen_target_function(func, 0)
                 if self.gen_this_function:
                     print("-- [Futag] Fuzz-driver for function: ",
                           func["name"], " generated!")
-                    C_generated_function.append(func["name"])
+                    
                 # C_generated_function.append(func["name"])
             # For C++, Declare object of class and then call the method
             if func["access_type"] == AS_PUBLIC and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR, FUNC_GLOBAL, FUNC_STATIC] and (not "::operator" in func["qname"]):
@@ -2490,18 +2519,18 @@ class Generator:
                     self.dyn_size = 0
                     self.curr_gen_string = -1
                     if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
-                        self.gen_class_constructor(func, 0)
+                        self.__gen_class_constructor(func, 0)
                         if self.gen_this_function:
                             print(
                                 "-- [Futag] Fuzz-driver for for constructor: ", func["name"], " generated!")
                     else:
-                        self.gen_class_method(func, 0)
+                        self.__gen_class_method(func, 0)
                         if self.gen_this_function:
                             print("-- [Futag] Fuzz-driver for for method: ",
                                   func["name"], " generated!")
                 else:
+                    Cplusplus_anonymous_class_method.append(func["qname"])
                     if anonymous:
-                        Cplusplus_anonymous_class_method.append(func["qname"])
                         self.gen_func_params = []
                         self.gen_free = []
                         self.gen_this_function = True
@@ -2509,12 +2538,12 @@ class Generator:
                         self.dyn_size = 0
                         self.curr_gen_string = -1
                         if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
-                            self.gen_anonymous_constructor(func, 0)
+                            self.__gen_anonymous_constructor(func, 0)
                             if self.gen_this_function:
                                 print(
                                     "-- [Futag] Fuzz-driver for for constructor: ", func["name"], " generated!")
                         else:
-                            self.gen_anonymous_method(func, 0)
+                            self.__gen_anonymous_method(func, 0)
                             if self.gen_this_function:
                                 print("-- [Futag] Fuzz-driver for for method: ",
                                     func["name"], " generated!")
@@ -2530,46 +2559,88 @@ class Generator:
                     # self.buf_size_arr = []
                     # self.dyn_size = 0
                     # self.curr_gen_string = -1
-                    # self.gen_class_constructor(func, 0)
+                    # self.__gen_class_constructor(func, 0)
                     # if self.gen_this_function:
-                    #     self.gen_class_method(func, 0)
+                    #     self.__gen_class_method(func, 0)
                     #     print("-- [Futag] Fuzz-driver for for method: ",func["name"], " generated!")
 
             # We dont generate for static function of C
             if func["func_type"] == FUNC_UNKNOW_RECORD and func["storage_class"] == 2:
+                C_unknown_function.append(func["qname"])
                 continue
         self.result_report = {
-            "C_generated_function": C_generated_function,
-            "Cplusplus_static_class_method": Cplusplus_static_class_method,
-            "Cplusplus_usual_class_method": Cplusplus_usual_class_method,
-            "Cplusplus_anonymous_class_method": Cplusplus_anonymous_class_method
+            "C_generated_functions": C_generated_function,
+            "Cplusplus_static_class_methods": Cplusplus_static_class_method,
+            "Cplusplus_usual_class_methods": Cplusplus_usual_class_method,
+            "Cplusplus_anonymous_class_methods": Cplusplus_anonymous_class_method,
+            "C_unknown_functions": C_unknown_function
         }
         json.dump(self.result_report, open(
             (self.output_path / "result-report.json").as_posix(), "w"))
 
-    def compile_driver_worker(self, bgen_args):
+    def __compile_driver_worker(self, bgen_args):
         p = Popen(
             bgen_args["compiler_cmd"],
             stdout=PIPE,
             stderr=PIPE,
             universal_newlines=True,
         )
+
+        target_file = open(bgen_args["source_path"], "a")
+        
+        target_file.write("\n// Compile database: \n")
+        target_file.write("/*\n")
+        target_file.write(
+            "command: " + bgen_args["compiler_info"]['command'] + "\n")
+        target_file.write("location: " +
+                            bgen_args["compiler_info"]['location'] + "\n")
+        target_file.write("file: " + bgen_args["compiler_info"]['file'])
+        target_file.write("\n*/\n")
+        
+        new_compiler_cmd = []
+        compiler_cmd = bgen_args["compiler_cmd"]
+        target_file.write("\n// Compile command:")
+        target_file.write("\n/* \n")
         output, errors = p.communicate()
         if p.returncode:
-            print(" ".join(p.args))
+            print(" ".join(bgen_args["compiler_cmd"]))
             print("\n-- [Futag] ERROR on target ", bgen_args["target_name"], ":\n", errors)
+            for c in compiler_cmd:
+                if c.find(self.tmp_output_path.as_posix()) >= 0:
+                    new_compiler_cmd.append(c.replace(self.tmp_output_path.as_posix(), self.failed_path.as_posix()))
+                else:
+                    new_compiler_cmd.append(c)
+            
         else:
             print("-- [Futag] Fuzz-driver ", bgen_args["target_name"], " was compiled successfully!")
+            for c in compiler_cmd:
+                if c.find(self.tmp_output_path.as_posix()) >= 0:
+                    new_compiler_cmd.append(c.replace(self.tmp_output_path.as_posix(), self.succeeded_path.as_posix()))
+                else:
+                    new_compiler_cmd.append(c)
 
-    def compile_targets(self, workers: int = 4, flags: str = FUZZ_COMPILER_FLAGS):
+        target_file.write(" ".join(new_compiler_cmd))
+        target_file.write("\n */\n")
+        target_file.close()
+        
+
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = FUZZ_COMPILER_FLAGS):
         """
         Parameters
         ----------
         workers: int
             number of processes for compiling, default to 4.
+        keep_failed: bool
+            option for saving not compiled fuzz-targets, default to False.
+        extra_include: str
+            option for add included directories while compiling, default to empty string.
+        extra_dynamiclink: str
+            option for add dynamic libraries while compiling, default to empty string.
         flags: str
             flags for compiling fuzz-drivers, default to "-fsanitize=address,fuzzer -g -O0".
         """
+
+
         # include_subdir = self.target_library["header_dirs"]
         # include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.hpp")] + [self.build_path.as_posix()]
 
@@ -2600,7 +2671,7 @@ class Generator:
                 continue
             current_func = search_curr_func[0]
             func_file_location = current_func["location"].split(':')[0]
-            compiler_info = self.get_compile_command(func_file_location)
+            compiler_info = self.__get_compile_command(func_file_location)
             include_subdir = []
             
             current_location = os.getcwd()
@@ -2608,7 +2679,7 @@ class Generator:
             for iter in compiler_info["command"].split(" "):
                 if iter[0:2] == "-I":
                     if pathlib.Path(iter[2:]).exists():
-                        include_subdir.append("-I" + pathlib.Path(iter[2:]).as_posix() + "/")
+                        include_subdir.append("-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
                 ### Check code for other parameters        
                 # letters = set(iter[1:])
                 # all_cap = True
@@ -2676,47 +2747,30 @@ class Generator:
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
                 for target_src in [t for t in dir.glob("*"+self.target_extension) if t.is_file()]:
+                    target_path = dir.as_posix() + "/" + target_src.stem + ".out"
                     generated_targets += 1
                     if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + ["-ferror-limit=1"] + current_include + [
-                            target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + ["-ferror-limit=1"] + current_include + [extra_include] + [
+                            target_src.as_posix()] + ["-o"] + [target_path] + static_lib + [extra_dynamiclink]
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + ["-ferror-limit=1"] + current_include + [
-                            target_src.as_posix()] + ["-o"] + [dir.as_posix() + "/" + target_src.stem + ".out"] + static_lib
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + ["-ferror-limit=1"] + current_include + [extra_include] +[
+                            target_src.as_posix()] + ["-o"] + [target_path] + static_lib + [extra_dynamiclink]
 
-                    target_file = open(target_src.as_posix(), "a")
-                    target_file.write("\n// Compile command:")
-                    target_file.write("\n/* \n")
-                    target_file.write(" ".join(compiler_cmd))
-                    target_file.write("\n */\n")
-                    target_file.write("// Compile database: \n")
-                    target_file.write("/*\n")
-                    target_file.write(
-                        "command: " + compiler_info['command'] + "\n")
-                    target_file.write("location: " +
-                                      compiler_info['location'] + "\n")
-                    target_file.write("file: " + compiler_info['file'])
-                    target_file.write("\n*/")
-                    target_file.close()
                     compile_cmd_list.append({
                         "compiler_cmd" : compiler_cmd,
-                        "target_name": target_src.stem
+                        "target_name": target_src.stem,
+                        "source_path": target_src.as_posix(),
+                        "binary_path": target_path,
+                        "compiler_info": compiler_info,
                     })
         with Pool(workers) as p:
-            p.map(self.compile_driver_worker, compile_cmd_list)
+            p.map(self.__compile_driver_worker, compile_cmd_list)
 
         # Extract the results of compilation
 
         compiled_targets_list = [
             x for x in self.tmp_output_path.glob("**/*.out") if x.is_file()]
         print("-- [Futag] collecting result ...")
-
-        succeeded_path = self.output_path / "succeeded"
-        if not succeeded_path.exists():
-            (succeeded_path).mkdir(parents=True, exist_ok=True)
-        failed_path = self.output_path / "failed"
-        if not failed_path.exists():
-            (failed_path).mkdir(parents=True, exist_ok=True)
 
         succeeded_tree = set()
         # for compiled_target in compiled_targets_list:
@@ -2726,25 +2780,27 @@ class Generator:
             if compiled_target not in succeeded_tree:
                 succeeded_tree.add(compiled_target)
         for dir in succeeded_tree:
-            if not (succeeded_path / dir.parents[1].name).exists():
-                ((succeeded_path / dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-            shutil.move(dir.parents[0].as_posix(), (succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+            if not (self.succeeded_path / dir.parents[1].name).exists():
+                ((self.succeeded_path / dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
+            shutil.move(dir.parents[0].as_posix(), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
 
-        failed_tree = set()
-        not_compiled_targets_list = [
-            x for x in self.tmp_output_path.glob("**/*.cc") if x.is_file()]
-        not_compiled_targets_list = not_compiled_targets_list + [
-            x for x in self.tmp_output_path.glob("**/*.c") if x.is_file()]
-        not_compiled_targets_list = not_compiled_targets_list + [
-            x for x in self.tmp_output_path.glob("**/*.cpp") if x.is_file()]
-        for target in not_compiled_targets_list:
-            if target not in failed_tree:
-                failed_tree.add(target)
-        for dir in failed_tree:
-            if not (failed_path / dir.parents[1].name).exists():
-                ((failed_path / dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-            shutil.move(dir.parents[0].as_posix(), (failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-
+        if keep_failed:
+            failed_tree = set()
+            not_compiled_targets_list = [
+                x for x in self.tmp_output_path.glob("**/*.cc") if x.is_file()]
+            not_compiled_targets_list = not_compiled_targets_list + [
+                x for x in self.tmp_output_path.glob("**/*.c") if x.is_file()]
+            not_compiled_targets_list = not_compiled_targets_list + [
+                x for x in self.tmp_output_path.glob("**/*.cpp") if x.is_file()]
+            for target in not_compiled_targets_list:
+                if target not in failed_tree:
+                    failed_tree.add(target)
+            for dir in failed_tree:
+                if not (self.failed_path / dir.parents[1].name).exists():
+                    ((self.failed_path / dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
+                shutil.move(dir.parents[0].as_posix(), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+        else:
+            delete_folder(self.failed_path)    
         delete_folder(self.tmp_output_path)
 
         print(
