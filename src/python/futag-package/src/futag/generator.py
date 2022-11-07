@@ -2578,7 +2578,7 @@ class Generator:
         json.dump(self.result_report, open(
             (self.output_path / "result-report.json").as_posix(), "w"))
 
-    def __compile_driver_worker(self, bgen_args):
+    def compile_driver_worker(self, bgen_args):
         p = Popen(
             bgen_args["compiler_cmd"],
             stdout=PIPE,
@@ -2764,7 +2764,7 @@ class Generator:
                         "compiler_info": compiler_info,
                     })
         with Pool(workers) as p:
-            p.map(self.__compile_driver_worker, compile_cmd_list)
+            p.map(self.compile_driver_worker, compile_cmd_list)
 
         # Extract the results of compilation
 
