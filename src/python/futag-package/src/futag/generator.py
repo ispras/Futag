@@ -586,7 +586,11 @@ class Generator:
         while (self.tmp_output_path / qname / dir_name).exists():
             file_index += 1
             dir_name = qname + str(file_index)
-
+            if file_index > 1000:
+                break
+                
+        if file_index > 1000:
+            return None
         (self.tmp_output_path / qname /
          dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -621,6 +625,8 @@ class Generator:
         while (anonymous_path / name / dir_name).exists():
             file_index += 1
             dir_name = name + str(file_index)
+            if file_index > 1000:
+                return None
 
         (anonymous_path / name /
          dir_name).mkdir(parents=True, exist_ok=True)
@@ -653,7 +659,7 @@ class Generator:
             f = self.__wrapper_file(func)
             # print("file ok failed!!!")
             if not f:
-                # print("File created failed!!!")
+                self.gen_this_function = False
                 return False
             for line in self.__gen_header(func["location"].split(':')[0]):
                 f.write(line)
@@ -668,7 +674,6 @@ class Generator:
                     f.write(LIBFUZZER_PREFIX_CXX)
             else:
                 f.write(AFLPLUSPLUS_PREFIX)
-            # print("here2!!!")
             if self.dyn_size > 0:
                 f.write("    if (Fuzz_Size < " + str(self.dyn_size))
                 if self.buf_size_arr:
@@ -2502,10 +2507,13 @@ class Generator:
                 self.buf_size_arr = []
                 self.dyn_size = 0
                 self.curr_gen_string = -1
-                self.__gen_target_function(func, 0)
-                if self.gen_this_function:
+                result = self.__gen_target_function(func, 0)
+                if result and self.gen_this_function:
                     print("-- [Futag] Fuzz-driver for function: ",
                           func["name"], " generated!")
+                else:
+                    print("-- [Futag] Generate fuzz-driver for function: ",
+                          func["name"], " failed!")
                     
                 # C_generated_function.append(func["name"])
             # For C++, Declare object of class and then call the method
@@ -2674,21 +2682,14 @@ class Generator:
             compiler_info = self.__get_compile_command(func_file_location)
             include_subdir = []
             
+            if not os.path.exists(compiler_info["location"]):
+                continue
             current_location = os.getcwd()
             os.chdir(compiler_info["location"])
             for iter in compiler_info["command"].split(" "):
                 if iter[0:2] == "-I":
                     if pathlib.Path(iter[2:]).exists():
                         include_subdir.append("-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
-                ### Check code for other parameters        
-                # letters = set(iter[1:])
-                # all_cap = True
-                # for l in letters:
-                #     if l not in list(string.ascii_uppercase):
-                #         all_cap = False
-                #         break
-                # if all_cap:
-                #     include_subdir.append(pathlib.Path(iter).as_posix())
             os.chdir(current_location)
 
             compiler_flags_libFuzzer = flags
