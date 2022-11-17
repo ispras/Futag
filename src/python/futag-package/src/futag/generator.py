@@ -314,7 +314,8 @@ class Generator:
     def __gen_array(self, type_name, var_name):
         return {
             "gen_lines": [
-                "//GEN_ARRAY\n"
+                "//GEN_ARRAY\n",
+                
             ],
             "gen_free": []
         }
@@ -322,7 +323,8 @@ class Generator:
     def __gen_void(self, var_name):
         return {
             "gen_lines": [
-                "//GEN_VOID\n"
+                "//GEN_VOID\n",
+                "const char *" + var_name + "= NULL; \n",
             ],
             "gen_free": []
         }
@@ -2499,7 +2501,7 @@ class Generator:
             # For C
             if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (not "(anonymous namespace)" in func["qname"]) and (func["parent_hash"] == ""):
                 print(
-                    "-- [Futag] Trying generate fuzz-driver for function: ", func["name"], "!")
+                    "-- [Futag] Trying generate fuzz-driver for function: ", func["name"], "...")
                 C_generated_function.append(func["name"])
                 self.gen_func_params = []
                 self.gen_free = []
@@ -2508,14 +2510,7 @@ class Generator:
                 self.dyn_size = 0
                 self.curr_gen_string = -1
                 result = self.__gen_target_function(func, 0)
-                if result and self.gen_this_function:
-                    print("-- [Futag] Fuzz-driver for function: ",
-                          func["name"], " generated!")
-                else:
-                    print("-- [Futag] Generate fuzz-driver for function: ",
-                          func["name"], " failed!")
                     
-                # C_generated_function.append(func["name"])
             # For C++, Declare object of class and then call the method
             if func["access_type"] == AS_PUBLIC and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR, FUNC_GLOBAL, FUNC_STATIC] and (not "::operator" in func["qname"]):
                 if (not "(anonymous namespace)" in func["qname"]):
@@ -2561,16 +2556,6 @@ class Generator:
                 # print("-- [Futag] Trying generate fuzz-driver for static method: ",func["name"], "!")
                 if (not "(anonymous namespace)" in func["qname"]) and (not "::operator" in func["qname"]):
                     Cplusplus_static_class_method.append(func["qname"])
-                    # self.gen_func_params = []
-                    # self.gen_free = []
-                    # self.gen_this_function = True
-                    # self.buf_size_arr = []
-                    # self.dyn_size = 0
-                    # self.curr_gen_string = -1
-                    # self.__gen_class_constructor(func, 0)
-                    # if self.gen_this_function:
-                    #     self.__gen_class_method(func, 0)
-                    #     print("-- [Futag] Fuzz-driver for for method: ",func["name"], " generated!")
 
             # We dont generate for static function of C
             if func["func_type"] == FUNC_UNKNOW_RECORD and func["storage_class"] == 2:

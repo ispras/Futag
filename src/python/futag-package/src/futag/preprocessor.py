@@ -93,6 +93,7 @@ class Builder:
         
         headers_dirs = [x.parents[0].as_posix() for x in (self.library_root).glob("**/*.h")]
         headers_dirs = headers_dirs + [x.parents[0].as_posix() for x in (self.library_root).glob("**/*.hpp")]
+        headers_dirs = [set(header_dirs)]
         self.header_dirs = headers_dirs + [self.library_root.as_posix()]
         
         (self.library_root / build_path).mkdir(parents=True, exist_ok=True)
@@ -622,6 +623,7 @@ class Builder:
                         exist = True
                         break
                 if not exist:
+                    print(record)
                     record_list.append(record)
 
             for typedef_it in types["typedefs"]:
