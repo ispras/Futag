@@ -350,6 +350,27 @@ public:
   SourceManager *sm = nullptr;
 };
 
+/// @brief
+class FutagCatchInfoCallBack : public MatchFinder::MatchCallback {
+public:
+  FutagCatchInfoCallBack(AnalysisManager &Mgr, const FunctionDecl *func,
+                         unsigned int BeginLine, unsigned int EndLine)
+      : Mgr{Mgr}, func{func}, BeginLine{BeginLine}, EndLine{EndLine} {}
+  
+  ~FutagCatchInfoCallBack();
+
+  AnalysisManager &Mgr;
+  const FunctionDecl *func; // For passing the current node for searching
+  virtual void run(const MatchFinder::MatchResult &Result);
+  // tool params
+  const std::string funcName;
+  unsigned int BeginLine = 0;
+  unsigned int EndLine = 0;
+  SourceManager *sm = nullptr;
+  std::vector<unsigned int> decl_hash_list{};
+  std::vector<const DeclRefExpr *> decl_ref_list{};
+};
+
 } // namespace futag
 
 #endif

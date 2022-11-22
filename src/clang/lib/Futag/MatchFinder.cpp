@@ -3,6 +3,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/AST/Stmt.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <queue>
@@ -943,4 +944,46 @@ void Statement::resetSlice() {
     c.first->resetSlice();
   }
 }
+
+void FutagCatchInfoCallBack::run(const MatchFinder::MatchResult &result) {
+  const auto *declRefExpr = result.Nodes.getNodeAs<DeclRefExpr>("declRefExpr");
+
+  if (!declRefExpr) {
+    return;
+  }
+
+  auto stmt_begin_loc = result.Context->getFullLoc(declRefExpr->getBeginLoc());
+  auto stmt_end_loc = result.Context->getFullLoc(declRefExpr->getEndLoc());
+
+  if (stmt_begin_loc.getSpellingLineNumber() >= BeginLine &&
+      stmt_begin_loc.getSpellingLineNumber() <= EndLine &&
+      stmt_end_loc.getSpellingLineNumber() >= BeginLine &&
+      stmt_end_loc.getSpellingLineNumber() <= EndLine) {
+    ODRHash Hash;
+    Hash.AddDecl(declRefExpr->getDecl());
+    auto hash = Hash.CalculateHash();
+    bool found = false;
+    for (auto element : decl_hash_list) {
+      if (hash == element) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
+      decl_hash_list.push_back(hash);
+      decl_ref_list.push_back(declRefExpr);
+    }
+  }
+
+  return;
+}
+FutagCatchInfoCallBack::~FutagCatchInfoCallBack() {
+  for (auto &element : decl_ref_list) {
+    llvm::outs() << " -- variable name: "
+                 << element->getNameInfo().getAsString();
+    llvm::outs() << " variable type: " << element->getType().getAsString()
+                 << "\n";
+  }
+}
+
 } // namespace futag
