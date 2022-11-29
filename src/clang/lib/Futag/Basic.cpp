@@ -1,28 +1,30 @@
-//===-- Basic.cpp -------*- C++ -*-===//
-//
-// This file is distributed under the GPL v3 license
-// (https://www.gnu.org/licenses/gpl-3.0.en.html).
-//
-
-/***********************************************/
-/*      ______  __  __  ______  ___     ______ */
-/*     / ____/ / / / / /_  __/ /   |   / ____/ */
-/*    / /_    / / / /   / /   / /| |  / / __   */
-/*   / __/   / /_/ /   / /   / ___ | / /_/ /   */
-/*  /_/      \____/   /_/   /_/  |_| \____/    */
-/*                                             */
-/*     Fuzzing target Automated Generator      */
-/*             a tool of ISP RAS               */
-/*                                             */
-/***********************************************/
+/**
+ * @file Basic.cpp
+ * @author Tran Chi Thien (thientc84@gmail.com)
+ * @brief
+ ************************************************
+ *      ______  __  __  ______  ___     ______  *
+ *     / ____/ / / / / /_  __/ /   |   / ____/  *
+ *    / /_    / / / /   / /   / /| |  / / __    *
+ *   / __/   / /_/ /   / /   / ___ | / /_/ /    *
+ *  /_/      \____/   /_/   /_/  |_| \____/     *
+ *                                              *
+ *     Fuzzing target Automated Generator       *
+ *             a tool of ISP RAS                *
+ ************************************************
+ *
+ * @version 1.2.2
+ * @date 2022-11-25
+ *
+ * @copyright This file is distributed under the GPL v3 license
+ *
+ */
 
 #include "Futag/Basic.h"
-
-#include <sys/stat.h>
-
 #include <algorithm>
 #include <fstream>
 #include <string>
+#include <sys/stat.h>
 
 #include "clang/AST/Type.h"
 #include "clang/Tooling/Tooling.h"
@@ -70,9 +72,14 @@ vector<string> explode(string line, char delimiter) {
   return result;
 }
 
-/// @brief
-/// @param type
-/// @return
+/**
+ * @brief This function checks if a type is simple: Built-in type, string, enum,
+ * or input, output stream/file
+ *
+ * @param type
+ * @return true
+ * @return false
+ */
 bool isSimpleType(QualType type) {
   // dereference pointer
   while (type->isPointerType()) {
@@ -96,6 +103,7 @@ bool isSimpleType(QualType type) {
   if (type->isEnumeralType()) {
     return true;
   }
+
   if (type->isFunctionType()) {
     return true;
   }
@@ -133,6 +141,13 @@ bool isSimpleType(QualType type) {
   return false;
 }
 
+/**
+ * @brief
+ *
+ * @param rd
+ * @return true
+ * @return false
+ */
 bool isSimpleRecord(const RecordDecl *rd) {
   bool simple = true;
   for (auto it = rd->field_begin(); it != rd->field_end(); it++) {
@@ -143,6 +158,14 @@ bool isSimpleRecord(const RecordDecl *rd) {
   }
   return simple;
 }
+
+/**
+ * @brief
+ *
+ * @param fd
+ * @return true
+ * @return false
+ */
 bool isSimpleFunction(const FunctionDecl *fd) {
   bool simple = true;
   for (size_t i = 0; i < fd->getNumParams(); ++i) {
@@ -163,6 +186,13 @@ bool isSimpleFunction(const FunctionDecl *fd) {
   return simple;
 }
 
+/**
+ * @brief
+ *
+ * @param path
+ * @return true
+ * @return false
+ */
 bool dir_exists(const char *path) {
   struct stat info;
 
@@ -184,6 +214,12 @@ const char *create_target_dir(string dir_name) {
   return cdir_name;
 }
 
+/**
+ * @brief Get the Data Type Detail object
+ *
+ * @param type
+ * @return DataTypeDetail
+ */
 DataTypeDetail getDataTypeDetail(QualType type) {
   DataTypeDetail qual_type_detail;
   qual_type_detail.array_size = 1;
@@ -297,50 +333,59 @@ DataTypeDetail getDataTypeDetail(QualType type) {
   return qual_type_detail;
 }
 
-/// @brief This function decomposes abilities of <b>record's field</b>
-/// generation supposed that the type isSimpleType(). For example, type "const
-/// int * i" is followed by: FutagGenType::F_POINTER, FutagGenType::F_QUALIFIER,
-/// FutagGenType::F_BUILTIN. Don't edit the check sequence if you don't
-/// understand the whole code
-/// @param type
-/// @return vector<GenFieldInfo>
-vector<GenFieldInfo> getGenField(QualType type) {
-  vector<GenFieldInfo> result = {};
+/**
+ * @brief This function decomposes abilities of <b>record's field</b> generation
+ * supposed that the type isSimpleType(). For example, type "const int * i" is
+ * followed by: FutagGenType::F_POINTER,
+ * FutagGenType::F_QUALIFIER,FutagGenType::F_BUILTIN. Don't edit the check
+ * sequence if you don't understand the whole code
+ *
+ * @param type
+ * @return vector<GenTypeInfo>
+ */
+vector<GenTypeInfo> getGenField(QualType type) {
+  vector<GenTypeInfo> result = {};
   do {
     QualType canonical_type = type.getCanonicalType();
-    GenFieldInfo gen_field;
-    gen_field.curr_type_name = type.getAsString();
-    gen_field.base_type_name = "";
-    gen_field.length = 0;
-    gen_field.local_qualifier = "";
-    gen_field.gen_type = FutagGenType::F_UNKNOWN;
+    GenTypeInfo gen_list;
+    gen_list.type_name = type.getAsString();
+    gen_list.base_type_name = "";
+    gen_list.length = 0;
+    gen_list.local_qualifier = "";
+    gen_list.gen_type = FutagGenType::F_UNKNOWN;
 
     // Check for string
     if (canonical_type.getAsString() == "char *" ||
         canonical_type.getAsString() == "const char *" ||
-        canonical_type.getAsString() == "const unsigned char *" ||
         canonical_type.getAsString() == "unsigned char *" ||
+        canonical_type.getAsString() == "const unsigned char *" ||
+        canonical_type.getAsString() == "char *const" ||
+        canonical_type.getAsString() == "const char *const" ||
         canonical_type.getAsString() == "wstring" ||
         canonical_type.getAsString() == "std::wstring" ||
         canonical_type.getAsString() == "string" ||
         canonical_type.getAsString() == "std::string") {
       if (canonical_type.getAsString() == "const char *") {
-        gen_field.base_type_name = "char *";
-        gen_field.local_qualifier = "const";
+        gen_list.base_type_name = "char *";
+        gen_list.local_qualifier = "const";
       }
-      if (canonical_type.getAsString() == "const  char *") {
-        gen_field.base_type_name = "unsigned char *";
-        gen_field.local_qualifier = "const";
+      if (canonical_type.getAsString() == "const unsigned char *") {
+        gen_list.base_type_name = "unsigned char *";
+        gen_list.local_qualifier = "const";
       }
-      gen_field.length = 0;
-      gen_field.gen_type = FutagGenType::F_STRING;
-      result.push_back(gen_field);
+      if (canonical_type.getAsString() == "const char *const") {
+        gen_list.base_type_name = "char *";
+        gen_list.local_qualifier = "const";
+      }
+      gen_list.length = 0;
+      gen_list.gen_type = FutagGenType::F_STRING;
+      result.insert(result.begin(), gen_list);
       return result;
     }
     // Check for file type of C
     if (type.getAsString() == "FILE *") {
-      gen_field.gen_type = FutagGenType::F_CFILE; // Read
-      result.push_back(gen_field);
+      gen_list.gen_type = FutagGenType::F_CFILE; // Read
+      result.insert(result.begin(), gen_list);
       return result;
     }
 
@@ -349,12 +394,12 @@ vector<GenFieldInfo> getGenField(QualType type) {
       if (const auto *AT = dyn_cast<ArrayType>(
               DT->getOriginalType()->getCanonicalTypeInternal())) {
         if (AT->getElementType()->isBuiltinType()) {
-          gen_field.base_type_name = AT->getElementType().getAsString();
-          gen_field.gen_type = FutagGenType::F_ARRAY;
+          gen_list.base_type_name = AT->getElementType().getAsString();
+          gen_list.gen_type = FutagGenType::F_ARRAY;
           if (const auto *CAT = dyn_cast<ConstantArrayType>(AT)) {
-            gen_field.length = CAT->getSize().getZExtValue();
+            gen_list.length = CAT->getSize().getZExtValue();
           }
-          result.push_back(gen_field);
+          result.insert(result.begin(), gen_list);
           return result;
         }
       }
@@ -362,70 +407,70 @@ vector<GenFieldInfo> getGenField(QualType type) {
 
     // dereference pointer
     if (type->isPointerType()) {
-      gen_field.base_type_name = type->getPointeeType().getAsString();
-      gen_field.gen_type = FutagGenType::F_POINTER;
-      result.push_back(gen_field);
+      gen_list.base_type_name = type->getPointeeType().getAsString();
+      gen_list.gen_type = FutagGenType::F_POINTER;
+      result.insert(result.begin(), gen_list);
 
       type = type->getPointeeType();
-      gen_field.curr_type_name = type.getAsString();
-      gen_field.base_type_name = "";
-      gen_field.length = 0;
-      gen_field.local_qualifier = "";
-      gen_field.gen_type = FutagGenType::F_UNKNOWN;
+      gen_list.type_name = type.getAsString();
+      gen_list.base_type_name = "";
+      gen_list.length = 0;
+      gen_list.local_qualifier = "";
+      gen_list.gen_type = FutagGenType::F_UNKNOWN;
     }
 
     // check for qualifier
     if (type.hasLocalQualifiers()) {
-      gen_field.local_qualifier = type.getLocalQualifiers().getAsString();
-      gen_field.base_type_name = type.getLocalUnqualifiedType().getAsString();
-      gen_field.gen_type = FutagGenType::F_QUALIFIER;
-      result.push_back(gen_field);
+      gen_list.local_qualifier = type.getLocalQualifiers().getAsString();
+      gen_list.base_type_name = type.getLocalUnqualifiedType().getAsString();
+      gen_list.gen_type = FutagGenType::F_QUALIFIER;
+      result.insert(result.begin(), gen_list);
       type = type.getLocalUnqualifiedType();
     }
 
     // check for built-in type
     if (type->isBuiltinType()) {
-      gen_field.gen_type = FutagGenType::F_BUILTIN;
-      result.push_back(gen_field);
+      gen_list.gen_type = FutagGenType::F_BUILTIN;
+      result.insert(result.begin(), gen_list);
       return result;
     }
 
     // check for enum type
     if (type->isEnumeralType()) {
-      gen_field.gen_type = FutagGenType::F_ENUM;
-      result.push_back(gen_field);
+      gen_list.gen_type = FutagGenType::F_ENUM;
+      result.insert(result.begin(), gen_list);
       return result;
     }
 
     // check for function type
     if (type->isFunctionType()) {
-      gen_field.gen_type = FutagGenType::F_FUNCTION;
-      result.push_back(gen_field);
+      gen_list.gen_type = FutagGenType::F_FUNCTION;
+      result.insert(result.begin(), gen_list);
       return result;
     }
 
     // check for file type
     if (type.getAsString() == "ofstream" ||
         type.getAsString() == "std::ofstream") {
-      gen_field.gen_type = FutagGenType::F_OUTPUT_CXXFILE; // Write
-      result.push_back(gen_field);
+      gen_list.gen_type = FutagGenType::F_OUTPUT_CXXFILE; // Write
+      result.insert(result.begin(), gen_list);
       return result;
     }
     if (type.getAsString() == "ifstream" ||
         type.getAsString() == "std::ifstream") {
-      gen_field.gen_type = FutagGenType::F_INPUT_CXXFILE; // Read
-      result.push_back(gen_field);
+      gen_list.gen_type = FutagGenType::F_INPUT_CXXFILE; // Read
+      result.insert(result.begin(), gen_list);
       return result;
     }
     if (type.getAsString() == "fstream" ||
         type.getAsString() == "std::fstream") {
-      gen_field.gen_type = FutagGenType::F_CXXFILE;
-      result.push_back(gen_field);
+      gen_list.gen_type = FutagGenType::F_CXXFILE;
+      result.insert(result.begin(), gen_list);
       return result;
     }
     if (type.getAsString() == "FILE") {
-      gen_field.gen_type = FutagGenType::F_CFILE;
-      result.push_back(gen_field);
+      gen_list.gen_type = FutagGenType::F_CFILE;
+      result.insert(result.begin(), gen_list);
       return result;
     }
 
@@ -434,123 +479,188 @@ vector<GenFieldInfo> getGenField(QualType type) {
   return result;
 }
 
-// /// @brief This function decomposes abilities of <b>parameter's type</b>
-// /// generation. For example, type "const int * i" is followed by:
-// /// FutagGenType::F_POINTER, FutagGenType::F_QUALIFIER,
-// FutagGenType::F_BUILTIN
-// /// @param type
-// /// @return
-// vector<GenFieldInfo> getGenType(QualType type) {
-//   vector<GenFieldInfo> result = {};
-//   GenFieldInfo gen_field;
-//   do {
-//     QualType canonical_type;
-//     canonical_type = type.getCanonicalType();
-//     gen_field.curr_type_name = type.getAsString();
-//     gen_field.base_type_name = "";
-//     gen_field.length = 0;
-//     gen_field.local_qualifier = "";
-//     gen_field.gen_type = FutagGenType::F_UNKNOWN;
-//     // dereference pointer
-//     if (type->isPointerType()) {
-//       if (canonical_type.getAsString() == "char *" ||
-//           canonical_type.getAsString() == "const char *" ||
-//           canonical_type.getAsString() == "const unsigned char *" ||
-//           canonical_type.getAsString() == "unsigned char *") {
-//         if (canonical_type.getAsString() == "const char *") {
-//           gen_field.base_type_name = "char *";
-//           gen_field.local_qualifier = "const";
-//         }
-//         if (canonical_type.getAsString() == "const  char *") {
-//           gen_field.base_type_name = "unsigned char *";
-//           gen_field.local_qualifier = "const";
-//         }
-//         gen_field.length = 0;
-//         gen_field.gen_type = FutagGenType::F_STRING;
-//         result.push_back(gen_field);
-//         return result;
-//       }
-//       GenFieldInfo gen_field_pointer;
-//       gen_field_pointer.curr_type_name = type.getAsString();
-//       gen_field_pointer.base_type_name =
-//       type->getPointeeType().getAsString(); gen_field_pointer.length = 0;
-//       gen_field_pointer.local_qualifier = "";
-//       gen_field_pointer.gen_type = FutagGenType::F_POINTER;
-//       result.push_back(gen_field_pointer);
-//       // gen_field.base_type_name = type->getPointeeType().getAsString();
-//       // gen_field.length = 0;
-//       // gen_field.local_qualifier = "";
-//       // gen_field.gen_type = FutagGenType::F_POINTER;
-//       // result.push_back(gen_field);
-//       llvm::outs() << "added pointer!!!! \n";
-//       type = type->getPointeeType();
-//       gen_field.gen_type = FutagGenType::F_UNKNOWN;
-//     }
+/**
+ * @brief This function decomposes abilities of <b>function's argument</b>
+ * generation. For example, type "const int * i" is followed by:
+ * FutagGenType::F_POINTER, FutagGenType::F_QUALIFIER,FutagGenType::F_BUILTIN.
+ * Don't edit the check sequence if you don't understand the whole code
+ *
+ * @param type
+ * @return vector<GenTypeInfo>
+ */
+vector<GenTypeInfo> getGenType(QualType type) {
+  vector<GenTypeInfo> result = {};
+  do {
+    QualType canonical_type = type.getCanonicalType();
+    GenTypeInfo gen_list;
+    gen_list.type_name = type.getAsString();
+    gen_list.base_type_name = "";
+    gen_list.length = 0;
+    gen_list.local_qualifier = "";
+    gen_list.gen_type = FutagGenType::F_UNKNOWN;
 
-//     if (type.hasLocalQualifiers()) {
-//       gen_field.local_qualifier = type.getLocalQualifiers().getAsString();
-//       gen_field.base_type_name =
-//       type.getLocalUnqualifiedType().getAsString(); gen_field.gen_type =
-//       FutagGenType::F_QUALIFIER; result.push_back(gen_field); type =
-//       type.getLocalUnqualifiedType();
-//     }
-//     if (type->isBuiltinType()) {
-//       gen_field.gen_type = FutagGenType::F_BUILTIN;
-//       result.push_back(gen_field);
-//       return result;
-//     }
-//     if (type->isEnumeralType()) {
-//       gen_field.gen_type = FutagGenType::F_ENUM;
-//       result.push_back(gen_field);
-//       return result;
-//     }
+    // Check for string
+    if (canonical_type.getAsString() == "char *" ||
+        canonical_type.getAsString() == "const char *" ||
+        canonical_type.getAsString() == "unsigned char *" ||
+        canonical_type.getAsString() == "const unsigned char *" ||
+        canonical_type.getAsString() == "char *const" ||
+        canonical_type.getAsString() == "const char *const" ||
+        canonical_type.getAsString() == "wstring" ||
+        canonical_type.getAsString() == "std::wstring" ||
+        canonical_type.getAsString() == "string" ||
+        canonical_type.getAsString() == "std::string") {
+      if (canonical_type.getAsString() == "const char *") {
+        gen_list.base_type_name = "char *";
+        gen_list.local_qualifier = "const";
+      }
+      if (canonical_type.getAsString() == "const unsigned char *") {
+        gen_list.base_type_name = "unsigned char *";
+        gen_list.local_qualifier = "const";
+      }
+      if (canonical_type.getAsString() == "const char *const") {
+        gen_list.base_type_name = "char *";
+        gen_list.local_qualifier = "const";
+      }
+      gen_list.length = 0;
+      gen_list.gen_type = FutagGenType::F_STRING;
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+    // Check for file type of C
+    if (type.getAsString() == "FILE *") {
+      gen_list.gen_type = FutagGenType::F_CFILE; // Read
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
 
-//     if (const auto *DT = dyn_cast<DecayedType>(type)) {
-//       if (const auto *AT = dyn_cast<ArrayType>(
-//               DT->getOriginalType()->getCanonicalTypeInternal())) {
-//         if (AT->getElementType()->isBuiltinType()) {
-//           gen_field.base_type_name = AT->getElementType().getAsString();
-//           gen_field.gen_type = FutagGenType::F_ARRAY;
-//           if (const auto *CAT = dyn_cast<ConstantArrayType>(AT)) {
-//             gen_field.length = CAT->getSize().getZExtValue();
-//           }
-//           result.push_back(gen_field);
-//           return result;
-//         }
-//       }
-//     }
+    if (type.getCanonicalType().getAsString() == "void *" ||
+        type.getCanonicalType().getAsString() == "const void *") {
+      gen_list.type_name = type.getAsString();
+      gen_list.base_type_name = "";
+      gen_list.length = 0;
+      gen_list.local_qualifier = "";
+      gen_list.gen_type = FutagGenType::F_VOIDP;
+      return result;
+    }
 
-//     // Check for FILE type, iostream, fstream
-//     if (type.getAsString() == "ofstream" ||
-//         type.getAsString() == "std::ofstream") {
-//       gen_field.gen_type = FutagGenType::F_OUTPUT_CXXFILE;
-//       result.push_back(gen_field);
-//       return result;
-//     }
-//     if (type.getAsString() == "ifstream" ||
-//         type.getAsString() == "std::ifstream") {
-//       gen_field.gen_type = FutagGenType::F_INPUT_CXXFILE;
-//       result.push_back(gen_field);
-//       return result;
-//     }
-//     if (type.getAsString() == "fstream" ||
-//         type.getAsString() == "std::fstream") {
-//       gen_field.gen_type = FutagGenType::F_CXXFILE;
-//       result.push_back(gen_field);
-//       return result;
-//     }
-//     if (type.getAsString() == "FILE") {
-//       gen_field.gen_type = FutagGenType::F_CFILE;
-//       result.push_back(gen_field);
-//       return result;
-//     }
-//     llvm::outs() << "checked and added unknown!!!!"
-//                  << futag::GetFutagGenTypeFromIdx(gen_field.gen_type) << "
-//                  \n";
-//     result.push_back(gen_field);
-//   } while (!type->isPointerType());
-//   return result;
-// }
+    // Check for array type
+    if (const auto *DT = dyn_cast<DecayedType>(type)) {
+      if (const auto *AT = dyn_cast<ArrayType>(
+              DT->getOriginalType()->getCanonicalTypeInternal())) {
+        if (AT->getElementType()->isBuiltinType()) {
+          gen_list.base_type_name = AT->getElementType().getAsString();
+          gen_list.gen_type = FutagGenType::F_ARRAY;
+          if (const auto *CAT = dyn_cast<ConstantArrayType>(AT)) {
+            gen_list.length = CAT->getSize().getZExtValue();
+          }
+          result.insert(result.begin(), gen_list);
+          return result;
+        }
+      }
+    }
+
+    // dereference pointer
+    if (type->isPointerType()) {
+      gen_list.base_type_name = type->getPointeeType().getAsString();
+      gen_list.gen_type = FutagGenType::F_POINTER;
+      result.insert(result.begin(), gen_list);
+
+      type = type->getPointeeType();
+      gen_list.type_name = type.getAsString();
+      gen_list.base_type_name = "";
+      gen_list.length = 0;
+      gen_list.local_qualifier = "";
+      gen_list.gen_type = FutagGenType::F_UNKNOWN;
+    }
+
+    // check for qualifier
+    if (type.hasLocalQualifiers()) {
+      gen_list.local_qualifier = type.getLocalQualifiers().getAsString();
+      gen_list.base_type_name = type.getLocalUnqualifiedType().getAsString();
+      gen_list.length = 0;
+      gen_list.gen_type = FutagGenType::F_QUALIFIER;
+      result.insert(result.begin(), gen_list);
+      type = type.getLocalUnqualifiedType();
+      auto gen_list_child = getGenType(type);
+      for (auto g : gen_list_child) {
+        result.insert(result.begin(), g);
+      }
+      return result;
+    }
+
+    // check for built-in type
+    if (type->isBuiltinType()) {
+      gen_list.type_name = type.getAsString();
+      gen_list.base_type_name = "";
+      gen_list.length = 0;
+      gen_list.local_qualifier = "";
+      gen_list.gen_type = FutagGenType::F_BUILTIN;
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+
+    // check for enum type
+    if (type->isEnumeralType()) {
+      gen_list.gen_type = FutagGenType::F_ENUM;
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+
+    // check for function type
+    if (type->isFunctionType()) {
+      gen_list.gen_type = FutagGenType::F_FUNCTION;
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+
+    // check for file type
+    if (type.getAsString() == "ofstream" ||
+        type.getAsString() == "std::ofstream") {
+      gen_list.gen_type = FutagGenType::F_OUTPUT_CXXFILE; // Write
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+    if (type.getAsString() == "ifstream" ||
+        type.getAsString() == "std::ifstream") {
+      gen_list.gen_type = FutagGenType::F_INPUT_CXXFILE; // Read
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+    if (type.getAsString() == "fstream" ||
+        type.getAsString() == "std::fstream") {
+      gen_list.gen_type = FutagGenType::F_CXXFILE;
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+    if (type.getAsString() == "FILE") {
+      gen_list.gen_type = FutagGenType::F_CFILE;
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+    // If a type is a record type (union, struct, class) - it's not simple!
+    if (type->isRecordType()) {
+      auto *recorddecl = type->getAsRecordDecl();
+      if (recorddecl->isClass()) {
+        gen_list.gen_type = FutagGenType::F_CLASS;
+      }
+      if (recorddecl->isUnion()) {
+        gen_list.gen_type = FutagGenType::F_UNION;
+      }
+      if (recorddecl->isStruct()) {
+        gen_list.gen_type = FutagGenType::F_STRUCT;
+      }
+      gen_list.type_name = type.getAsString();
+      gen_list.base_type_name = "";
+      gen_list.length = 0;
+      gen_list.local_qualifier = "";
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+  } while (type->isPointerType());
+
+  return result;
+}
 
 const std::map<FutagType::Type, std::string> FutagType::c_typesToNames = {
     {FutagType::CONST_VAL, "CONST_VAL"},
@@ -564,6 +674,12 @@ const std::map<std::string, FutagType::Type> FutagType::c_namesToTypes = {
     {"FUNCTION_CALL_RESULT", FutagType::FUNCTION_CALL_RESULT},
     {"UNKNOWN", FutagType::UNKNOWN}};
 
+/**
+ * @brief Get the FutagGenType string from index
+ *
+ * @param idx
+ * @return std::string
+ */
 std::string GetFutagGenTypeFromIdx(FutagGenType idx) {
   switch (idx) {
   case FutagGenType::F_BUILTIN:

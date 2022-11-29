@@ -219,6 +219,20 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
     futag::DataTypeDetail datatypeDetail =
         futag::getDataTypeDetail(paramQualType);
     // Write parameter name, its type and if it is template parameter or not
+
+    vector<futag::GenTypeInfo> gen_list_for_param =
+        futag::getGenType(paramQualType);
+    json gen_list_json = json::array();
+    for (auto &g : gen_list_for_param) {
+      gen_list_json.push_back(
+          {{"type_name", g.type_name},
+           {"base_type_name", g.base_type_name},
+           {"length", g.length},
+           {"local_qualifier", g.local_qualifier},
+           {"gen_type", g.gen_type},
+           {"gen_type_name", GetFutagGenTypeFromIdx(g.gen_type)}});
+    }
+
     basicFunctionInfo["params"].push_back(
         {{"param_name", currParam->getQualifiedNameAsString()},
          {"param_type", paramQualType.getAsString()},
@@ -226,7 +240,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
          {"array_size", datatypeDetail.array_size},
          {"parent_type", datatypeDetail.parent_type},
          {"parent_gen", datatypeDetail.parent_gen},
-         {"canonical_type", paramQualType.getCanonicalType().getAsString()},
+         {"gen_list", gen_list_json},
          {"param_usage", "UNKNOWN"}});
 
     // Try to determine argument usage
@@ -520,20 +534,23 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
                                    {"is_simple", futag::isSimpleRecord(RD)},
                                    {"hash", hash},
                                    {"fields", json::array()}});
+
   json &currentStruct = mTypesInfo["records"].back();
   for (auto it = RD->getDefinition()->field_begin();
        it != RD->getDefinition()->field_end(); it++) {
     json gen_list_json = json::array();
     if (futag::isSimpleType(it->getType())) {
-      vector<futag::GenFieldInfo> gen_list_for_field =
+      vector<futag::GenTypeInfo> gen_list_for_field =
           futag::getGenField(it->getType());
 
-      for (auto g : gen_list_for_field) {
-        gen_list_json.push_back({{"curr_type_name", g.curr_type_name},
-                                 {"base_type_name", g.base_type_name},
-                                 {"length", g.length},
-                                 {"local_qualifier", g.local_qualifier},
-                                 {"gen_type", g.gen_type}});
+      for (auto &g : gen_list_for_field) {
+        gen_list_json.push_back(
+            {{"type_name", g.type_name},
+             {"base_type_name", g.base_type_name},
+             {"length", g.length},
+             {"local_qualifier", g.local_qualifier},
+             {"gen_type", g.gen_type},
+             {"gen_type_name", GetFutagGenTypeFromIdx(g.gen_type)}});
       }
     }
 

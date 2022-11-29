@@ -171,13 +171,13 @@ namespace futag
   {
     FutagGenType gen_type;
     std::string base_type_name; // Unqualified type or Element type of array or Pointee type
-    std::string curr_type_name; // current type
+    std::string type_name; // current type
     std::string local_qualifier;
     uint64_t length; // Length of array
-  } GenFieldInfo;
+  } GenTypeInfo;
 
-  vector<GenFieldInfo> getGenField(QualType type);
-  vector<GenFieldInfo> getGenType(QualType type);
+  vector<GenTypeInfo> getGenField(QualType type);
+  vector<GenTypeInfo> getGenType(QualType type);
 
   std::string GetFutagGenTypeFromIdx(FutagGenType idx);
 
