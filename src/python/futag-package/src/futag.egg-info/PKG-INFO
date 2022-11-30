@@ -7,7 +7,6 @@ Author: Futag-team of ISP RAS
 Author-email: thientc84@gmail.com
 License: LICENSE
 Project-URL: Bug Tracker, https://github.com/ispras/Futag/issues
-Platform: UNKNOWN
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: GNU
 Classifier: Operating System :: OS Independent
@@ -232,4 +231,3 @@ class Fuzzer(builtins.object)
  |  
  |  ----------------------------------------------------------------------
 ```
-

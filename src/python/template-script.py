@@ -2,7 +2,7 @@
 from futag.preprocessor import *
 from futag.generator import * 
 
-lib_test = Builder(
+test_build = Builder(
 "../futag-llvm",        #Путь к рабочей директории futag
 "../json-c",                    #Путь к директории исходных текстов исследуемого приложения
 "-g -O0",                 #Флаги при сборке
@@ -14,14 +14,14 @@ True,                           #Очистить каталоги futag-build, 
 "--disable-zip"                 #Дополнительные параметры компилятора (Необязательный параметр)
 )
 
-lib_test.auto_build()
-lib_test.analyze()
+test_build.auto_build()
+test_build.analyze()
 
-lib_test = Generator(
+generator = Generator(
     "../futag-llvm/",
     "json-c",
 )
-lib_test.gen_targets()
-lib_test.compile_targets(True, 4)
+generator.gen_targets()
+generator.compile_targets(True, 4)
 
 print("-- [Futag]: fuzz-drivers are saved in json-c/futag-fuzz-targets!")
