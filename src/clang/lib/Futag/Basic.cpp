@@ -90,7 +90,7 @@ bool isSimpleType(QualType type) {
     return true;
   }
   if (type->isBuiltinType()) {
-    llvm::outs() << " type: " << type.getAsString() << " is built-in type\n";
+    //  " type: " << type.getAsString() << " is built-in type\n";
     // if type of a variable after dereference is void - it's somehow a pointer
     // to a function, so it's not simple!
     if (type.getAsString() == "void" || type.getAsString() == "const void") {

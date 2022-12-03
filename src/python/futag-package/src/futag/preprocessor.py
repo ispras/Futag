@@ -165,8 +165,9 @@ class Builder:
             "-disable-checker",
             "cplusplus",
             "cmake",
-            # f"-DLLVM_CONFIG_PATH={(self.futag_llvm_package / 'bin/llvm-config').as_posix()}",
+            f"-DLLVM_CONFIG_PATH={(self.futag_llvm_package / 'bin/llvm-config').as_posix()}",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
+            # f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
@@ -184,7 +185,7 @@ class Builder:
         os.chdir(self.build_path.as_posix())
 
         # Doing make for analysis
-        p = Popen([
+        analysis_command = [
             (self.futag_llvm_package / "bin/scan-build").as_posix(),
             "-disable-checker",
             "core",
@@ -203,8 +204,11 @@ class Builder:
             "-analyzer-config",
             "futag.FutagAnalyzer:report_dir=" + self.analysis_path.as_posix(),
             "make",
-            "-j" + str(self.processes)
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+        ]
+        if self.processes > 1 :
+            analysis_command = analysis_command + ["-j" + str(self.processes)]
+            
+        p = Popen(analysis_command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
         print(LIB_ANALYZING_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
@@ -250,12 +254,20 @@ class Builder:
         
         os.chdir(self.build_path.as_posix())
         # Doing make for building
-
-        p = Popen([
+        make_command = [
             (self.futag_llvm_package / "bin/intercept-build").as_posix(),
-            "make",
-            "-j" + str(self.processes)
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+            "make",]
+        if self.processes > 1 :
+            make_command = make_command + ["-j" + str(self.processes)]
+        make_command = make_command + [
+            "CC="+(self.futag_llvm_package / 'bin/clang').as_posix(),
+            "CXX="+(self.futag_llvm_package / 'bin/clang++').as_posix(),
+            "CFLAGS="+self.flags,
+            "CPPFLAGS="+self.flags,
+            "CXXFLAGS="+self.flags,
+            "LDFLAGS="+self.flags,
+        ]
+        p = Popen(make_command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
 
         output, errors = p.communicate()
         if p.returncode:
@@ -327,7 +339,7 @@ class Builder:
             raise ValueError(LIB_CONFIGURE_FAILED)
 
         # Analyzing the library
-        p = Popen([
+        analysis_command = [
             (self.futag_llvm_package / 'bin/scan-build').as_posix(),
             "-disable-checker",
             "core",
@@ -345,9 +357,11 @@ class Builder:
             "futag.FutagAnalyzer",
             "-analyzer-config",
             "futag.FutagAnalyzer:report_dir=" + self.analysis_path.as_posix(),
-            "make",
-            "-j" + str(self.processes)
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+            "make",]
+        if self.processes > 1 :
+            analysis_command = analysis_command + ["-j" + str(self.processes)]
+
+        p = Popen(analysis_command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
         
         print(LIB_ANALYZING_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
@@ -396,13 +410,20 @@ class Builder:
             print(output)
             print(LIB_CONFIGURE_SUCCEEDED)
 
-        p = Popen([
+        make_command = [
             (self.futag_llvm_package / "bin/intercept-build").as_posix(),
             "make",
-            "-j" + str(self.processes),
-            "CC="+(self.futag_llvm_package / 'bin/clang').as_posix(),
+        ]
+        if self.processes > 1 :
+            make_command = make_command + ["-j" + str(self.processes)]
+        make_command = make_command + ["CC="+(self.futag_llvm_package / 'bin/clang').as_posix(),
             "CXX="+(self.futag_llvm_package / 'bin/clang++').as_posix(),
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+            "CFLAGS="+self.flags,
+            "CPPFLAGS="+self.flags,
+            "CXXFLAGS="+self.flags,
+            "LDFLAGS="+self.flags,
+        ]
+        p = Popen(make_command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
         
         print(LIB_BUILD_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
@@ -492,12 +513,21 @@ class Builder:
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         my_env["LLVM_CONFIG"] = (self.futag_llvm_package / 'bin/llvm-config').as_posix()
-        p = Popen([
+        make_command = [
             (self.futag_llvm_package / "bin/intercept-build").as_posix(),
             "make",
-            "-j" + str(self.processes)
-        # ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        ]
+        if self.processes > 1 :
+            make_command = make_command + ["-j" + str(self.processes)]
+        make_command = make_command + [
+            "CC="+(self.futag_llvm_package / 'bin/clang').as_posix(),
+            "CXX="+(self.futag_llvm_package / 'bin/clang++').as_posix(),
+            "CFLAGS="+self.flags,
+            "CPPFLAGS="+self.flags,
+            "CXXFLAGS="+self.flags,
+            "LDFLAGS="+self.flags,
+        ]
+        p = Popen(make_command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
         
         print(LIB_BUILD_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
