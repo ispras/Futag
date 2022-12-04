@@ -64,6 +64,7 @@ cp -r $futag_src/clang/lib/Futag $custom_llvm/clang/lib/
 # copy clang Checker
 cp $futag_src/Checkers/include/$Checkerstd $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/Checkers.td
 cp $futag_src/Checkers/lib/FutagAnalyzer.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
+cp $futag_src/Checkers/lib/FutagContextConsumer.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
 cp -r $futag_src/Checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
 
 # # copy clang Plugin

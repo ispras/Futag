@@ -1,0 +1,485 @@
+//== FutagTest.cpp ----------------------------------- -*- C++ -*--=//
+
+#include "clang/StaticAnalyzer/Checkers/BuiltinCheckerRegistration.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
+
+#include "clang/Tooling/Tooling.h"
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+#include "Futag/Basic.h"
+
+using namespace clang;
+using namespace ento;
+using namespace std;
+using namespace futag;
+namespace
+{
+
+    class FutagTest : public Checker<check::ASTDecl<FunctionDecl>>
+    {
+    public:
+        bool ChkInPrototype = false;
+        bool ChkArgNames = false;
+        string ArgNamesList = "";
+        bool ChkFuncCalls = false;
+        string FuncCallsList = "";
+        void checkASTDecl(const FunctionDecl *D, AnalysisManager &Mgr,
+                          BugReporter &BR) const;
+    };
+
+} // namespace
+
+void FutagTest::checkASTDecl(const FunctionDecl *func, AnalysisManager &Mgr, BugReporter &bugReporter) const
+{
+
+    if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc()))
+    {
+        return;
+    }
+    if (!func->hasPrototype() || !func->hasBody() || func->parameters().size() < 1)
+    {
+        return;
+    }
+
+    FullSourceLoc fLoc = Mgr.getASTContext().getFullLoc(func->getBeginLoc());
+    if (!fLoc.getFileEntry())
+    {
+        return;
+    }
+
+    llvm::outs() << " function name: " << func->getQualifiedNameAsString() << "\n";
+    // for (ParmVarDecl *x : func->parameters())
+    for (uint32_t paramIdx = 0; paramIdx < func->getNumParams(); ++paramIdx)
+    {
+
+        auto currParam = func->parameters()[paramIdx];
+        const Type *currType = dyn_cast<const Type>(currParam->getType());
+        auto curr = currParam->getType();
+        llvm::outs() << "!!! Analyze parameter " << currParam->getNameAsString() << " of type: " << curr.getAsString() << "\n";
+        if (!futag::isSimpleType(curr)){
+            llvm::outs() << "!!!  parameter " << currParam->getNameAsString() << " of type: " << curr.getAsString() << " not simple!!\n";
+            continue;
+        }
+        vector<futag::GenFieldInfo> gen_field_list = futag::getGenField(curr);
+        for (auto g : gen_field_list)
+        {
+            llvm::outs() << " -- g.curr_type_name: " << g.curr_type_name << "\n";
+            llvm::outs() << " -- g.base_type_name: " << g.base_type_name << "\n";
+            llvm::outs() << " -- g.length: " << g.length << "\n";
+            llvm::outs() << " -- g.local_qualifier: " << g.local_qualifier << "\n";
+            llvm::outs() << " -- g.gen_type: " << futag::GetFutagGenTypeFromIdx(g.gen_type) << "\n";
+            llvm::outs() << " -- -- -- -- -- -- \n";
+        }
+
+        // llvm::outs() << "\n-----Check array: \n";
+
+        // QualType PType = func->parameters()[paramIdx]->getOriginalType();
+        // if (const auto *AT =
+        //         dyn_cast<ArrayType>(PType->getCanonicalTypeInternal()))
+        // {
+        //     llvm::outs() << "func->parameters()[paramIdx]->getOriginalType(): " << PType.getAsString() << " \n";
+        //     llvm::outs() << "PType->getCanonicalTypeInternal(): " << PType->getCanonicalTypeInternal().getAsString() << " \n";
+        //     // Use array's original type only if it has known number of
+        //     // elements.
+        //     llvm::outs() << " -- element type: " << AT->getElementType().getAsString() << "\n";
+        //     if (const auto *CAT = dyn_cast<ConstantArrayType>(AT))
+        //     {
+        //         llvm::outs() << "-- size: " << llvm::utostr(CAT->getSize().getZExtValue()) << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- unknown size!!! \n";
+        //     }
+
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is a dyn_cast<ArrayType> with getCanonicalTypeInternal  \n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not a dyn_cast<ArrayType> with getCanonicalTypeInternal  \n";
+        // }
+
+        // const ArrayType *ArrayTy =
+        //     Mgr.getASTContext().getAsArrayType(currParam->getType());
+        // if (ArrayTy)
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is a getAsConstantArrayType  \n";
+        //     llvm::outs() << " -- elementype: " << currParam->getType()->getAsArrayTypeUnsafe()->getElementType().getAsString() << "\n";
+        //     // llvm::outs() << " -- size: " << to_string(ArrayTy->getSize().getSExtValue()) << "\n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not getAsConstantArrayType \n";
+        // }
+        // auto t = dyn_cast<ArrayType>(currParam->getType());
+        // if (t)
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is a dyn_cast constant array type \n";
+        //     llvm::outs() << " -- elementype: " << currParam->getType()->getAsArrayTypeUnsafe()->getElementType().getAsString() << "\n";
+        //     // llvm::outs() << " -- size: " << to_string(t->getSize().getSExtValue()) << "\n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not a dyn_cast constant array type \n";
+        // }
+
+        // if (curr->isConstantArrayType())
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is a constant array type \n";
+        //     auto t = dyn_cast<ConstantArrayType>(currParam->getType());
+        //     if (t)
+        //     {
+        //         llvm::outs() << " -- elementype: " << currParam->getType()->getAsArrayTypeUnsafe()->getElementType().getAsString() << "\n";
+        //         llvm::outs() << " -- size: " << to_string(t->getSize().getSExtValue()) << "\n";
+        //     }
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not a constant array type \n";
+        // }
+        // if (curr->isArrayType())
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is an array type \n";
+        //     auto t = dyn_cast<ConstantArrayType>(currParam->getType());
+        //     if (t)
+        //     {
+        //         llvm::outs() << " -- elementype: " << currParam->getType()->getAsArrayTypeUnsafe()->getElementType().getAsString() << "\n";
+        //         llvm::outs() << " -- size: " << to_string(t->getSize().getSExtValue()) << "\n";
+        //     }
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not an array type \n";
+        // }
+        // if (curr->isVariableArrayType())
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is a variable array type \n";
+        //     auto t = dyn_cast<ConstantArrayType>(currParam->getType());
+        //     if (t)
+        //     {
+        //         llvm::outs() << " -- elementype: " << currParam->getType()->getAsArrayTypeUnsafe()->getElementType().getAsString() << "\n";
+        //         llvm::outs() << " -- size: " << to_string(t->getSize().getSExtValue()) << "\n";
+        //     }
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not a variable array type \n";
+        // }
+        // if (curr->isDependentSizedArrayType())
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is Dependent Sized Array Type\n";
+        //     auto t = dyn_cast<ConstantArrayType>(currParam->getType());
+        //     if (t)
+        //     {
+        //         llvm::outs() << " -- elementype: " << currParam->getType()->getAsArrayTypeUnsafe()->getElementType().getAsString() << "\n";
+        //         llvm::outs() << " -- size: " << to_string(t->getSize().getSExtValue()) << "\n";
+        //     }
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not Dependent SizedArrayType\n";
+        // }
+        // llvm::outs() << "end of Check array! \n";
+        // if (futag::isSimpleType(currParam->getType()))
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is simple \n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not simple \n";
+        // }
+        // // const Type *currType = dyn_cast<const Type>(currParam->getType());
+        // if (currType->isEnumeralType())
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is an EnumeralType \n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not an EnumeralType \n";
+        // }
+        // if (curr->isEnumeralType())
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is an EnumeralType \n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not an EnumeralType \n";
+        // }
+        // llvm::outs() << "\n";
+
+        // while (curr->isPointerType())
+        // {
+        //     llvm::outs() << " -- type curr " << curr.getAsString();
+        //     curr = curr->getPointeeType();
+        //     llvm::outs() << " has pointee type: " << curr.getAsString() << " \n";
+        //     if (curr.hasLocalQualifiers())
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " has local Qualifier!\n";
+        //         llvm::outs() << " -- local qualifier: " << curr.getLocalQualifiers().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " does not have local Qualifier!\n";
+        //     }
+
+        //     if (curr.hasQualifiers())
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " has Qualifier!\n";
+        //         llvm::outs() << " -- qualifier: " << curr.getQualifiers().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " does not have  Qualifier!\n";
+        //     }
+        //     if (futag::isSimpleType(curr))
+        //     {
+        //         llvm::outs() << " -- type " << curr.getAsString() << " is simple \n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type " << curr.getAsString() << " is not simple \n";
+        //     }
+        // }
+        // llvm::outs() << "\n";
+        // if (curr->isIncompleteType())
+        // {
+        //     llvm::outs() << " -- type " << curr.getAsString() << " is an incomplete type \n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << curr.getAsString() << " is not an incomplete type \n";
+        // }
+        // if (curr->isRecordType())
+        // {
+        //     llvm::outs() << " -- type " << curr.getAsString() << " is a record type \n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << curr.getAsString() << " is not an incomplete type \n";
+        // }
+
+        // llvm::outs() << "\n";
+        // llvm::outs() << " -- getTypeClassName: " << curr->getTypeClassName() << "\n";
+        // llvm::outs() << "\n";
+        // llvm::outs() << "\n";
+
+        // llvm::outs() << "getGenField:::::\n";
+
+        // if (currParam->getType()->getTypeClassName() == "Typedef")
+        // {
+        //     if (currParam->getType().isCanonical())
+        //     {
+        //         llvm::outs() << " -- type " << currParam->getType().getAsString() << " is canonical, canonical type: " << currParam->getType().getCanonicalType().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not canonical\n";
+        //     }
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- typeclassname: " << currParam->getType()->getTypeClassName() << "\n";
+        // }
+
+        // if (!currParam->getType()->isBuiltinType())
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not builtin type \n";
+        // }
+        // else
+        // {
+        //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is builtin type \n";
+        // }
+        // auto curr = currParam->getType();
+        // while (curr->isPointerType())
+        // {
+        //     llvm::outs() << " -- type curr " << curr.getAsString();
+        //     curr = curr->getPointeeType();
+        //     llvm::outs() << " has pointee type: " << curr.getAsString() << " \n";
+        //     if (curr.hasLocalQualifiers())
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " has local Qualifier!\n";
+        //         llvm::outs() << " -- local qualifier: " << curr.getLocalQualifiers().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " does not have local Qualifier!\n";
+        //     }
+
+        //     if (curr.hasQualifiers())
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " has Qualifier!\n";
+        //         llvm::outs() << " -- qualifier: " << curr.getQualifiers().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " does not have  Qualifier!\n";
+        //     }
+        //     if (futag::isSimpleType(curr))
+        //     {
+        //         llvm::outs() << " -- type " << curr.getAsString() << " is simple \n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type " << curr.getAsString() << " is not simple \n";
+        //     }
+        // }
+
+        // // if (currParam->getType().isCanonical())
+        // // {
+        // //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is canonical, canonical type: " << currParam->getType().getCanonicalType().getAsString() << "\n";
+        // // }
+        // // else
+        // // {
+        // //     llvm::outs() << " -- type " << currParam->getType().getAsString() << " is not canonical\n";
+        // // }
+        // if (paramIdx > 0)
+        // {
+        //     QualType curr = currParam->getType();
+        //     auto prevParam = func->parameters()[paramIdx - 1];
+        //     QualType prev = prevParam->getType();
+
+        //     if (prev.isCanonical())
+        //     {
+        //         llvm::outs() << " -- type prev " << prev.getAsString() << " is canonical, canonical type: " << prev.getCanonicalType().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type prev " << prev.getAsString() << " is not canonical\n";
+        //     }
+
+        //     if (prev.hasLocalQualifiers())
+        //     {
+        //         llvm::outs() << " -- type prev " << prev.getAsString() << " has local Qualifier!\n";
+        //         llvm::outs() << " -- local qualifier: " << prev.getLocalQualifiers().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type prev " << prev.getAsString() << " does not have local Qualifier!\n";
+        //     }
+
+        //     if (prev.hasQualifiers())
+        //     {
+        //         llvm::outs() << " -- type prev " << prev.getAsString() << " has Qualifier!\n";
+        //         llvm::outs() << " -- qualifier: " << prev.getQualifiers().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type prev " << prev.getAsString() << " does not have  Qualifier!\n";
+        //     }
+        //     llvm::outs() << "\n";
+
+        //     if (curr.isCanonical())
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " is canonical, canonical type: " << curr.getCanonicalType().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " is not canonical\n";
+        //     }
+
+        //     if (curr.hasLocalQualifiers())
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " has local Qualifier!\n";
+        //         llvm::outs() << " -- local qualifier: " << curr.getLocalQualifiers().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " does not have local Qualifier!\n";
+        //     }
+
+        //     if (curr.hasQualifiers())
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " has Qualifier!\n";
+        //         llvm::outs() << " -- qualifier: " << curr.getQualifiers().getAsString() << "\n";
+        //     }
+        //     else
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString() << " does not have Qualifier!\n";
+        //     }
+
+        //     llvm::outs() << "\n";
+
+        //     while (prev->isPointerType())
+        //     {
+        //         llvm::outs() << " -- type prev " << prev.getAsString();
+        //         prev = prev->getPointeeType();
+        //         llvm::outs() << " has pointee type: " << prev.getAsString() << " \n";
+        //         if (prev.hasLocalQualifiers())
+        //         {
+        //             llvm::outs() << " -- type prev " << prev.getAsString() << " has local Qualifier!\n";
+        //             llvm::outs() << " -- local qualifier: " << prev.getLocalQualifiers().getAsString() << "\n";
+        //         }
+        //         else
+        //         {
+        //             llvm::outs() << " -- type prev " << prev.getAsString() << " does not have local Qualifier!\n";
+        //         }
+
+        //         if (prev.hasQualifiers())
+        //         {
+        //             llvm::outs() << " -- type prev " << prev.getAsString() << " has Qualifier!\n";
+        //             llvm::outs() << " -- qualifier: " << prev.getQualifiers().getAsString() << "\n";
+        //         }
+        //         else
+        //         {
+        //             llvm::outs() << " -- type prev " << prev.getAsString() << " does not have Qualifier!\n";
+        //         }
+        //     }
+
+        //     llvm::outs() << "\n";
+
+        //     while (curr->isPointerType())
+        //     {
+        //         llvm::outs() << " -- type curr " << curr.getAsString();
+        //         curr = curr->getPointeeType();
+        //         llvm::outs() << " has pointee type: " << curr.getAsString() << " \n";
+        //         if (curr.hasLocalQualifiers())
+        //         {
+        //             llvm::outs() << " -- type curr " << curr.getAsString() << " has local Qualifier!\n";
+        //             llvm::outs() << " -- local qualifier: " << curr.getLocalQualifiers().getAsString() << "\n";
+        //         }
+        //         else
+        //         {
+        //             llvm::outs() << " -- type curr " << curr.getAsString() << " does not have local Qualifier!\n";
+        //         }
+
+        //         if (curr.hasQualifiers())
+        //         {
+        //             llvm::outs() << " -- type curr " << curr.getAsString() << " has Qualifier!\n";
+        //             llvm::outs() << " -- qualifier: " << curr.getQualifiers().getAsString() << "\n";
+        //         }
+        //         else
+        //         {
+        //             llvm::outs() << " -- type curr " << curr.getAsString() << " does not have  Qualifier!\n";
+        //         }
+        //     }
+        //     // if (currParam->getType() == prevParam->getType()){
+        //     //     llvm::outs() << " -- !!!! URraaa \n";
+        //     // }
+        //     // llvm::outs() << "-- currtype: " << curr.getAsString() << "\n";
+        //     // llvm::outs() << "-- prevtype: " << prev.getAsString() << "\n";
+        //     if (prev == curr)
+        //     {
+        //         llvm::outs() << " -- !!!! URraaa \n";
+        //     }
+        // }
+    }
+    return;
+}
+
+void ento::registerFutagTest(CheckerManager &Mgr)
+{
+    auto *Chk = Mgr.registerChecker<FutagTest>();
+}
+
+bool ento::shouldRegisterFutagTest(const CheckerManager &mgr)
+{
+    return true;
+}

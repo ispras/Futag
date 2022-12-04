@@ -219,6 +219,20 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
     futag::DataTypeDetail datatypeDetail =
         futag::getDataTypeDetail(paramQualType);
     // Write parameter name, its type and if it is template parameter or not
+
+    vector<futag::GenTypeInfo> gen_list_for_param =
+        futag::getGenType(paramQualType);
+    json gen_list_json = json::array();
+    for (auto &g : gen_list_for_param) {
+      gen_list_json.push_back(
+          {{"type_name", g.type_name},
+           {"base_type_name", g.base_type_name},
+           {"length", g.length},
+           {"local_qualifier", g.local_qualifier},
+           {"gen_type", g.gen_type},
+           {"gen_type_name", GetFutagGenTypeFromIdx(g.gen_type)}});
+    }
+
     basicFunctionInfo["params"].push_back(
         {{"param_name", currParam->getQualifiedNameAsString()},
          {"param_type", paramQualType.getAsString()},
@@ -226,7 +240,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
          {"array_size", datatypeDetail.array_size},
          {"parent_type", datatypeDetail.parent_type},
          {"parent_gen", datatypeDetail.parent_gen},
-         {"canonical_type", paramQualType.getCanonicalType().getAsString()},
+         {"gen_list", gen_list_json},
          {"param_usage", "UNKNOWN"}});
 
     // Try to determine argument usage
@@ -484,7 +498,9 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
   if (!RD->getDefinition())
     return;
 
-  futag::RecordType record_type = _UNKNOW_RECORD;
+  RD = RD->getDefinition();
+
+  futag::FutagRecordType record_type = _UNKNOW_RECORD;
   if (RD->isClass()) {
     record_type = _CLASS_RECORD;
   }
@@ -515,20 +531,38 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
                                    {"qname", RD->getQualifiedNameAsString()},
                                    {"access_type", RD->getAccess()},
                                    {"type", record_type},
+                                   {"is_simple", futag::isSimpleRecord(RD)},
                                    {"hash", hash},
                                    {"fields", json::array()}});
+
   json &currentStruct = mTypesInfo["records"].back();
   for (auto it = RD->getDefinition()->field_begin();
        it != RD->getDefinition()->field_end(); it++) {
-    currentStruct["fields"].push_back(
-        {{"field_name", it->getNameAsString()},
-         {"field_type", it->getType().getAsString()},
-         {"is_builtin", it->getType().getCanonicalType()->isBuiltinType()},
-         {"canonical_type", it->getType().getCanonicalType().getAsString()}});
+    json gen_list_json = json::array();
+    if (futag::isSimpleType(it->getType())) {
+      vector<futag::GenTypeInfo> gen_list_for_field =
+          futag::getGenField(it->getType());
+
+      for (auto &g : gen_list_for_field) {
+        gen_list_json.push_back(
+            {{"type_name", g.type_name},
+             {"base_type_name", g.base_type_name},
+             {"length", g.length},
+             {"local_qualifier", g.local_qualifier},
+             {"gen_type", g.gen_type},
+             {"gen_type_name", GetFutagGenTypeFromIdx(g.gen_type)}});
+      }
+    }
+
+    currentStruct["fields"].push_back({
+        {"field_name", it->getNameAsString()},
+        {"field_type", it->getType().getAsString()},
+        {"gen_list", gen_list_json},
+        {"is_simple", futag::isSimpleType(it->getType())},
+    });
   }
   return;
 }
-
 void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
                                  AnalysisManager &Mgr) const {
   ODRHash Hash;
@@ -552,41 +586,6 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
     type_source = elabTy->desugar();
   }
 
-  // auto canonical_type = dyn_cast<Type>(type_source);
-  // if (canonical_type) {
-  //   TagDecl *tag_decl = canonical_type->getAsTagDecl();
-  //   if (tag_decl) {
-  //     // llvm::outs() << TD->getNameAsString()
-  //     //              << " - getKindName: " << tag_decl->getKindName();
-  //     if (tag_decl->isClass() || tag_decl->isStruct() || tag_decl->isUnion()) {
-  //       auto RD = type_source->getAsRecordDecl();
-  //       if (RD) {
-  //         if (isa<CXXRecordDecl>(RD)) {
-  //           auto cxxRecordDecl = dyn_cast_or_null<CXXRecordDecl>(RD);
-  //           if (cxxRecordDecl && cxxRecordDecl->hasDefinition()) {
-  //             // llvm::outs() << "Record has definition: "
-  //             //              << cxxRecordDecl->getNameAsString() << "\n";
-  //             Hash.AddCXXRecordDecl(cxxRecordDecl->getDefinition());
-  //             hash = std::to_string(Hash.CalculateHash());
-  //           }
-  //         }
-  //       }
-  //     }
-
-  //     if (tag_decl->isEnum()) {
-  //       // llvm::outs() << " - isEnum tag ";
-  //       const EnumType *enum_type = dyn_cast<EnumType>(type_source);
-  //       auto enum_type_decl = enum_type->getDecl();
-  //       // for (auto it = enum_type_decl->enumerator_begin();
-  //       //      it != enum_type_decl->enumerator_end(); it++) {
-  //       //   llvm::outs() << "-- field_value" << it->getInitVal().getExtValue()
-  //       //                << "; field_name: " << it->getNameAsString() << "\n";
-  //       // }
-  //       Hash.AddEnumDecl(enum_type_decl);
-  //       hash = std::to_string(Hash.CalculateHash());
-  //     }
-  //   }
-  // }
   TagDecl *tag_decl = type_source->getAsTagDecl();
   if (tag_decl) {
     // llvm::outs() << TD->getNameAsString()
