@@ -247,6 +247,27 @@ let ParentPackage = Futag in {
                     Released>,
     ]>,
     Documentation<NotDocumented>;
+
+    def FutagContextConsumer : Checker<"FutagContextConsumer">,
+    HelpText<"Checker for finding context in consumer libraries.">,
+    CheckerOptions<[
+        CmdLineOption<String,
+                    "FuncName",
+                    "Name of function to slice",
+                    "main",
+                    Released>,
+        CmdLineOption<Integer,
+                    "LineNumber",
+                    "Line number",
+                    "main",
+                    Released>,
+        CmdLineOption<Integer,
+                    "ColNumber",
+                    "Column number",
+                    "main",
+                    Released>,
+    ]>,
+    Documentation<NotDocumented>;
 } //end Futag 
 
 let ParentPackage = CoreAlpha in {

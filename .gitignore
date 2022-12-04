@@ -22,3 +22,4 @@ product-tests/*.tar.xz
 src/Checkers/lib/CMakeLists.txt.test
 src/Checkers/include/Checkers.td.test
 src/Checkers/lib/FutagTest.cpp
+futag-llvm*
