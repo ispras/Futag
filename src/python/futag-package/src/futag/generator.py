@@ -327,7 +327,7 @@ class Generator:
                 ],
             }
 
-    def __gen_array(self, type_name, var_name):
+    def __gen_array(self, var_name):
         return {
             "gen_lines": [
                 "//GEN_ARRAY\n",

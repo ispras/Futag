@@ -53,9 +53,9 @@ FUTAG запускает статический анализ во время с�
   ~$ pip install -r futag-llvm/python-package/requirements.txt
 ```
 
-- Установить python-пакет Futag можно по пути futag-llvm/python-package/futag-1.2.1.tar.gz:
+- Установить python-пакет Futag можно по пути futag-llvm/python-package/futag-1.3.tar.gz:
 ```bash
-  ~$ pip install futag-llvm/python-package/futag-1.2.1.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-1.3.tar.gz
 ```
 
 ## 3. Примеры использования

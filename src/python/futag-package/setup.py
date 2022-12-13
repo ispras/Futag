@@ -2,9 +2,9 @@ from setuptools import setup
 
 setup(
    name='futag',
-   version='1.2.1',
+   version='1.3',
    author='Futag-team of ISP RAS',
-   author_email='thientc84@gmail.com',
+   author_email='thientcgithub@gmail.com',
    packages=['futag'],
    scripts=[],
    url='https://github.com/ispras/Futag/tree/main/src/python/futag-package',

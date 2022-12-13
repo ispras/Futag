@@ -497,7 +497,7 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
     return;
   if (!RD->getDefinition())
     return;
-
+  ODRHash Hash;
   RD = RD->getDefinition();
 
   futag::FutagRecordType record_type = _UNKNOW_RECORD;
@@ -520,12 +520,18 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
     if (cxxRecordDecl && cxxRecordDecl->hasDefinition()) {
       // llvm::outs() << "Record has definition: "
       //              << cxxRecordDecl->getNameAsString() << "\n";
-      ODRHash Hash;
+
       Hash.AddCXXRecordDecl(cxxRecordDecl->getDefinition());
       hash = std::to_string(Hash.CalculateHash());
     }
     // } else {
     //   llvm::outs() << "Record uncast!!!!\n";
+  } else {
+    // TagDecl *tag_decl = type_source->getAsTagDecl();
+    if (auto decl = dyn_cast_or_null<Decl>(RD)) {
+      Hash.AddDecl(decl);
+      hash = std::to_string(Hash.CalculateHash());
+    }
   }
   mTypesInfo["records"].push_back({{"name", RD->getNameAsString()},
                                    {"qname", RD->getQualifiedNameAsString()},
@@ -604,7 +610,6 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
         }
       }
     }
-
     if (tag_decl->isEnum()) {
       // llvm::outs() << " - isEnum tag ";
       const EnumType *enum_type = dyn_cast<EnumType>(type_source);
@@ -616,6 +621,12 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
       // }
       Hash.AddEnumDecl(enum_type_decl);
       hash = std::to_string(Hash.CalculateHash());
+    }
+    if (hash == "") {
+      if (auto decl = dyn_cast_or_null<Decl>(tag_decl)) {
+        Hash.AddDecl(decl);
+        hash = std::to_string(Hash.CalculateHash());
+      }
     }
   }
   mTypesInfo["typedefs"].push_back(

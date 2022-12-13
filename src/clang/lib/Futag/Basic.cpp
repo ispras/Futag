@@ -1,6 +1,6 @@
 /**
  * @file Basic.cpp
- * @author Tran Chi Thien (thientc84@gmail.com)
+ * @author Tran Chi Thien (thientcgithub@gmail.com)
  * @brief
  ************************************************
  *      ______  __  __  ______  ___     ______  *
@@ -13,8 +13,8 @@
  *             a tool of ISP RAS                *
  ************************************************
  *
- * @version 1.2.2
- * @date 2022-11-25
+ * @version 1.3
+ * @date 2022-12-13
  *
  * @copyright This file is distributed under the GPL v3 license
  *
@@ -226,7 +226,8 @@ DataTypeDetail getDataTypeDetail(QualType type) {
   qual_type_detail.type_name = type.getAsString();
   qual_type_detail.generator_type = FutagDataType::_UNKNOWN;
 
-  if (type.getCanonicalType().getAsString() == "void *" ||
+  if (type.getCanonicalType().getAsString() == "void" ||
+      type.getCanonicalType().getAsString() == "void *" ||
       type.getCanonicalType().getAsString() == "const void *") {
     qual_type_detail.generator_type = FutagDataType::_VOIDP;
     return qual_type_detail;
@@ -494,10 +495,6 @@ vector<GenTypeInfo> getGenType(QualType type) {
     QualType canonical_type = type.getCanonicalType();
     GenTypeInfo gen_list;
     gen_list.type_name = type.getAsString();
-    gen_list.base_type_name = "";
-    gen_list.length = 0;
-    gen_list.local_qualifier = "";
-    gen_list.gen_type = FutagGenType::F_UNKNOWN;
 
     // Check for string
     if (canonical_type.getAsString() == "char *" ||
@@ -510,7 +507,10 @@ vector<GenTypeInfo> getGenType(QualType type) {
         canonical_type.getAsString() == "std::wstring" ||
         canonical_type.getAsString() == "string" ||
         canonical_type.getAsString() == "std::string") {
-      if (canonical_type.getAsString() == "const char *") {
+      gen_list.base_type_name =
+          canonical_type.getAsString() gen_list.local_qualifier;
+      if (canonical_type.getAsString() == "const char *" ||
+          canonical_type.getAsString() == "const char *const") {
         gen_list.base_type_name = "char *";
         gen_list.local_qualifier = "const";
       }
@@ -518,10 +518,17 @@ vector<GenTypeInfo> getGenType(QualType type) {
         gen_list.base_type_name = "unsigned char *";
         gen_list.local_qualifier = "const";
       }
-      if (canonical_type.getAsString() == "const char *const") {
-        gen_list.base_type_name = "char *";
-        gen_list.local_qualifier = "const";
-      }
+
+      gen_list.length = 0;
+      gen_list.gen_type = FutagGenType::F_CSTRING;
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+
+    if (canonical_type.getAsString() == "wstring" ||
+        canonical_type.getAsString() == "std::wstring" ||
+        canonical_type.getAsString() == "string" ||
+        canonical_type.getAsString() == "std::string") {
       gen_list.length = 0;
       gen_list.gen_type = FutagGenType::F_STRING;
       result.insert(result.begin(), gen_list);
@@ -534,7 +541,8 @@ vector<GenTypeInfo> getGenType(QualType type) {
       return result;
     }
 
-    if (type.getCanonicalType().getAsString() == "void *" ||
+    if (type.getCanonicalType().getAsString() == "void" ||
+        type.getCanonicalType().getAsString() == "void *" ||
         type.getCanonicalType().getAsString() == "const void *") {
       gen_list.type_name = type.getAsString();
       gen_list.base_type_name = "";

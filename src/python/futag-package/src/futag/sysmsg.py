@@ -60,21 +60,25 @@ MAKEFILE_FOUND = "-- [Futag]: File Makefile found, trying to build library with 
 INVALID_TARGET_TYPE = "-- [Futag] Error: Unknown type of fuzz-driver for generating!"
 
 # Constants for generator
-GEN_BUILTIN = 0
-GEN_STRING = 1
-GEN_ENUM = 2
-GEN_ARRAY = 3
-GEN_VOID = 4
-GEN_QUALIFIER = 5
-GEN_POINTER = 6
-GEN_STRUCT = 7
-GEN_UNION = 8
-GEN_CLASS = 9
-GEN_INCOMPLETE = 10
-GEN_FUNCTION = 11
-GEN_INPUT_FILE = 12
-GEN_OUTPUT_FILE = 13
-GEN_UNKNOWN = 14
+GEN_BUILTIN   = 0
+GEN_STRING   = 1
+GEN_CSTRING   = 1
+GEN_CXXSTRING = 2
+GEN_ENUM      = 3
+GEN_ARRAY     = 4
+GEN_VOID      = 5
+GEN_QUALIFIER = 6
+GEN_POINTER   = 7
+GEN_STRUCT    = 8
+GEN_UNION     = 9
+GEN_CLASS     = 10
+GEN_INCOMPLETE = 11
+GEN_FUNCTION  = 12
+GEN_INPUT_CXXFILE = 13
+GEN_OUTPUT_CXXFILE = 14
+GEN_CXXFILE   = 15
+GEN_CFILE     = 16
+GEN_UNKNOWN   = 17
 
 # fuzz-driver format
 LIBFUZZER = 0
