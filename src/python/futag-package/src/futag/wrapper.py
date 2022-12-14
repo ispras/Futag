@@ -385,26 +385,17 @@ class Generator:
             "buffer_size": []
         }
 
-    def __gen_struct(self, type_name, gen_type_info):
-        for record in self.target_library["records"]:
-            if record["type"] == STRUCT_RECORD and record["name"] == gen_type_info["type_name"] and record["is_simple"]:
-                return {
-                    "gen_lines": [
-                        "//GEN_STRUCT\n",
-                        gen_type_info["type_name"] + " " + param_name + " = &" + prev_param_name + ";\n"
-                    ],
-                    "gen_free": [],
-                    "buffer_size": []
-                }
-            else:
-                return {
-                    "gen_lines": [
-                        "//GEN_QUALIFIED\n",
-                        gen_type_info["type_name"] + " " + param_name + " = &" + prev_param_name + ";\n"
-                    ],
-                    "gen_free": [],
-                    "buffer_size": []
-                }
+    def __gen_struct(self, struct, gen_type_info):
+        for field in struct["fields"]:
+            
+        return {
+            "gen_lines": [
+                "//GEN_QUALIFIED\n",
+                gen_type_info["type_name"] + " " + param_name + " = &" + prev_param_name + ";\n"
+            ],
+            "gen_free": [],
+            "buffer_size": []
+        }
 
     def __gen_input_file(self, param_name):
         cur_gen_free = ["    " + x for x in self.gen_free]
@@ -425,6 +416,19 @@ class Generator:
             "gen_lines": gen_lines,
             "gen_free": []
         }
+    
+    def __gen_union(self, param_name):
+        return {
+            "gen_lines": [],
+            "gen_free": [],
+            "buffer_size": []
+        }
+    
+    def __append_gen_dict(self, curr_gen):
+        if curr_gen:
+            self.buffer_size += curr_gen["buffer_size"]
+            self.gen_lines += curr_gen["gen_lines"]
+            self.gen_free += curr_gen["gen_free"]
 
     def __gen_var_function(self, func, param_name):
         """ Initialize for argument of function call """
@@ -690,40 +694,35 @@ class Generator:
             curr_name = curr_param["param_name"]
         prev_param_name = curr_name
         for gen_type_info in curr_param["gen_list"]:
+            curr_gen = {}
             if gen_type_info["gen_type"] == GEN_BUILTIN:
                 curr_name = "b_"+ curr_name #builtin_prefix
                 curr_gen = self.__gen_builtin(curr_name, gen_type_info)
-                self.buffer_size += curr_gen["buffer_size"]
-                self.gen_lines += curr_gen["gen_lines"]
-                self.gen_free += curr_gen["gen_free"]
+                self.__append_gen_dict(curr_gen)
 
             if gen_type_info["gen_type"] == GEN_CSTRING:
                 curr_name = "str_"+ curr_name #string_prefix
                 self.dyn_size_idx += 1
                 curr_gen = self.__gen_сstring(curr_name, gen_type_info, self.dyn_size_idx)
-                self.buffer_size += curr_gen["buffer_size"]
-                self.gen_lines += curr_gen["gen_lines"]
-                self.gen_free += curr_gen["gen_free"]
+                self.__append_gen_dict(curr_gen)
             
             if gen_type_info["gen_type"] == GEN_CXXSTRING:
                 curr_name = "str_"+ curr_name #string_prefix
                 self.dyn_size_idx += 1
                 curr_gen = self.__gen_cxxstring(curr_name, gen_type_info, self.dyn_size_idx)
-                self.buffer_size += curr_gen["buffer_size"]
-                self.gen_lines += curr_gen["gen_lines"]
-                self.gen_free += curr_gen["gen_free"]
+                self.__append_gen_dict(curr_gen)
 
             if gen_type_info["gen_type"] == GEN_ENUM:  # GEN_ENUM
                 curr_name = "e_"+ curr_name #enum_prefix
                 found = False
                 found_enum = None
-                #search in enum list of anlysis result:
+                #search in enum list of analysis result:
                 for enum in self.target_library["enums"]:
                     if enum["qname"] == gen_type_info["type_name"]:
                         found = True
                         found_enum = enum
                 if not found:
-                    #search in typedef list of anlysis result:
+                    #search in typedef list of analysis result:
                     for typedef in self.target_library["typedefs"]:
                         if typedef["name"] == gen_type_info["type_name"]:
                             enum_name = typedef["underlying_type"].split(" ")[1]
@@ -739,50 +738,45 @@ class Generator:
                     compiler_info = self.__get_compile_command(func["location"].split(':')[0])
                     curr_gen = self.__gen_enum(
                         found_enum, curr_name, compiler_info, self.gen_anonymous)
-                    self.buffer_size += curr_gen["buffer_size"]
-                    self.gen_lines += curr_gen["gen_lines"]
-                    self.gen_free += curr_gen["gen_free"]
+                    self.__append_gen_dict(curr_gen)
 
             if gen_type_info["gen_type"] == GEN_ARRAY:  # GEN_ARRAY
                 curr_name = "a_"+ curr_name #array_prefix
                 self.gen_this_function = False
                 curr_gen = self.__gen_array(curr_name, gen_type_info)
-                self.gen_func_params += curr_gen["gen_lines"]
-                self.gen_free += curr_gen["gen_free"]
-                self.buf_size_arr.append( gen_type_info["length"] + " * sizeof(" + curr_param["param_type"]+")")
+                self.__append_gen_dict(curr_gen)
 
                 
             if curr_param["gen_type"] == GEN_VOID:
                 curr_name = "a_"+ curr_name #void_prefix
                 self.gen_this_function = False
                 curr_gen = self.__gen_void(curr_name)
-                self.gen_func_params += curr_gen["gen_lines"]
+                self.__append_gen_dict(curr_gen)
 
             if curr_param["gen_type"] == GEN_QUALIFIER:
                 curr_name = "q_"+ curr_name #qualifier_prefix
                 curr_gen = self.__gen_qualifier(curr_name, prev_param_name, gen_type_info)
-                self.gen_func_params += curr_gen["gen_lines"]
-                self.gen_free += curr_gen["gen_free"]
-                self.buf_size_arr.append( gen_type_info["length"] + " * sizeof(" + curr_param["param_type"]+")")
+                self.__append_gen_dict(curr_gen)
 
             if curr_param["gen_type"] == GEN_POINTER:
                 curr_gen = self.__gen_pointer(curr_name, prev_param_name, gen_type_info)
-                self.gen_func_params += curr_gen["gen_lines"]
-                self.gen_free += curr_gen["gen_free"]
-                self.buf_size_arr.append(gen_type_info["length"] + " * sizeof(" + curr_param["param_type"]+")")
+                self.__append_gen_dict(curr_gen)
 
             if curr_param["gen_type"] == GEN_STRUCT:
-                curr_name = "s_"+ curr_name #qualifier_prefix
+                curr_name = "s_"+ curr_name #struct_prefix
                 for record in self.target_library["records"]:
                     if record["type"] == STRUCT_RECORD and record["name"] == gen_type_info["type_name"] and record["is_simple"]:
-                        break;
-                curr_gen = self.__gen_struct(curr_name, gen_type_info)
-                self.gen_func_params += curr_gen["gen_lines"]
-                self.gen_free += curr_gen["gen_free"]
-                self.buf_size_arr.append(gen_type_info["length"] + " * sizeof(" + curr_param
-                self.gen_this_function = False
+                        curr_gen = self.__gen_struct(curr_name, record, gen_type_info)
+                        break
+                self.__append_gen_dict(curr_gen)
+                
 
             if curr_param["gen_type"] == GEN_UNION:
+                curr_name = "u_"+ curr_name #union_prefix
+                for record in self.target_library["records"]:
+                    if record["type"] == STRUCT_RECORD and record["name"] == gen_type_info["type_name"] and record["is_simple"]:
+                        break
+                curr_gen = self.__gen_union(curr_name, gen_type_info)
                 self.gen_this_function = False
 
             if curr_param["gen_type"] == GEN_CLASS:
@@ -799,7 +793,7 @@ class Generator:
 
         param_id += 1
         self.__gen_target_function(func, param_id)
-
+    
     def __gen_class_constructor(self, func, param_id) -> bool:
         malloc_free = [
             "unsigned char *",

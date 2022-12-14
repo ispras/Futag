@@ -507,8 +507,7 @@ vector<GenTypeInfo> getGenType(QualType type) {
         canonical_type.getAsString() == "std::wstring" ||
         canonical_type.getAsString() == "string" ||
         canonical_type.getAsString() == "std::string") {
-      gen_list.base_type_name =
-          canonical_type.getAsString() gen_list.local_qualifier;
+      gen_list.base_type_name = canonical_type.getAsString();
       if (canonical_type.getAsString() == "const char *" ||
           canonical_type.getAsString() == "const char *const") {
         gen_list.base_type_name = "char *";

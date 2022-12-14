@@ -556,7 +556,7 @@ class Builder:
             
         os.chdir(curr_dir)
         return True
-
+        
     def analyze(self):
         """ This function reads analysis result of Futag checker
         """        
