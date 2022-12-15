@@ -385,18 +385,100 @@ class Generator:
             "buffer_size": []
         }
 
-    def __gen_struct(self, struct, gen_type_info):
+    def __gen_struct(self, struct_name, struct, gen_info):
+        field_name = []
+        gen_lines = [gen_info["type_name"] + " " + struct_name + ";\n"]
+        gen_free = []
+        buffer_size = []
+
         for field in struct["fields"]:
-            
+            curr_name = field["field_name"]
+            prev_param_name = curr_name
+            for gen_type_info in field["gen_list"]:
+                if gen_type_info["gen_type"] == GEN_BUILTIN:
+                    curr_name = "b_"+ curr_name #builtin_prefix
+                    curr_gen = self.__gen_builtin(curr_name, gen_type_info)
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_CSTRING:
+                    curr_name = "str_"+ curr_name #string_prefix
+                    self.dyn_size_idx += 1
+                    curr_gen = self.__gen_cstring(curr_name, gen_type_info, self.dyn_size_idx)
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+                
+                if gen_type_info["gen_type"] == GEN_CXXSTRING:
+                    curr_name = "str_"+ curr_name #string_prefix
+                    self.dyn_size_idx += 1
+                    curr_gen = self.__gen_cxxstring(curr_name, gen_type_info, self.dyn_size_idx)
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_ENUM:  # GEN_ENUM
+                    curr_name = "e_"+ curr_name #enum_prefix
+                    found = False
+                    found_enum = None
+                    #search in enum list of analysis result:
+                    for enum in self.target_library["enums"]:
+                        if enum["qname"] == gen_type_info["type_name"]:
+                            found = True
+                            found_enum = enum
+                    if not found:
+                        #search in typedef list of analysis result:
+                        for typedef in self.target_library["typedefs"]:
+                            if typedef["name"] == gen_type_info["type_name"]:
+                                enum_name = typedef["underlying_type"].split(" ")[1]
+                                found = True
+                                for enum in self.target_library["enums"]:
+                                    if enum["qname"] == enum_name:
+                                        found = True
+                                        found_enum = enum
+                                break
+                    if not found:
+                        self.gen_this_function = False
+                    else:
+                        compiler_info = self.__get_compile_command(func["location"].split(':')[0])
+                        curr_gen = self.__gen_enum(
+                            found_enum, curr_name, compiler_info, self.gen_anonymous)
+                        buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_ARRAY:  # GEN_ARRAY
+                    curr_name = "a_"+ curr_name #array_prefix
+                    self.gen_this_function = False
+                    curr_gen = self.__gen_array(curr_name, gen_type_info)
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_QUALIFIER:
+                    curr_name = "q_"+ curr_name #qualifier_prefix
+                    curr_gen = self.__gen_qualifier(curr_name, prev_param_name, gen_type_info)
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_POINTER:
+                    curr_name = "p_"+ curr_name #pointer_prefix
+                    curr_gen = self.__gen_pointer(curr_name, prev_param_name, gen_type_info)
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
+            gen_lines += [curr_name + "." + field["field_name"] + " = " + curr_name + ";\n"]
+
         return {
-            "gen_lines": [
-                "//GEN_QUALIFIED\n",
-                gen_type_info["type_name"] + " " + param_name + " = &" + prev_param_name + ";\n"
-            ],
-            "gen_free": [],
-            "buffer_size": []
+            "gen_lines": gen_lines,
+            "gen_free": gen_free,
+            "buffer_size": buffer_size
         }
 
+    
     def __gen_input_file(self, param_name):
         cur_gen_free = ["    " + x for x in self.gen_free]
         gen_lines = [
@@ -688,7 +770,7 @@ class Generator:
             return True
 
         curr_param = func["params"][param_id]
-        if len(curr_param["gen_list"] > 1): 
+        if len(curr_param["gen_list"]) > 1: 
             curr_name = "_" + curr_param["param_name"]
         else:
             curr_name = curr_param["param_name"]
@@ -703,7 +785,7 @@ class Generator:
             if gen_type_info["gen_type"] == GEN_CSTRING:
                 curr_name = "str_"+ curr_name #string_prefix
                 self.dyn_size_idx += 1
-                curr_gen = self.__gen_сstring(curr_name, gen_type_info, self.dyn_size_idx)
+                curr_gen = self.__gen_cstring(curr_name, gen_type_info, self.dyn_size_idx)
                 self.__append_gen_dict(curr_gen)
             
             if gen_type_info["gen_type"] == GEN_CXXSTRING:
@@ -747,25 +829,25 @@ class Generator:
                 self.__append_gen_dict(curr_gen)
 
                 
-            if curr_param["gen_type"] == GEN_VOID:
+            if gen_type_info["gen_type"] == GEN_VOID:
                 curr_name = "a_"+ curr_name #void_prefix
                 self.gen_this_function = False
                 curr_gen = self.__gen_void(curr_name)
                 self.__append_gen_dict(curr_gen)
 
-            if curr_param["gen_type"] == GEN_QUALIFIER:
+            if gen_type_info["gen_type"] == GEN_QUALIFIER:
                 curr_name = "q_"+ curr_name #qualifier_prefix
                 curr_gen = self.__gen_qualifier(curr_name, prev_param_name, gen_type_info)
                 self.__append_gen_dict(curr_gen)
 
-            if curr_param["gen_type"] == GEN_POINTER:
+            if gen_type_info["gen_type"] == GEN_POINTER:
                 curr_gen = self.__gen_pointer(curr_name, prev_param_name, gen_type_info)
                 self.__append_gen_dict(curr_gen)
 
-            if curr_param["gen_type"] == GEN_STRUCT:
+            if gen_type_info["gen_type"] == GEN_STRUCT:
                 curr_name = "s_"+ curr_name #struct_prefix
                 for record in self.target_library["records"]:
-                    if record["type"] == STRUCT_RECORD and record["name"] == gen_type_info["type_name"] and record["is_simple"]:
+                    if record["type"] == STRUCT_RECORD and record["name"] == gen_type_info["type_name"].split(" ")[1] and record["is_simple"]:
                         curr_gen = self.__gen_struct(curr_name, record, gen_type_info)
                         break
                 self.__append_gen_dict(curr_gen)
@@ -774,9 +856,9 @@ class Generator:
             if curr_param["gen_type"] == GEN_UNION:
                 curr_name = "u_"+ curr_name #union_prefix
                 for record in self.target_library["records"]:
-                    if record["type"] == STRUCT_RECORD and record["name"] == gen_type_info["type_name"] and record["is_simple"]:
+                    if record["type"] == UNION_RECORD and record["name"] == gen_type_info["type_name"].split(" ")[1] and record["is_simple"]:
                         break
-                curr_gen = self.__gen_union(curr_name, gen_type_info)
+                curr_gen = self.__gen_union(curr_name, record, gen_type_info)
                 self.gen_this_function = False
 
             if curr_param["gen_type"] == GEN_CLASS:

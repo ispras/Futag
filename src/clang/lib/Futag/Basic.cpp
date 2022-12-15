@@ -105,7 +105,8 @@ bool isSimpleType(QualType type) {
   }
 
   if (type->isFunctionType()) {
-    return true;
+    return false;
+    // return true;
   }
 
   if (type->isIncompleteType()) {
@@ -361,13 +362,9 @@ vector<GenTypeInfo> getGenField(QualType type) {
         canonical_type.getAsString() == "unsigned char *" ||
         canonical_type.getAsString() == "const unsigned char *" ||
         canonical_type.getAsString() == "char *const" ||
-        canonical_type.getAsString() == "const char *const" ||
-        canonical_type.getAsString() == "wstring" ||
-        canonical_type.getAsString() == "std::wstring" ||
-        canonical_type.getAsString() == "string" ||
-        canonical_type.getAsString() == "std::string") {
+        canonical_type.getAsString() == "const char *const") {
+      gen_list.base_type_name = "char *";
       if (canonical_type.getAsString() == "const char *") {
-        gen_list.base_type_name = "char *";
         gen_list.local_qualifier = "const";
       }
       if (canonical_type.getAsString() == "const unsigned char *") {
@@ -375,11 +372,17 @@ vector<GenTypeInfo> getGenField(QualType type) {
         gen_list.local_qualifier = "const";
       }
       if (canonical_type.getAsString() == "const char *const") {
-        gen_list.base_type_name = "char *";
         gen_list.local_qualifier = "const";
       }
-      gen_list.length = 0;
-      gen_list.gen_type = FutagGenType::F_STRING;
+      gen_list.gen_type = FutagGenType::F_CSTRING;
+      result.insert(result.begin(), gen_list);
+      return result;
+    }
+    if (canonical_type.getAsString() == "wstring" ||
+        canonical_type.getAsString() == "std::wstring" ||
+        canonical_type.getAsString() == "string" ||
+        canonical_type.getAsString() == "std::string") {
+      gen_list.gen_type = FutagGenType::F_CXXSTRING;
       result.insert(result.begin(), gen_list);
       return result;
     }
@@ -502,11 +505,7 @@ vector<GenTypeInfo> getGenType(QualType type) {
         canonical_type.getAsString() == "unsigned char *" ||
         canonical_type.getAsString() == "const unsigned char *" ||
         canonical_type.getAsString() == "char *const" ||
-        canonical_type.getAsString() == "const char *const" ||
-        canonical_type.getAsString() == "wstring" ||
-        canonical_type.getAsString() == "std::wstring" ||
-        canonical_type.getAsString() == "string" ||
-        canonical_type.getAsString() == "std::string") {
+        canonical_type.getAsString() == "const char *const") {
       gen_list.base_type_name = canonical_type.getAsString();
       if (canonical_type.getAsString() == "const char *" ||
           canonical_type.getAsString() == "const char *const") {
@@ -529,7 +528,7 @@ vector<GenTypeInfo> getGenType(QualType type) {
         canonical_type.getAsString() == "string" ||
         canonical_type.getAsString() == "std::string") {
       gen_list.length = 0;
-      gen_list.gen_type = FutagGenType::F_STRING;
+      gen_list.gen_type = FutagGenType::F_CXXSTRING;
       result.insert(result.begin(), gen_list);
       return result;
     }
@@ -693,8 +692,12 @@ std::string GetFutagGenTypeFromIdx(FutagGenType idx) {
     return "_BUILTIN";
     break;
 
-  case FutagGenType::F_STRING:
-    return "_STRING";
+  case FutagGenType::F_CSTRING:
+    return "_CSTRING";
+    break;
+
+  case FutagGenType::F_CXXSTRING:
+    return "_CXXSTRING";
     break;
 
   case FutagGenType::F_ENUM:
