@@ -260,15 +260,16 @@ class Builder:
         if self.processes > 1 :
             make_command = make_command + ["-j" + str(self.processes)]
         make_command = make_command + [
-            "CC="+(self.futag_llvm_package / 'bin/clang').as_posix(),
-            "CXX="+(self.futag_llvm_package / 'bin/clang++').as_posix(),
-            "CFLAGS="+self.flags,
-            "CPPFLAGS="+self.flags,
-            "CXXFLAGS="+self.flags,
-            "LDFLAGS="+self.flags,
+            "CC='"+(self.futag_llvm_package / 'bin/clang').as_posix()+"'",
+            "CXX='"+(self.futag_llvm_package / 'bin/clang++').as_posix()+"'",
+            "CFLAGS='"+self.flags+"'",
+            "CPPFLAGS='"+self.flags+"'",
+            "CXXFLAGS='"+self.flags+"'",
+            "LDFLAGS='"+self.flags+"'",
         ]
         p = Popen(make_command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
-
+        
+        print(LIB_BUILD_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         if p.returncode:
             print(errors)

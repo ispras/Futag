@@ -61,9 +61,13 @@ class Generator:
         self.gen_func_params = []
         self.gen_free = []
         self.gen_this_function = True
+        self.gen_lines = []
+        self.buffer_size = []
         self.buf_size_arr = []
         self.dyn_size = 0
+        self.dyn_size_idx = 0
         self.curr_gen_string = -1
+        self.param_list =[]
         self.anonymous = False
         # save the list of generated function for debugging
         self.target_extension = ""
@@ -144,10 +148,11 @@ class Generator:
         Returns:
             dict(compiler, command, file, location): dict consists of compiler type, compile command, file name, and file location. 
         """      
-          
+        print(file)
         if (self.build_path / "compile_commands.json").exists():
             compile_commands = self.build_path / "compile_commands.json"
             commands = json.load(open(compile_commands.as_posix()))
+            print(commands)
             for command in commands:
                 if pathlib.Path(command["file"]) == pathlib.Path(file):
                     if command["command"].split(" ")[0] == "cc":
@@ -261,8 +266,9 @@ class Generator:
         if(gen_type_info["local_qualifier"]):
             ref_name = "r" + ref_name
         gen_lines = [
+            "//GEN_CSTRING",
             gen_type_info["base_type_name"] + " " + ref_name + " = " + gen_type_info["base_type_name"] + " " +
-                    "malloc(sizeof(" + gen_type_info["base_type_name"] + ") * dyn_size" + str(dyn_size_idx) + " + 1);\n",
+                    "malloc(dyn_size" + str(dyn_size_idx) + " + 1);\n",
             "memset(" + ref_name+", 0, dyn_size" + str(dyn_size_idx) + " + 1);\n",
             "memcpy(" + ref_name+", pos, dyn_size" + str(dyn_size_idx) + " );\n",
             "pos += dyn_size" + str(dyn_size_idx) + " ;\n",
@@ -295,13 +301,15 @@ class Generator:
         if(gen_type_info["local_qualifier"]):
             ref_name = "r" + ref_name
         gen_lines = [
-            
+            "//GEN_CXXSTRING",
         ]
         if(gen_type_info["local_qualifier"]):
             gen_lines += [gen_type_info["type_name"] + " " + param_name + " = " + ref_name + ";\n"]
 
         return  {
-            "gen_lines": [gen_type_info["type_name"] + " " + param_name + "(pos, dyn_size" + str(dyn_size_idx) + "); \n"],
+            "gen_lines": [
+                gen_type_info["type_name"] + " " + param_name + "(pos, dyn_size" + str(dyn_size_idx) + "); \n"
+            ],
             "gen_free": [],
             "buffer_size": []
         }
@@ -403,7 +411,7 @@ class Generator:
                     gen_free += curr_gen["gen_free"]
 
                 if gen_type_info["gen_type"] == GEN_CSTRING:
-                    curr_name = "str_"+ curr_name #string_prefix
+                    curr_name = "strc_"+ curr_name #string_prefix
                     self.dyn_size_idx += 1
                     curr_gen = self.__gen_cstring(curr_name, gen_type_info, self.dyn_size_idx)
                     buffer_size += curr_gen["buffer_size"]
@@ -411,7 +419,7 @@ class Generator:
                     gen_free += curr_gen["gen_free"]
                 
                 if gen_type_info["gen_type"] == GEN_CXXSTRING:
-                    curr_name = "str_"+ curr_name #string_prefix
+                    curr_name = "strcxx_"+ curr_name #string_prefix
                     self.dyn_size_idx += 1
                     curr_gen = self.__gen_cxxstring(curr_name, gen_type_info, self.dyn_size_idx)
                     buffer_size += curr_gen["buffer_size"]
@@ -695,7 +703,7 @@ class Generator:
             if not self.gen_this_function:
                 return False
             # If there is no buffer - return!
-            if not self.buf_size_arr:
+            if not len(self.buffer_size):
                 # print("buf_size failed!!!")
                 return False
             # generate file name
@@ -709,6 +717,7 @@ class Generator:
             f.write('\n')
             compiler_info = self.__get_compile_command(
                 func["location"].split(':')[0])
+
             # print("here1!!!")
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
@@ -719,23 +728,23 @@ class Generator:
                 f.write(AFLPLUSPLUS_PREFIX)
             if self.dyn_size > 0:
                 f.write("    if (Fuzz_Size < " + str(self.dyn_size))
-                if self.buf_size_arr:
-                    f.write(" + " + "+".join(self.buf_size_arr))
+                if self.buffer_size:
+                    f.write(" + " + "+".join(self.buffer_size))
                 f.write(") return 0;\n")
                 f.write(
                     "    size_t dyn_size = (int) ((Fuzz_Size - (" +
                     str(self.dyn_size))
-                if self.buf_size_arr:
+                if self.bufbuffer_size_size_arr:
                     f.write(" + " + "+".join(self.buf_size_arr))
                 f.write("))/" + str(self.dyn_size) + ");\n")
             else:
-                if len(self.buf_size_arr) > 0:
+                if len(self.buffer_size) > 0:
                     f.write("    if (Fuzz_Size < ")
-                    f.write("+".join(self.buf_size_arr))
+                    f.write("+".join(self.buffer_size))
                     f.write(") return 0;\n")
             # print("here!!!")
             f.write("    uint8_t * pos = Fuzz_Data;\n")
-            for line in self.gen_func_params:
+            for line in self.gen_lines:
                 f.write("    " + line)
 
             f.write("    //FUNCTION_CALL\n")
@@ -746,8 +755,8 @@ class Generator:
                 f.write("    " + func["qname"] + "(")
 
             param_list = []
-            for arg in func["params"]:
-                param_list.append(arg["param_name"] + " ")
+            for arg in self.param_list:
+                param_list.append(arg + " ")
             f.write(",".join(param_list))
             f.write(");\n")
 
@@ -846,33 +855,48 @@ class Generator:
 
             if gen_type_info["gen_type"] == GEN_STRUCT:
                 curr_name = "s_"+ curr_name #struct_prefix
-                for record in self.target_library["records"]:
-                    if record["type"] == STRUCT_RECORD and record["name"] == gen_type_info["type_name"].split(" ")[1] and record["is_simple"]:
-                        curr_gen = self.__gen_struct(curr_name, record, gen_type_info)
-                        break
+                found_struct = None
+                # Search for "struct" in type name, if not found, search the type name in typedefs
+                if not "struct " in gen_type_info["type_name"]:
+                    for td in self.target_library["typedefs"]:
+                        if td["name"] == gen_type_info["type_name"] and td["type_source_hash"]:
+                            for record in self.target_library["records"]:
+                                if record["hash"] == td["type_source_hash"] and record["is_simple"]:
+                                    found_struct = record
+                            break
+                else:
+                    for record in self.target_library["records"]:
+                        if record["type"] == STRUCT_RECORD and record["name"] == gen_type_info["type_name"].split(" ")[1] and record["is_simple"]:
+                            found_struct = record
+                            break
+                if found_struct:
+                    print(found_struct)
+                    curr_gen = self.__gen_struct(curr_name, record, gen_type_info)
+                    print(curr_gen)
                 self.__append_gen_dict(curr_gen)
                 
 
-            if curr_param["gen_type"] == GEN_UNION:
+            if gen_type_info["gen_type"] == GEN_UNION:
                 curr_name = "u_"+ curr_name #union_prefix
                 for record in self.target_library["records"]:
                     if record["type"] == UNION_RECORD and record["name"] == gen_type_info["type_name"].split(" ")[1] and record["is_simple"]:
                         break
                 curr_gen = self.__gen_union(curr_name, record, gen_type_info)
+
                 self.gen_this_function = False
 
-            if curr_param["gen_type"] == GEN_CLASS:
+            if gen_type_info["gen_type"] == GEN_CLASS:
                 self.gen_this_function = False
 
-            if curr_param["gen_type"] == GEN_INCOMPLETE:
+            if gen_type_info["gen_type"] == GEN_INCOMPLETE:
                 self.gen_this_function = False
 
-            if curr_param["gen_type"] == GEN_FUNCTION:
+            if gen_type_info["gen_type"] == GEN_FUNCTION:
                 self.gen_this_function = False
 
-            if curr_param["gen_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
+            if gen_type_info["gen_type"] == GEN_UNKNOWN:  # GEN_UNKNOWN
                 self.gen_this_function = False
-
+        self.param_list += [curr_name]
         param_id += 1
         self.__gen_target_function(func, param_id)
     
@@ -2380,6 +2404,14 @@ class Generator:
                 print(
                     "-- [Futag] Trying generate fuzz-driver for function: ", func["name"], "...")
                 C_generated_function.append(func["name"])
+                self.gen_func_params = []
+                self.gen_free = []
+                self.gen_this_function = True
+                self.buf_size_arr = []
+                self.dyn_size = 0
+                self.dyn_size_idx = 0
+                self.curr_gen_string = -1
+                self.param_list =[]
                 self.__gen_target_function(func, 0)
                     
             # For C++, Declare object of class and then call the method
