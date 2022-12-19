@@ -583,7 +583,6 @@ class Fuzzer:
 
     def fuzz(self):
         symbolizer = self.futag_llvm_package / "bin/llvm-symbolizer"
-        print (self.fuzz_driver_path.as_posix())
         generated_functions = [
             x for x in (self.fuzz_driver_path / "succeeded").iterdir() if x.is_dir()]
         # for dir in generated_functions:
