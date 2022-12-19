@@ -583,7 +583,6 @@ class Fuzzer:
 
     def fuzz(self):
         symbolizer = self.futag_llvm_package / "bin/llvm-symbolizer"
-        print (self.fuzz_driver_path.as_posix())
         generated_functions = [
             x for x in (self.fuzz_driver_path / "succeeded").iterdir() if x.is_dir()]
         # for dir in generated_functions:
@@ -665,55 +664,55 @@ class Fuzzer:
                             self.__libFuzzerLog_parser(
                                 x.as_posix(), crashlog_filename, False)
 
-                    # if self.coverage:
-                    #     llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
-                    #     llvm_profdata_command = [
-                    #         llvm_profdata.as_posix(),
-                    #         "merge",
-                    #         "-sparse",
-                    #         x.as_posix() + ".profraw",
-                    #         "-o",
-                    #         x.as_posix() + ".profdata",
-                    #     ]
-                    #     if self.debug:
-                    #         print(" ".join(llvm_profdata_command))
-                    #     p = call(
-                    #         llvm_profdata_command,
-                    #         stdout=PIPE,
-                    #         stderr=PIPE,
-                    #         universal_newlines=True,
-                    #         env=my_env,
-                    #     )
+                    if self.coverage:
+                        llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
+                        llvm_profdata_command = [
+                            llvm_profdata.as_posix(),
+                            "merge",
+                            "-sparse",
+                            x.as_posix() + ".profraw",
+                            "-o",
+                            x.as_posix() + ".profdata",
+                        ]
+                        if self.debug:
+                            print(" ".join(llvm_profdata_command))
+                        p = call(
+                            llvm_profdata_command,
+                            stdout=PIPE,
+                            stderr=PIPE,
+                            universal_newlines=True,
+                            env=my_env,
+                        )
 
-                    #     llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
-                    #     llvm_cov_report = [
-                    #         llvm_cov.as_posix(),
-                    #         "report",
-                    #         x.as_posix(),
-                    #         "-instr-profile=" + x.as_posix() + ".profdata",
-                    #     ]
-                    #     if self.debug:
-                    #         print(" ".join(llvm_cov_report))
-                    #     p = run(llvm_cov_report)
+                        llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
+                        llvm_cov_report = [
+                            llvm_cov.as_posix(),
+                            "report",
+                            x.as_posix(),
+                            "-instr-profile=" + x.as_posix() + ".profdata",
+                        ]
+                        if self.debug:
+                            print(" ".join(llvm_cov_report))
+                        p = run(llvm_cov_report)
 
-                    #     llvm_cov_show = [
-                    #         llvm_cov.as_posix(),
-                    #         "show",
-                    #         x.as_posix(),
-                    #         "-instr-profile=" + x.as_posix() + ".profdata",
-                    #     ]
+                        llvm_cov_show = [
+                            llvm_cov.as_posix(),
+                            "show",
+                            x.as_posix(),
+                            "-instr-profile=" + x.as_posix() + ".profdata",
+                        ]
 
-                    #     cov_filename = x.as_posix() + ".cov"
-                    #     cov_file = open(cov_filename, "w")
-                    #     p = Popen(
-                    #         llvm_cov_show,
-                    #         stdout=cov_file,
-                    #         stderr=PIPE,
-                    #         universal_newlines=True,
-                    #         env=my_env,
-                    #     )
-                    #     output, errors = p.communicate()
-                    #     cov_file.close()
+                        cov_filename = x.as_posix() + ".cov"
+                        cov_file = open(cov_filename, "w")
+                        p = Popen(
+                            llvm_cov_show,
+                            stdout=cov_file,
+                            stderr=PIPE,
+                            universal_newlines=True,
+                            env=my_env,
+                        )
+                        output, errors = p.communicate()
+                        cov_file.close()
         if self.coverage:
             profdata_files = [x.as_posix() for x in self.fuzz_driver_path.glob("**/*.profraw") if x.is_file()]
             object_list = [x.as_posix()[:-8] for x in self.fuzz_driver_path.glob("**/*.profraw") if x.is_file()]

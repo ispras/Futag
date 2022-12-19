@@ -327,7 +327,7 @@ class Generator:
                 ],
             }
 
-    def __gen_array(self, type_name, var_name):
+    def __gen_array(self, var_name):
         return {
             "gen_lines": [
                 "//GEN_ARRAY\n",
@@ -2633,7 +2633,7 @@ class Generator:
         target_file.close()
         
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = FUZZ_COMPILER_FLAGS):
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = FUZZ_COMPILER_FLAGS, coverage: bool=False):
         """
         Parameters
         ----------
@@ -2656,6 +2656,12 @@ class Generator:
         # if (self.install_path / "include").exists():
         #     include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.hpp")]
         # include_subdir = list(set(include_subdir))
+        if not flags:
+            if coverage:
+                flags = COMPILER_COVERAGE_FLAGS
+            else:
+                flags = FUZZ_COMPILER_FLAGS
+
         generated_functions = [
             x for x in self.tmp_output_path.iterdir() if x.is_dir()]
 
@@ -2693,8 +2699,12 @@ class Generator:
                         include_subdir.append("-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
             os.chdir(current_location)
 
-            compiler_flags_libFuzzer = flags
-            compiler_flags_aflplusplus = flags
+            if not "-fPIE" in flags:
+                compiler_flags_aflplusplus += " -fPIE"
+                
+            if not "-ferror-limit=1" in flags:
+                compiler_flags_libFuzzer += " -ferror-limit=1"
+            
             compiler_path = ""
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
@@ -2752,10 +2762,10 @@ class Generator:
                     target_path = dir.as_posix() + "/" + target_src.stem + ".out"
                     generated_targets += 1
                     if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + ["-ferror-limit=1"] + current_include + [extra_include] + [
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + [extra_include] + [
                             target_src.as_posix()] + ["-o"] + [target_path] + static_lib + [extra_dynamiclink]
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + ["-ferror-limit=1"] + current_include + [extra_include] +[
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + [extra_include] +[
                             target_src.as_posix()] + ["-o"] + [target_path] + static_lib + [extra_dynamiclink]
 
                     compile_cmd_list.append({
