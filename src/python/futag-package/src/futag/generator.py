@@ -2658,9 +2658,17 @@ class Generator:
         # include_subdir = list(set(include_subdir))
         if not flags:
             if coverage:
-                flags = COMPILER_COVERAGE_FLAGS
+                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + DEBUG_FLAGS + "-fPIE "
+                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + COMPILER_COVERAGE_FLAGS + DEBUG_FLAGS
             else:
-                flags = FUZZ_COMPILER_FLAGS
+                compiler_flags_aflplusplus = DEBUG_FLAGS + "-fPIE "
+                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + DEBUG_FLAGS
+        else:
+            compiler_flags_aflplusplus = flags
+            compiler_flags_libFuzzer = flags
+            if coverage:
+                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + compiler_flags_aflplusplus
+                compiler_flags_libFuzzer = COMPILER_COVERAGE_FLAGS + compiler_flags_libFuzzer
 
         generated_functions = [
             x for x in self.tmp_output_path.iterdir() if x.is_dir()]
@@ -2698,13 +2706,9 @@ class Generator:
                     if pathlib.Path(iter[2:]).exists():
                         include_subdir.append("-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
             os.chdir(current_location)
-
-            if not "-fPIE" in flags:
-                compiler_flags_aflplusplus += " -fPIE"
-                
-            if not "-ferror-limit=1" in flags:
-                compiler_flags_libFuzzer += " -ferror-limit=1"
             
+
+
             compiler_path = ""
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
@@ -2712,8 +2716,10 @@ class Generator:
                 else:
                     compiler_path = self.futag_llvm_package / "bin/clang++"
             else:
-                compiler_path = self.futag_llvm_package / \
-                    "AFLplusplus/usr/local/bin/afl-clang-fast"
+                if compiler_info["compiler"] == "CC":
+                    compiler_path = self.futag_llvm_package / "AFLplusplus/usr/local/bin/afl-clang-fast"
+                else:
+                    compiler_path = self.futag_llvm_package / "AFLplusplus/usr/local/bin/afl-clang-fast++"
 
             current_func_compilation_opts = ""
             compilation_opts = ""

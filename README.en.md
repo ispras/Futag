@@ -51,10 +51,10 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 ```bash
   ~$ pip install -r futag-llvm/python-package/requirements.txt
 ```
-- Install Futag python package from the extracted package futag-llvm/python-package/futag-1.2.1.tar.gz:
+- Install Futag python package from the extracted package futag-llvm/python-package/futag-1.2.2.tar.gz:
 
 ```bash
-  ~$ pip install futag-llvm/python-package/futag-1.2.1.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-1.2.2.tar.gz
 ```
 
 ## 3. Usage
@@ -87,7 +87,13 @@ g = Generator(
 g.gen_targets(
   anonymous=False # Option for generating fuzzing-wrapper of private functions
 )
-g.compile_targets(8) # Compile fuzz drivers with 8 processes
+g.compile_targets(
+  8, # Compile fuzz drivers with 8 processes
+  # keep_failed=True, # keep uncompiled targets
+  # extra_include="-DHAVE_CONFIG_H", # extra included paths
+  # extra_dynamiclink="-lz", # extra system linked libraries
+  # flags="-ferror-limit=1", # flags for compiling, default to ""
+)
 ```
 By default, successfully compiled fuzz-drivers for target functions are located in the futag-fuzz-drivers directory, where each target function is in its own subdirectory, the name of which matches the name of the target function.
 If several fuzz-drivers have been generated for a function, corresponding directories are created in the subdirectory of the target function, where a serial number is added to the name of the target function.
@@ -132,6 +138,12 @@ You can try building Futag with ready [Dockerfiles](https://github.com/ispras/Fu
 
 - C. T. Tran and S. Kurmangaleev, ["Futag: Automated fuzz target generator for testing software libraries"](https://ieeexplore.ieee.org/document/9693749) 2021 Ivannikov Memorial Workshop (IVMEM), 2021, pp. 80-85, doi: 10.1109/IVMEM53963.2021.00021.
 
+- Research on automatic generation of fuzz-target for software library functions, Ivannikov ISP RAS Open Conference 2022
+
+[![Видео](https://img.youtube.com/vi/qw_tzzgX04E/hqdefault.jpg)](https://www.youtube.com/watch?v=qw_tzzgX04E&t=28122s) 
+
 ## 7. Found bugs
 
 - Crash in function [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) of [libpng version 1.6.37](https://github.com/glennrp/libpng) (confirmed)
+
+- Global-buffer-overflow in function [ErrorIDToName](https://github.com/leethomason/tinyxml2/issues/923) of tinyxml2 version 9.0.0
