@@ -188,6 +188,21 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
   std::string currFuncQName(func->getQualifiedNameAsString());
   std::string currFuncName(func->getDeclName().getAsString());
 
+
+    vector<futag::GenTypeInfo> gen_list_for_return_type =
+        futag::getGenType(func->getReturnType());
+    json gen_list_return_type_json = json::array();
+    for (auto &g : gen_list_for_return_type) {
+      gen_list_return_type_json.push_back(
+          {{"type_name", g.type_name},
+           {"base_type_name", g.base_type_name},
+           {"length", g.length},
+           {"local_qualifier", g.local_qualifier},
+           {"gen_type", g.gen_type},
+           {"gen_type_name", GetFutagGenTypeFromIdx(g.gen_type)}});
+    }
+
+
   json basicFunctionInfo = {
       {"name", currFuncName},
       {"qname", currFuncQName},
@@ -198,6 +213,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
       {"parent_hash", parentHash},
       {"location", fileName + ":" + std::to_string(currFuncBeginLoc)},
       {"return_type", func->getReturnType().getAsString()},
+      {"gen_return_type", gen_list_return_type_json},
       {"return_type_pointer", func->getReturnType()->isPointerType()},
       // If current function doesn't have parameters, don't use it for fuzzing,
       // but still collect all relevant information
