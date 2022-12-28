@@ -2588,12 +2588,13 @@ class Generator:
             (self.output_path / "result-report.json").as_posix(), "w"))
 
     def compile_driver_worker(self, bgen_args):
-        p = Popen(
-            bgen_args["compiler_cmd"],
-            stdout=PIPE,
-            stderr=PIPE,
-            universal_newlines=True,
-        )
+        with open(bgen_args["error_path"], "w") as error_log_file:
+            p = Popen(
+                bgen_args["compiler_cmd"],
+                stdout=PIPE,
+                stderr=error_log_file,
+                universal_newlines=True,
+            )
 
         target_file = open(bgen_args["source_path"], "a")
         
@@ -2613,7 +2614,7 @@ class Generator:
         output, errors = p.communicate()
         if p.returncode:
             print(" ".join(bgen_args["compiler_cmd"]))
-            print("\n-- [Futag] ERROR on target ", bgen_args["target_name"], ":\n", errors)
+            print("\n-- [Futag] ERROR on target ", bgen_args["target_name"], "\n")
             for c in compiler_cmd:
                 if c.find(self.tmp_output_path.as_posix()) >= 0:
                     new_compiler_cmd.append(c.replace(self.tmp_output_path.as_posix(), self.failed_path.as_posix()))
@@ -2630,8 +2631,15 @@ class Generator:
 
         target_file.write(" ".join(new_compiler_cmd))
         target_file.write("\n */\n")
+         
+        error_log_file = open(bgen_args["error_path"], "r")
+        if error_log_file:
+            target_file.write("\n// Error log:")
+            target_file.write("\n/* \n")
+            target_file.write("".join(error_log_file.readlines()))
+            error_log_file.close()
+            target_file.write("\n */\n")
         target_file.close()
-        
 
     def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = FUZZ_COMPILER_FLAGS, coverage: bool=False):
         """
@@ -2706,8 +2714,6 @@ class Generator:
                     if pathlib.Path(iter[2:]).exists():
                         include_subdir.append("-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
             os.chdir(current_location)
-            
-
 
             compiler_path = ""
             if self.target_type == LIBFUZZER:
@@ -2766,17 +2772,19 @@ class Generator:
             for dir in fuzz_driver_dirs:
                 for target_src in [t for t in dir.glob("*"+self.target_extension) if t.is_file()]:
                     target_path = dir.as_posix() + "/" + target_src.stem + ".out"
+                    error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
                     if self.target_type == LIBFUZZER:
                         compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + [extra_include] + [
-                            target_src.as_posix()] + ["-o"] + [target_path] + static_lib + [extra_dynamiclink]
+                            target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ") 
                     else:
                         compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + [extra_include] +[
-                            target_src.as_posix()] + ["-o"] + [target_path] + static_lib + [extra_dynamiclink]
+                            target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ") 
 
                     compile_cmd_list.append({
                         "compiler_cmd" : compiler_cmd,
                         "target_name": target_src.stem,
+                        "error_path": error_path,
                         "source_path": target_src.as_posix(),
                         "binary_path": target_path,
                         "compiler_info": compiler_info,
