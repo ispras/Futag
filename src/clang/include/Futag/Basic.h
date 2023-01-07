@@ -136,7 +136,7 @@ typedef vector<DataTypeDetail> DecomposedType;
 typedef enum {
   F_BUILTIN,        // 0: All basic types: int, float, double,...
   F_CSTRING,        // 1: char *, const char *
-  F_CXXSTRING,         // 2: char *, const char *
+  F_CXXSTRING,      // 2: char *, const char *
   F_ENUM,           // 3
   F_ARRAY,          // 4
   F_VOIDP,          // 5

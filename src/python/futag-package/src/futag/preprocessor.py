@@ -236,9 +236,9 @@ class Builder:
 
         # my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         # my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-        my_env["CFLAGS"] = self.flags
-        my_env["CPPFLAGS"] = self.flags
-        my_env["LDFLAGS"] = self.flags
+        my_env["CFLAGS"] = "'" + self.flags + "'"
+        my_env["CPPFLAGS"] = "'" + self.flags + "'"
+        my_env["LDFLAGS"] = "'" + self.flags + "'"
 
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
@@ -388,9 +388,9 @@ class Builder:
         # Doing make for building
 
         my_env = os.environ.copy()
-        my_env["CFLAGS"] = self.flags
-        my_env["CPPFLAGS"] = self.flags
-        my_env["LDFLAGS"] = self.flags
+        my_env["CFLAGS"] = "'" + self.flags + "'"
+        my_env["CPPFLAGS"] = "'" + self.flags + "'"
+        my_env["LDFLAGS"] = "'" + self.flags + "'"
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         my_env["LLVM_CONFIG"] = (self.futag_llvm_package / 'bin/llvm-config').as_posix()
@@ -417,12 +417,13 @@ class Builder:
         ]
         if self.processes > 1 :
             make_command = make_command + ["-j" + str(self.processes)]
-        make_command = make_command + ["CC="+(self.futag_llvm_package / 'bin/clang').as_posix(),
-            "CXX="+(self.futag_llvm_package / 'bin/clang++').as_posix(),
-            "CFLAGS="+self.flags,
-            "CPPFLAGS="+self.flags,
-            "CXXFLAGS="+self.flags,
-            "LDFLAGS="+self.flags,
+        make_command = make_command + [
+            "CC='"+(self.futag_llvm_package / 'bin/clang').as_posix()+"'",
+            "CXX='"+(self.futag_llvm_package / 'bin/clang++').as_posix()+"'",
+            "CFLAGS='"+self.flags+"'",
+            "CPPFLAGS='"+self.flags+"'",
+            "CXXFLAGS='"+self.flags+"'",
+            "LDFLAGS='"+self.flags+"'",
         ]
         p = Popen(make_command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
         
@@ -508,9 +509,9 @@ class Builder:
         output, errors = p.communicate()
 
         my_env = os.environ.copy()
-        my_env["CFLAGS"] = self.flags
-        my_env["CPPFLAGS"] = self.flags
-        my_env["LDFLAGS"] = self.flags
+        my_env["CFLAGS"] = "'" + self.flags + "'"
+        my_env["CPPFLAGS"] = "'" + self.flags + "'"
+        my_env["LDFLAGS"] = "'" + self.flags + "'"
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         my_env["LLVM_CONFIG"] = (self.futag_llvm_package / 'bin/llvm-config').as_posix()
@@ -521,12 +522,12 @@ class Builder:
         if self.processes > 1 :
             make_command = make_command + ["-j" + str(self.processes)]
         make_command = make_command + [
-            "CC="+(self.futag_llvm_package / 'bin/clang').as_posix(),
-            "CXX="+(self.futag_llvm_package / 'bin/clang++').as_posix(),
-            "CFLAGS="+self.flags,
-            "CPPFLAGS="+self.flags,
-            "CXXFLAGS="+self.flags,
-            "LDFLAGS="+self.flags,
+            "CC='"+(self.futag_llvm_package / 'bin/clang').as_posix()+"'",
+            "CXX='"+(self.futag_llvm_package / 'bin/clang++').as_posix()+"'",
+            "CFLAGS='"+self.flags+"'",
+            "CPPFLAGS='"+self.flags+"'",
+            "CXXFLAGS='"+self.flags+"'",
+            "LDFLAGS='"+self.flags+"'",
         ]
         p = Popen(make_command, stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
         
@@ -729,6 +730,7 @@ class Builder:
                 "storage_class": function_list[func]["storage_class"],
                 "parent_hash": function_list[func]["parent_hash"],
                 "return_type": function_list[func]["return_type"],
+                "gen_return_type": function_list[func]["gen_return_type"],
                 "return_type_pointer": function_list[func]["return_type_pointer"],
                 "params": function_list[func]["params"],
                 "fuzz_it": function_list[func]["fuzz_it"],
