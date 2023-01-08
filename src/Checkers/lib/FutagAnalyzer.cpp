@@ -188,9 +188,23 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
   std::string currFuncQName(func->getQualifiedNameAsString());
   std::string currFuncName(func->getDeclName().getAsString());
 
+  vector<futag::GenTypeInfo> gen_list_for_return_type =
+      futag::getGenType(func->getReturnType());
+  json gen_list_return_type_json = json::array();
+  for (auto &g : gen_list_for_return_type) {
+    gen_list_return_type_json.push_back(
+        {{"type_name", g.type_name},
+         {"base_type_name", g.base_type_name},
+         {"length", g.length},
+         {"local_qualifier", g.local_qualifier},
+         {"gen_type", g.gen_type},
+         {"gen_type_name", GetFutagGenTypeFromIdx(g.gen_type)}});
+  }
+
   json basicFunctionInfo = {
       {"name", currFuncName},
       {"qname", currFuncQName},
+      {"hash", keyFuncHash},
       {"is_simple", futag::isSimpleFunction(func)},
       {"func_type", function_type},
       {"access_type", func->getAccess()},
@@ -198,6 +212,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
       {"parent_hash", parentHash},
       {"location", fileName + ":" + std::to_string(currFuncBeginLoc)},
       {"return_type", func->getReturnType().getAsString()},
+      {"gen_return_type", gen_list_return_type_json},
       {"return_type_pointer", func->getReturnType()->isPointerType()},
       // If current function doesn't have parameters, don't use it for fuzzing,
       // but still collect all relevant information
@@ -434,7 +449,7 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   futag::FunctionType function_type = futag::_FUNC_UNKNOW_RECORD;
   if (isa<CXXMethodDecl>(func)) {
     auto methodDecl = dyn_cast<CXXMethodDecl>(func);
-    function_type = futag::_FUNC_STATIC;
+    function_type = futag::_FUNC_CXXMETHOD;
     ODRHash Hash;
     Hash.AddCXXRecordDecl(methodDecl->getParent());
     parentHash = std::to_string(Hash.CalculateHash());
@@ -456,9 +471,10 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     if (isa<CXXDestructorDecl>(func)) {
       function_type = futag::_FUNC_DESTRUCTOR;
     }
-  }
-  if (func->isGlobal()) {
-    function_type = futag::_FUNC_GLOBAL;
+  } else {
+    if (func->isGlobal()) {
+      function_type = futag::_FUNC_GLOBAL;
+    }
   }
 
   // Collect basic information about current function
@@ -497,7 +513,7 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
     return;
   if (!RD->getDefinition())
     return;
-
+  ODRHash Hash;
   RD = RD->getDefinition();
 
   futag::FutagRecordType record_type = _UNKNOW_RECORD;
@@ -520,12 +536,18 @@ void FutagAnalyzer::VisitRecord(const RecordDecl *RD,
     if (cxxRecordDecl && cxxRecordDecl->hasDefinition()) {
       // llvm::outs() << "Record has definition: "
       //              << cxxRecordDecl->getNameAsString() << "\n";
-      ODRHash Hash;
+
       Hash.AddCXXRecordDecl(cxxRecordDecl->getDefinition());
       hash = std::to_string(Hash.CalculateHash());
     }
     // } else {
     //   llvm::outs() << "Record uncast!!!!\n";
+  } else {
+    // TagDecl *tag_decl = type_source->getAsTagDecl();
+    if (auto decl = dyn_cast_or_null<Decl>(RD)) {
+      Hash.AddDecl(decl);
+      hash = std::to_string(Hash.CalculateHash());
+    }
   }
   mTypesInfo["records"].push_back({{"name", RD->getNameAsString()},
                                    {"qname", RD->getQualifiedNameAsString()},
@@ -604,7 +626,6 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
         }
       }
     }
-
     if (tag_decl->isEnum()) {
       // llvm::outs() << " - isEnum tag ";
       const EnumType *enum_type = dyn_cast<EnumType>(type_source);
@@ -616,6 +637,12 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
       // }
       Hash.AddEnumDecl(enum_type_decl);
       hash = std::to_string(Hash.CalculateHash());
+    }
+    if (hash == "") {
+      if (auto decl = dyn_cast_or_null<Decl>(tag_decl)) {
+        Hash.AddDecl(decl);
+        hash = std::to_string(Hash.CalculateHash());
+      }
     }
   }
   mTypesInfo["typedefs"].push_back(

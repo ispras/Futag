@@ -20,7 +20,7 @@ This python package is for building library, generating and compiling fuzz-drive
 ## 1. Install
 
 ```bash 
-pip install dist/futag-1.0.tar.gz
+pip install dist/futag-1.3.tar.gz
 ```
 
 ## 2. Preprocessor
@@ -49,52 +49,78 @@ test_lib.analyze()
 For more parameters of Builder please refer to docstring of this class.
 ```bash
 class Builder(builtins.object)
- |  Builder(futag_llvm_package: str, library_root: str, flags: str = '-fsanitize=address -g -O0', clean: bool = False, build_path: str = '.futag-build', install_path: str = '.futag-install', analysis_path: str = '.futag-analysis', processes: int = 4, build_ex_params='')
+ |  Builder(futag_llvm_package: str, library_root: str, flags: str = '-fsanitize=address', clean: bool = False, build_path: str = '.futag-build', install_path: str = '.futag-install', analysis_path: str = '.futag-analysis', process
+es: int = 4, build_ex_params='')
  |  
  |  Futag Builder Class
  |  
  |  Methods defined here:
  |  
- |  __init__(self, futag_llvm_package: str, library_root: str, flags: str = '-fsanitize=address -g -O0', clean: bool = False, build_path: str = '.futag-build', install_path: str = '.futag-install', analysis_path: str = '.futag-analysis', processes: int = 4, build_ex_params='')
- |      Parameters
- |      ----------
- |      futag_llvm_package: str
- |          (*required) path to the futag llvm package (with binaries, scripts, etc)
- |      library_root: str
- |          (*required) path to the library root
- |      flags: str
- |          flags for compiling. Default to "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping"
- |      clean: bool
- |          Option for deleting futag folders if they are exist, default to False (futag-build, futag-install, futag-analysis). 
- |      build_path: str
- |          path to the build directory, default to "futag-build". Be careful, this directory will be deleted and create again if clean set to True.
- |      install_path: str
- |          path to the install directory, default to "futag-install". Be careful, this directory will be deleted and create again if clean set to True.
- |      analysis_path: str
- |          path for saving report of analysis, default to "futag-analysis". Be careful, this directory will be deleted and create again if clean set to True.
- |      processes: int
- |          number of processes while building, default to 4.
- |      build_ex_params: str
- |          extra params for building, for example "--with-openssl" for building curl
+ |  __init__(self, futag_llvm_package: str, library_root: str, flags: str = '-fsanitize=address', clean: bool = False, build_path: str = '.futag-build', install_path: str = '.futag-install', analysis_path: str = '.futag-analysis', 
+processes: int = 4, build_ex_params='')
+ |      Constructor of class Builder
+ |      
+ |      Args:
+ |          futag_llvm_package (str): path to the futag-llvm package (with binaries, scripts, etc.).
+ |          library_root (str): path to the library root.
+ |          flags (str, optional): flags for compiling.. Defaults to COMPILER_FLAGS.
+ |          clean (bool, optional): Option for deleting futag folders if they are exist, for example futag-build, futag-install, futag-analysis. Defaults to False.
+ |          build_path (str, optional): path to the build directory. Be careful, this directory will be deleted and create again if clean set to True. Defaults to BUILD_PATH.
+ |          install_path (str, optional): path for saving report of analysis. Be careful, this directory will be deleted and create again if clean set to True. Defaults to INSTALL_PATH.
+ |          analysis_path (str, optional): path for saving report of analysis. Be careful, this directory will be deleted and create again if clean set to True. Defaults to ANALYSIS_PATH.
+ |          processes (int, optional): number of processes while building. Defaults to 4.
+ |          build_ex_params (_type_, optional): extra params for building, for example "--with-openssl" for building curl. Defaults to BUILD_EX_PARAMS.
+ |      
+ |      Raises:
+ |          ValueError: INVALID_FUTAG_PATH: Invalid path of futag-llvm.
+ |          ValueError: INVALID_LIBPATH: Invalid path of library.
+ |          ValueError: INVALID_INPUT_PROCESSES: the input value of "processes" is not a number or negative.
  |  
  |  analyze(self)
  |      This function reads analysis result of Futag checker
  |  
- |  auto_build(self) -> int
- |      This function tries to automatically build your library.
- |      It finds in your library source code whether configure file or CMakeList.txt file exists.
+ |  auto_build(self) -> bool
+ |      This function tries to automatically build your library. It finds in your library source code whether Makefile, file configure, or CMakeList.txt file exists.
+ |      
+ |      Returns:
+ |          bool: result of auto build.
  |  
- |  build_cmake(self) -> int
+ |  build_cmake(self) -> bool
  |      This function tries to build your library with cmake.
+ |      
+ |      Raises:
+ |          ValueError: LIB_CONFIGURE_FAILED: Futag can not configure library.
+ |          ValueError: LIB_ANALYZING_FAILED: Futag can not analyze library with its own checkers.
+ |          ValueError: LIB_BUILD_FAILED: Futag can not build the library.
+ |          ValueError: LIB_INSTALL_FAILED: Futag can not install the library.
+ |      
+ |      Returns:
+ |          bool: result of building with cmake.
  |  
- |  build_configure(self) -> int
+ |  build_configure(self) -> bool
  |      This function tries to build your library with configure.
+ |      
+ |      Raises:
+ |          ValueError: LIB_CONFIGURE_FAILED: Futag can not configure library.
+ |          ValueError: LIB_ANALYZING_FAILED: Futag can not analyze library with its own checkers.
+ |          ValueError: LIB_BUILD_FAILED: Futag can not build the library.
+ |          ValueError: LIB_INSTALL_FAILED: Futag can not install the library.
+ |      
+ |      Returns:
+ |          bool: result of building with file "configure".
  |  
- |  build_makefile(self) -> int
+ |  build_makefile(self) -> bool
  |      This function tries to build your library with Makefile.
+ |      
+ |      Raises:
+ |          ValueError: LIB_ANALYZING_FAILED: Futag can not analyze library with its own checkers.
+ |          ValueError: LIB_BUILD_FAILED: Futag can not build the library.
+ |          ValueError: LIB_INSTALL_FAILED: Futag can not install the library.
+ |      
+ |      Returns:
+ |          bool: result of building with Makefile.
  |  
  |  ----------------------------------------------------------------------
-
 ```
 
 ## 3. Generator
@@ -121,24 +147,28 @@ class Generator(builtins.object)
  |  Methods defined here:
  |  
  |  __init__(self, futag_llvm_package: str, library_root: str, target_type: int = 0, json_file: str = '.futag-analysis/futag-analysis-result.json', output_path='futag-fuzz-drivers', build_path='.futag-build', install_path='.futag-install')
- |      Parameters
- |      ----------
- |      futag_llvm_package: str
- |          path to the futag llvm package (with binaries, scripts, etc)
- |      library_root: str
- |          path to the library root
- |      target_type: int
- |          format of fuzz-drivers (LIBFUZZER or AFLPLUSPLUS), default to LIBFUZZER 
- |      json_file: str
- |          path to the futag-analysis-result.json file
- |      output_path : str
- |          where to save fuzz-drivers, if this path exists, Futag will delete it and create new one, default "futag-fuzz-drivers"
- |      build_path: str
- |          path to the build directory.
- |      install_path: str
- |          path to the install directory.
+ |      Constructor of Generator class.
+ |      
+ |      Args:
+ |          futag_llvm_package (str): path to the futag-llvm package (with binaries, scripts, etc.).
+ |          library_root (str): path to the library root.
+ |          target_type (int, optional): format of fuzz-drivers (LIBFUZZER or AFLPLUSPLUS). Defaults to LIBFUZZER.
+ |          json_file (str, optional): path to the futag-analysis-result.json file. Defaults to ANALYSIS_FILE_PATH.
+ |          output_path (_type_, optional): where to save fuzz-drivers, if this path exists, Futag will delete it and create new one. Defaults to FUZZ_DRIVER_PATH.
+ |          build_path (_type_, optional): path to the build directory. Defaults to BUILD_PATH.
+ |          install_path (_type_, optional): path to the install directory. Defaults to INSTALL_PATH.
+ |      
+ |      Raises:
+ |          ValueError: INVALID_TARGET_TYPE: Invalid the type of target.
+ |          ValueError: INVALID_FUTAG_PATH: Invalid path of futag-llvm.
+ |          ValueError: INVALID_LIBPATH: Invalid path of library.
+ |          ValueError: INVALID_ANALYSIS_FILE: Invalid path to analysis result file.
+ |          ValueError: INVALID_BUILPATH: Invalid path to the library build path.
+ |          ValueError: INVALID_INSTALLPATH: Invalid path to the library install path.
  |  
- |  compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = '', extra_dynamiclink: str = '', flags: str = '-fsanitize=address,fuzzer -g -O0')
+ |  compile_driver_worker(self, bgen_args)
+ |  
+ |  compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = '', extra_dynamiclink: str = '', flags: str = '-fsanitize=address,fuzzer', coverage: bool = False)
  |      Parameters
  |      ----------
  |      workers: int

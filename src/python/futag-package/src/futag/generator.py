@@ -2640,6 +2640,7 @@ class Generator:
             error_log_file.close()
             target_file.write("\n */\n")
         target_file.close()
+        
 
     def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = FUZZ_COMPILER_FLAGS, coverage: bool=False):
         """
@@ -2715,6 +2716,12 @@ class Generator:
                         include_subdir.append("-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
             os.chdir(current_location)
 
+            if not "-fPIE" in flags:
+                compiler_flags_aflplusplus += " -fPIE"
+                
+            if not "-ferror-limit=1" in flags:
+                compiler_flags_libFuzzer += " -ferror-limit=1"
+            
             compiler_path = ""
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":

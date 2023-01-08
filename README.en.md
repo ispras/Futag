@@ -51,10 +51,10 @@ Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirem
 ```bash
   ~$ pip install -r futag-llvm/python-package/requirements.txt
 ```
-- Install Futag python package from the extracted package futag-llvm/python-package/futag-1.2.2.tar.gz:
+- Install Futag python package from the extracted package futag-llvm/python-package/futag-1.3.tar.gz:
 
 ```bash
-  ~$ pip install futag-llvm/python-package/futag-1.2.2.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-1.3.tar.gz
 ```
 
 ## 3. Usage

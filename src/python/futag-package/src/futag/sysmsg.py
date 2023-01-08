@@ -19,14 +19,14 @@ BUILD_EX_PARAMS = ""
 INSTALL_PATH = ".futag-install"
 ANALYSIS_PATH = ".futag-analysis"
 DEBUG_FLAGS = "-g -O0 "
-COMPILER_FLAGS = "-fsanitize=address "
+COMPILER_FLAGS = "-fsanitize=address"
 COMPILER_COVERAGE_FLAGS = "-fprofile-instr-generate -fcoverage-mapping "
-FUZZ_COMPILER_FLAGS = "-fsanitize=address,fuzzer "
+FUZZ_COMPILER_FLAGS = "-fsanitize=address,fuzzer"
 FUZZ_DRIVER_PATH = "futag-fuzz-drivers"
 ANALYSIS_FILE_PATH=".futag-analysis/futag-analysis-result.json"
-CMAKE_PATH_ERROR="Please specify other directory for building with cmake."
 
 # messages of Futag
+CMAKE_PATH_ERROR="Please specify other directory for building with cmake."
 INVALID_INPUT_PROCESSES = "-- [Futag]: Invalid number of processes for building"
 INVALID_FUTAG_PATH = "-- [Futag]: Incorrect path to FUTAG llvm package"
 INVALID_FUZZ_DRIVER_PATH = "-- [Futag]: Incorrect path to fuzz-drivers"
@@ -60,22 +60,41 @@ CMAKE_FOUND = "-- [Futag]: File CMakeList.txt found, trying to build library wit
 MAKEFILE_FOUND = "-- [Futag]: File Makefile found, trying to build library with make... "
 INVALID_TARGET_TYPE = "-- [Futag] Error: Unknown type of fuzz-driver for generating!"
 
-# Constants for generator
-GEN_BUILTIN = 0
-GEN_STRING = 1
-GEN_ENUM = 2
-GEN_ARRAY = 3
-GEN_VOID = 4
-GEN_QUALIFIER = 5
-GEN_POINTER = 6
-GEN_STRUCT = 7
-GEN_UNION = 8
-GEN_CLASS = 9
-GEN_INCOMPLETE = 10
-GEN_FUNCTION = 11
-GEN_INPUT_FILE = 12
-GEN_OUTPUT_FILE = 13
-GEN_UNKNOWN = 14
+# messages for GENERATOR
+CANNOT_CREATE_LOG_FILE = "-- [Futag] Error: Can not create log file for function: "
+CANNOT_CREATE_WRAPPER_FILE = "-- [Futag] Error: Can not create fuzz-wrapper file for function: "
+WRAPPER_FILE_CREATED = "           [*]file fuzz-wrapper was created: "
+
+# Constants for GENERATOR
+GEN_BUILTIN   = 0
+GEN_STRING    = 1
+GEN_CSTRING   = 1
+GEN_CXXSTRING = 2
+GEN_ENUM      = 3
+GEN_ARRAY     = 4
+GEN_VOID      = 5
+GEN_QUALIFIER = 6
+GEN_POINTER   = 7
+GEN_STRUCT    = 8
+GEN_UNION     = 9
+GEN_CLASS     = 10
+GEN_INCOMPLETE = 11
+GEN_FUNCTION  = 12
+GEN_INPUT_FILE = 13
+GEN_OUTPUT_FILE = 14
+GEN_UNKNOWN   = 15
+GEN_VARADDR   = 15
+
+# Constants for ParamUsage
+FILE_PATH_READ  = 0
+FILE_PATH_RW    = 1
+FILE_PATH_WRITE = 2
+FILE_PATH       = 3
+FILE_DESCRIPTOR = 4
+SIZE_FIELD      = 5
+C_STRING        = 6
+UNKNOWN         = 7
+
 
 # fuzz-driver format
 LIBFUZZER = 0
