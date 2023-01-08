@@ -86,9 +86,9 @@ lib_test = Builder(
     ".", 
     flags="-g -O0",
     True, 
-    "other-build-folder",
-    "other-install-folder", 
-    "other-analysis-folder",
+    build_path="other-build-folder",
+    install_path="other-install-folder", 
+    analysis_path="other-analysis-folder",
 )
 ```
 Так же можно задавать количество потоков для сборки параметром *processes*:
@@ -99,10 +99,7 @@ lib_test = Builder(
     ".", 
     flags="-g -O0",
     clean=True, 
-    "other-build-folder",
-    "other-install-folder", 
-    "other-analysis-folder",
-    8
+    processes=8
 )
 ```
 
@@ -113,12 +110,8 @@ lib_test = Builder(
     "/path/to/futag-llvm/", 
     ".", 
     flags="-g -O0",
-    True, 
-    "other-build-folder",
-    "other-install-folder", 
-    "other-analysis-folder",
-    8,
-    "--without-ssl"
+    clean=True, 
+    build_ex_params="--without-ssl"
 )
 ```
 
@@ -165,8 +158,8 @@ from futag.sysmsg import *
 g = Generator(
 "Futag/futag-llvm/", #Путь к рабочей директории futag
 "path/to/library/source/code", #Путь к директории исходных текстов исследуемого приложения
-AFLPLUSPLUS, # Формат оберток LIBFUZZER или AFLPLUSPLUS
-"/path/to/analysis/folder/futag-analysis-result.json" #Путь к файлу результата анализа
+target_type=AFLPLUSPLUS, # Формат оберток LIBFUZZER или AFLPLUSPLUS
+json_file="/path/to/analysis/folder/futag-analysis-result.json" #Путь к файлу результата анализа
 )
 g.gen_targets() # генерация фаззинг-оберток
 g.compile_targets( # компиляция фаззинг-оберток

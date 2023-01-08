@@ -63,7 +63,7 @@ INVALID_TARGET_TYPE = "-- [Futag] Error: Unknown type of fuzz-driver for generat
 # messages for GENERATOR
 CANNOT_CREATE_LOG_FILE = "-- [Futag] Error: Can not create log file for function: "
 CANNOT_CREATE_WRAPPER_FILE = "-- [Futag] Error: Can not create fuzz-wrapper file for function: "
-WRAPPER_FILE_CREATED = " ... file fuzz-wrapper was created!"
+WRAPPER_FILE_CREATED = "           [*]file fuzz-wrapper was created: "
 
 # Constants for GENERATOR
 GEN_BUILTIN   = 0

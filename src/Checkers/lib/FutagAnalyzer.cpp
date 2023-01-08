@@ -451,7 +451,7 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
   futag::FunctionType function_type = futag::_FUNC_UNKNOW_RECORD;
   if (isa<CXXMethodDecl>(func)) {
     auto methodDecl = dyn_cast<CXXMethodDecl>(func);
-    function_type = futag::_FUNC_STATIC;
+    function_type = futag::_FUNC_CXXMETHOD;
     ODRHash Hash;
     Hash.AddCXXRecordDecl(methodDecl->getParent());
     parentHash = std::to_string(Hash.CalculateHash());

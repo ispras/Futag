@@ -227,8 +227,7 @@ DataTypeDetail getDataTypeDetail(QualType type) {
   qual_type_detail.type_name = type.getAsString();
   qual_type_detail.generator_type = FutagDataType::_UNKNOWN;
 
-  if (type.getAsString() == "void" ||
-      type.getAsString() == "void *" ||
+  if (type.getAsString() == "void" || type.getAsString() == "void *" ||
       type.getAsString() == "const void *") {
     qual_type_detail.generator_type = FutagDataType::_VOIDP;
     return qual_type_detail;
@@ -358,22 +357,25 @@ vector<GenTypeInfo> getGenField(QualType type) {
 
   do {
     // Check for string
-    if (canonical_type.getAsString() == "char *" ||
-        canonical_type.getAsString() == "const char *" ||
-        canonical_type.getAsString() == "unsigned char *" ||
-        canonical_type.getAsString() == "const unsigned char *" ||
-        canonical_type.getAsString() == "char *const" ||
-        canonical_type.getAsString() == "const char *const") {
+    if (std::find(str_types.begin(), str_types.end(),
+                  type.getCanonicalType().getAsString()) != str_types.end()) {
       gen_list.base_type_name = "char *";
-      if (canonical_type.getAsString() == "const char *") {
-        gen_list.local_qualifier = "const";
+      if (std::find(wchar_str_types.begin(), wchar_str_types.end(),
+                    type.getCanonicalType().getAsString()) !=
+          wchar_str_types.end()) {
+        gen_list.base_type_name = "wchar_t *";
       }
-      if (canonical_type.getAsString() == "const unsigned char *") {
-        gen_list.base_type_name = "unsigned char *";
+      if (std::find(const_str_types.begin(), const_str_types.end(),
+                    type.getCanonicalType().getAsString()) !=
+          const_str_types.end()) {
         gen_list.local_qualifier = "const";
-      }
-      if (canonical_type.getAsString() == "const char *const") {
-        gen_list.local_qualifier = "const";
+        if (canonical_type.getAsString() == "const unsigned char *") {
+          gen_list.base_type_name = "unsigned char *";
+        }
+        if (canonical_type.getAsString() == "const wchar_t *" ||
+            canonical_type.getAsString() == "const wchar_t *const") {
+          gen_list.base_type_name = "wchar_t *";
+        }
       }
       gen_list.gen_type = FutagGenType::F_CSTRING;
       result.insert(result.begin(), gen_list);
@@ -381,8 +383,7 @@ vector<GenTypeInfo> getGenField(QualType type) {
     }
     if (type.getAsString() == "wstring" ||
         type.getAsString() == "std::wstring" ||
-        type.getAsString() == "string" ||
-        type.getAsString() == "std::string") {
+        type.getAsString() == "string" || type.getAsString() == "std::string") {
       gen_list.gen_type = FutagGenType::F_CXXSTRING;
       result.insert(result.begin(), gen_list);
       return result;
@@ -509,23 +510,26 @@ vector<GenTypeInfo> getGenType(QualType type) {
 
   do {
     // Check for string
-    if (canonical_type.getAsString() == "char *" ||
-        canonical_type.getAsString() == "const char *" ||
-        canonical_type.getAsString() == "unsigned char *" ||
-        canonical_type.getAsString() == "const unsigned char *" ||
-        canonical_type.getAsString() == "char *const" ||
-        canonical_type.getAsString() == "const char *const") {
-      gen_list.base_type_name = canonical_type.getAsString();
-      if (canonical_type.getAsString() == "const char *" ||
-          canonical_type.getAsString() == "const char *const") {
-        gen_list.base_type_name = "char *";
-        gen_list.local_qualifier = "const";
+    if (std::find(str_types.begin(), str_types.end(),
+                  type.getCanonicalType().getAsString()) != str_types.end()) {
+      gen_list.base_type_name = "char *";
+      if (std::find(wchar_str_types.begin(), wchar_str_types.end(),
+                    type.getCanonicalType().getAsString()) !=
+          wchar_str_types.end()) {
+        gen_list.base_type_name = "wchar_t *";
       }
-      if (canonical_type.getAsString() == "const unsigned char *") {
-        gen_list.base_type_name = "unsigned char *";
+      if (std::find(const_str_types.begin(), const_str_types.end(),
+                    type.getCanonicalType().getAsString()) !=
+          const_str_types.end()) {
         gen_list.local_qualifier = "const";
+        if (canonical_type.getAsString() == "const unsigned char *") {
+          gen_list.base_type_name = "unsigned char *";
+        }
+        if (canonical_type.getAsString() == "const wchar_t *" ||
+            canonical_type.getAsString() == "const wchar_t *const") {
+          gen_list.base_type_name = "wchar_t *";
+        }
       }
-
       gen_list.gen_type = FutagGenType::F_CSTRING;
       result.insert(result.begin(), gen_list);
       return result;
@@ -533,8 +537,7 @@ vector<GenTypeInfo> getGenType(QualType type) {
 
     if (type.getAsString() == "wstring" ||
         type.getAsString() == "std::wstring" ||
-        type.getAsString() == "string" ||
-        type.getAsString() == "std::string") {
+        type.getAsString() == "string" || type.getAsString() == "std::string") {
       gen_list.gen_type = FutagGenType::F_CXXSTRING;
       result.insert(result.begin(), gen_list);
       return result;
@@ -546,8 +549,7 @@ vector<GenTypeInfo> getGenType(QualType type) {
       return result;
     }
 
-    if (type.getAsString() == "void" ||
-        type.getAsString() == "void *" ||
+    if (type.getAsString() == "void" || type.getAsString() == "void *" ||
         type.getAsString() == "const void *") {
       gen_list.gen_type = FutagGenType::F_VOIDP;
       result.insert(result.begin(), gen_list);

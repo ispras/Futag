@@ -36,6 +36,9 @@ using namespace llvm;
 using namespace clang;
 
 namespace futag {
+const vector<string> str_types = { "char *", "const char *", "unsigned char *", "const unsigned char *", "char *const", "const char *const", "wchar_t *", "const wchar_t *",  "wchar_t *const", "const wchar_t *const"};
+const vector<string> wchar_str_types = { "wchar_t *", "const wchar_t *",  "wchar_t *const", "const wchar_t *const"};
+const vector<string> const_str_types = { "const char *", "const unsigned char *", "const char *const", "const wchar_t *", "const wchar_t *const"};
 
 class FutagType {
 public:

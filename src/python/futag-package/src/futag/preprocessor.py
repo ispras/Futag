@@ -388,9 +388,12 @@ class Builder:
         # Doing make for building
 
         my_env = os.environ.copy()
-        my_env["CFLAGS"] = "'" + self.flags + "'"
-        my_env["CPPFLAGS"] = "'" + self.flags + "'"
-        my_env["LDFLAGS"] = "'" + self.flags + "'"
+        # my_env["CFLAGS"] = "'" + self.flags + "'"
+        # my_env["CPPFLAGS"] = "'" + self.flags + "'"
+        # my_env["LDFLAGS"] = "'" + self.flags + "'"
+        my_env["CFLAGS"] = self.flags
+        my_env["CPPFLAGS"] = self.flags
+        my_env["LDFLAGS"] = self.flags
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         my_env["LLVM_CONFIG"] = (self.futag_llvm_package / 'bin/llvm-config').as_posix()
@@ -655,7 +658,7 @@ class Builder:
             for enum_it in types["enums"]:
                 exist = False
                 for enum_exist_it in enum_list:
-                    if enum_it["qname"] == enum_exist_it["qname"]:
+                    if enum_it["hash"] == enum_exist_it["hash"]:
                         exist = True
                         break
                 if not exist:
