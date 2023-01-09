@@ -440,7 +440,7 @@ class Generator:
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
-                                curr_name, arg["param_type"], self.dyn_size_idx)
+                                curr_name, gen_type_info["type_name"], self.dyn_size_idx)
                             buffer_size += curr_gen["buffer_size"]
                             gen_lines += curr_gen["gen_lines"]
                             gen_free += curr_gen["gen_free"]

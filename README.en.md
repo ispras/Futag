@@ -2,12 +2,11 @@
 
 - [Table of Contents](#table-of-contents)
   - [1. About](#1-about)
-  - [2. Install](#2-install)
+  - [2. Installation](#2-installation)
   - [3. Usage](#3-usage)
-  - [4. Build from source code](#4-build-from-source-code)
-  - [5. Authors](#5-authors)
-  - [6. References](#6-references)
-  - [7. Found bugs](#7-found-bugs)
+  - [4. Authors](#4-authors)
+  - [5. References](#5-references)
+  - [6. Found bugs](#6-found-bugs)
 
 ## 1. About
 
@@ -26,11 +25,17 @@ Currently Futag supports:
 - automatically generating fuzzing-targets for functions of libraries in C/C++ languages.
 Additionally, Futag provides the ability to test compiled targets.
 
-## 2. Install
+## 2. Installation
+### 2.1. Using a docker container
+You can try to build Futag with pre-built [Docker files](https://github.com/ispras/Futag/tree/main/product-tests/build-test) for Ubuntu OS.
 
-This instruction will get you a copy of the project and running on a Unix-liked system. 
+### 2.2. Using a prepackaged package
+Download the latest [futag-llvm.1.3.tar.xz](https://github.com/ispras/Futag/releases/tag/1.3) and unzip
 
-### Prerequisites
+### 2.3. Building and installing from source
+
+#### 2.3.1. Dependencies
+This instruction allows you to build a copy of the project and run it on a Unix-like system.
 
 Futag is based on [llvm-project](https://llvm.org/). For compiling the project, these packages must be installed on your system:
 
@@ -43,19 +48,28 @@ Futag is based on [llvm-project](https://llvm.org/). For compiling the project, 
 
 Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirements) on official website of LLVM for more detail.
 
-### Install
+You also need to create a symbolic link "python" to "python3" if such a link does not exist on your system. On an Ubuntu system, this can be done by installing the python-is-python3 package.
 
-- Download release package and extract it: [futag-llvm.latest.tar.gz](https://github.com/ispras/Futag/releases/tag/latest)
+#### 2.3.1. Building and installing
 
-- Install requirements: 
-```bash
-  ~$ pip install -r futag-llvm/python-package/requirements.txt
-```
-- Install Futag python package from the extracted package futag-llvm/python-package/futag-1.3.tar.gz:
+- Clone the project:
 
 ```bash
-  ~$ pip install futag-llvm/python-package/futag-1.3.tar.gz
+  ~$ git clone https://github.com/ispras/Futag
 ```
+- Prepare the "custom-llvm" directory by running the script:
+```bash
+  ~/Futag/custom-llvm$ ./prepare.sh
+```
+This script creates the Futag/build directory and copies the Futag/custom-llvm/build.sh script into it.
+
+Run the copied script in "Futag/build":
+
+```bash
+  ~/Futag/build$ ./build.sh
+```
+
+- As a result, the tool will be installed in the Futag/futag-llvm directory.
 
 ## 3. Usage
 
@@ -106,35 +120,13 @@ The example script can be viewed [here](https://github.com/ispras/Futag/blob/mai
 
 [Testing repository](https://github.com/thientc/Futag-tests) has been created to test Futag for libraries (json-c, php, FreeImage, etc.), you can try with [Docker container]( https://github.com/ispras/Futag/tree/main/product-tests/libraries-test).
 
-## 4. Build from source code
-
-- Clone the project:
-
-```bash
-  ~$ git clone https://github.com/ispras/Futag
-```
-- Prepare directory "custom-llvm" by running script:
-```bash
-  ~/Futag/custom-llvm$ ./prepare.sh
-```
-This script creates directory Futag/build and copies script Futag/custom-llvm/build.sh there
-
-- Run the build.sh script inside Futag/build:
-```bash
-  ~/Futag/build$ ./build.sh
-```
-
-After this stage, the instrument will be built and installed in folder Futag/futag-llvm
-
-You can try building Futag with ready [Dockerfiles](https://github.com/ispras/Futag/tree/main/product-tests/build-test) for different versions of Ubuntu OS.
-
-## 5. Authors
+## 4. Authors
 
 - [Tran Chi Thien](https://github.com/thientc/) (thientc@ispras.ru)
 - Shamil Kurmangaleev (kursh@ispras.ru)
 - Theodor Arsenij Larionov-Trichkin (tlarionov@ispras.ru)
 
-## 6. References
+## 5. References
 
 - C. T. Tran and S. Kurmangaleev, ["Futag: Automated fuzz target generator for testing software libraries"](https://ieeexplore.ieee.org/document/9693749) 2021 Ivannikov Memorial Workshop (IVMEM), 2021, pp. 80-85, doi: 10.1109/IVMEM53963.2021.00021.
 
@@ -142,7 +134,7 @@ You can try building Futag with ready [Dockerfiles](https://github.com/ispras/Fu
 
 [![Видео](https://img.youtube.com/vi/qw_tzzgX04E/hqdefault.jpg)](https://www.youtube.com/watch?v=qw_tzzgX04E&t=28122s) 
 
-## 7. Found bugs
+## 6. Found bugs
 
 - Crash in function [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) of [libpng version 1.6.37](https://github.com/glennrp/libpng) (confirmed)
 
