@@ -292,6 +292,42 @@ let ParentPackage = Futag in {
                     Released>,
     ]>,
     Documentation<NotDocumented>;
+
+    def FutagInitRetrieve : Checker<"FutagInitRetrieve">,
+    HelpText<"Checker for finding context in consumer libraries.">,
+    CheckerOptions<[
+        CmdLineOption<String,
+                    "TargetFunction",
+                    "Name of target function",
+                    "main",
+                    Released>,
+        CmdLineOption<String,
+                    "TargetFile",
+                    "Target file",
+                    "",
+                    Released>,
+        CmdLineOption<Integer,
+                    "TargetLine",
+                    "Target line number",
+                    "0",
+                    Released>,
+        CmdLineOption<String,
+                    "ConsummerFunction",
+                    "Name of consummer function",
+                    "main",
+                    Released>,
+        CmdLineOption<String,
+                    "ConsummerFile",
+                    "consummer file",
+                    "",
+                    Released>,
+        CmdLineOption<Integer,
+                    "ConsummerLine",
+                    "consummer line number",
+                    "0",
+                    Released>,
+    ]>,
+    Documentation<NotDocumented>;
 } //end Futag 
 
 

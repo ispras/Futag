@@ -30,7 +30,7 @@ cp -r $vendors/json-3.10.5/single_include/nlohmann $custom_llvm/clang/include/
 set -x
 
 llvmVersion=$(head -n 1 $custom_prepare/INFO)
-version="14"
+version=""
 
 if [ $llvmVersion == "LLVM=13.0.1" ]; then
     version="13"
