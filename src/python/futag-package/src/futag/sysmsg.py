@@ -60,6 +60,10 @@ CMAKE_FOUND = "-- [Futag]: File CMakeList.txt found, trying to build library wit
 MAKEFILE_FOUND = "-- [Futag]: File Makefile found, trying to build library with make... "
 INVALID_TARGET_TYPE = "-- [Futag] Error: Unknown type of fuzz-driver for generating!"
 
+# message for Natch
+COULD_NOT_PARSE_NATCH_CALLSTACK = "-- [Futag] Error: Could not parse file!"
+
+
 # messages for GENERATOR
 CANNOT_CREATE_LOG_FILE = "-- [Futag] Error: Can not create log file for function: "
 CANNOT_CREATE_WRAPPER_FILE = "-- [Futag] Error: Can not create fuzz-wrapper file for function: "

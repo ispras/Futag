@@ -1475,7 +1475,7 @@ class Generator:
         target_file.close()
         
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = FUZZ_COMPILER_FLAGS, coverage: bool=False):
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool=False):
         """
         Parameters
         ----------

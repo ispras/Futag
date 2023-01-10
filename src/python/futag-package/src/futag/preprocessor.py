@@ -39,7 +39,7 @@ def delete_folder(pth):
 class Builder:
     """Futag Builder Class"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = COMPILER_FLAGS, clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =4, build_ex_params=BUILD_EX_PARAMS):
+    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = "", clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int =4, build_ex_params=BUILD_EX_PARAMS):
         """Constructor of class Builder
 
         Args:
@@ -98,6 +98,8 @@ class Builder:
 
         (self.library_root / analysis_path).mkdir(parents=True, exist_ok=True)
         self.analysis_path = self.library_root / analysis_path
+        if not flags:
+            flags = DEBUG_FLAGS + COMPILER_FLAGS
         self.flags = flags
         self.build_ex_params = build_ex_params
         
