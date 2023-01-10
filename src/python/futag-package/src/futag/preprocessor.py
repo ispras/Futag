@@ -99,7 +99,7 @@ class Builder:
         (self.library_root / analysis_path).mkdir(parents=True, exist_ok=True)
         self.analysis_path = self.library_root / analysis_path
         if not flags:
-            flags = DEBUG_FLAGS + COMPILER_FLAGS
+            flags = DEBUG_FLAGS + " " + COMPILER_FLAGS
         self.flags = flags
         self.build_ex_params = build_ex_params
         
@@ -238,9 +238,9 @@ class Builder:
 
         # my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         # my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-        my_env["CFLAGS"] = "'" + self.flags + "'"
-        my_env["CPPFLAGS"] = "'" + self.flags + "'"
-        my_env["LDFLAGS"] = "'" + self.flags + "'"
+        my_env["CFLAGS"] = self.flags
+        my_env["CPPFLAGS"] = self.flags
+        my_env["LDFLAGS"] =  self.flags
 
         if self.build_ex_params:
             config_cmd += self.build_ex_params.split(" ")
