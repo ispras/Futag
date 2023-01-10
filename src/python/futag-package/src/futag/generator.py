@@ -57,14 +57,12 @@ class Generator:
         self.futag_llvm_package = futag_llvm_package
         self.library_root = library_root
         self.target_library = None
+
         self.gen_anonymous = False
-        self.gen_func_params = []
-        self.gen_free = []
         self.gen_this_function = True
         self.gen_lines = []
         self.buffer_size = []
-        self.buf_size_arr = []
-        self.dyn_size = 0
+        self.gen_free = []
         self.dyn_size_idx = 0
         self.file_idx = 0
         self.curr_function = None
@@ -1365,7 +1363,6 @@ class Generator:
         Cplusplus_usual_class_method = []
         Cplusplus_static_class_method = []
         Cplusplus_anonymous_class_method = []
-        self.gen_func_params = []
         for func in self.target_library["functions"]:
             # For C
             if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (func["parent_hash"] == ""):
@@ -1499,18 +1496,18 @@ class Generator:
         # include_subdir = list(set(include_subdir))
         if not flags:
             if coverage:
-                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + DEBUG_FLAGS + "-fPIE "
-                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + \
-                    COMPILER_COVERAGE_FLAGS + DEBUG_FLAGS
+                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
+                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " +\
+                    COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS
             else:
-                compiler_flags_aflplusplus = DEBUG_FLAGS + "-fPIE "
-                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + DEBUG_FLAGS
+                compiler_flags_aflplusplus = DEBUG_FLAGS + " -fPIE "
+                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " + DEBUG_FLAGS
         else:
             compiler_flags_aflplusplus = flags
             compiler_flags_libFuzzer = flags
             if coverage:
-                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + compiler_flags_aflplusplus
-                compiler_flags_libFuzzer = COMPILER_COVERAGE_FLAGS + compiler_flags_libFuzzer
+                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + " " + compiler_flags_aflplusplus
+                compiler_flags_libFuzzer = COMPILER_COVERAGE_FLAGS + " " + compiler_flags_libFuzzer
 
         generated_functions = [
             x for x in self.tmp_output_path.iterdir() if x.is_dir()]
@@ -1666,3 +1663,60 @@ class Generator:
             + str(len(compiled_targets_list))
             + " fuzz-driver(s)\n"
         )
+
+    # def gen_from_callstack(self, jsonfile: str):
+    #     if not pathlib.Path(jsonfile).absolute().exists():
+    #         raise ValueError("File \"%s\" does not exist!" % jsonfile)
+        
+    #     natch = json.load(open(jsonfile))
+    #     if not natch:
+    #         raise ValueError(COULD_NOT_PARSE_NATCH_CALLSTACK)
+
+    #     # get the line number 
+    #     natch_location_split = natch["location"].split(":")
+    #     line = natch_location_split[-1]
+
+    #     # get the file name 
+    #     natch_location_split.pop()
+    #     path = ":".join(natch_location_split)
+    #     file = path.split("/")[-1]
+
+    #     location = {
+    #             "file": file,
+    #             "line": line
+    #         }
+
+    #     callstacks = []
+    #     for cs in  natch["callstack"]:
+    #         tmp_callstack = []
+    #         for c in cs:
+    #             # get the line number 
+    #             callstack_location_split = c["location"].split(":")
+    #             if not callstack_location_split:
+    #                 break
+    #             line = callstack_location_split[-1]
+    #             callstack_location_split.pop()
+
+    #             # get the file name 
+    #             path = ":".join(callstack_location_split)
+    #             file = path.split("/")[-1]
+
+    #             tmp_callstack.append({
+    #                 "function_name": c["function_name"],
+    #                 "location":{
+    #                     "file": file,
+    #                     "line": line
+    #                 }
+    #             })
+    #         callstacks.append(tmp_callstack)
+
+    #     target = {
+    #         "qname": natch["function_qualified_name"],
+    #         "location": location,
+    #         "callstack": callstacks
+    #     }
+    #     found_function = None
+    #     for func in self.target_library["functions"]:
+
+    #         if func["qname"] == target["qname"]:
+    #             found_function = func

@@ -137,5 +137,4 @@ fi
 # else
 #     echo "FuzzIntrospector=no" >> $file_info
 # fi
-git rev-parse HEAD >> $file_info
 cp $build_script  $build_folder/build.sh

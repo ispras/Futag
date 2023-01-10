@@ -30,7 +30,7 @@ cp -r $vendors/json-3.10.5/single_include/nlohmann $custom_llvm/clang/include/
 set -x
 
 llvmVersion=$(head -n 1 $custom_prepare/INFO)
-version=""
+version="14"
 
 if [ $llvmVersion == "LLVM=13.0.1" ]; then
     version="13"
@@ -91,6 +91,7 @@ cp -r $futag_src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
 cp $custom_prepare/INFO $futag_install_folder/
+git rev-parse HEAD >> $futag_install_folder/INFO
 
 cd ../product-tests
 XZ_OPT='-T8 -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm

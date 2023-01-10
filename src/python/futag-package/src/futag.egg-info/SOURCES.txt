@@ -5,7 +5,6 @@ setup.cfg
 setup.py
 src/futag/__init__.py
 src/futag/fuzzer.py
-src/futag/generator copy.py
 src/futag/generator.py
 src/futag/preprocessor.py
 src/futag/sysmsg.py
