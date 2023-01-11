@@ -87,7 +87,7 @@ void ento::registerFutagInitRetrieve(CheckerManager &Mgr) {
   Chk->TargetLine = Mgr.getAnalyzerOptions().getCheckerIntegerOption(
       Mgr.getCurrentCheckerName(), "TargetLine");
   
-  Chk->FuncConsummerFunctionName = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
+  Chk->ConsummerFunction = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
       Mgr.getCurrentCheckerName(), "ConsummerFunction"));
   Chk->ConsummerFile = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
       Mgr.getCurrentCheckerName(), "ConsummerFile"));

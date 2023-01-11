@@ -573,10 +573,10 @@ class Builder:
             if x.is_file()
         ]
 
-        # # Find all context files in given location
-        # context_files = [
-        #     x for x in self.analysis_path.glob("**/context-*.futag-function-analyzer.json") if x.is_file()
-        # ]
+        # Find all context files in given location
+        context_files = [
+            x for x in self.analysis_path.glob("**/context-*.futag-function-analyzer.json") if x.is_file()
+        ]
 
         # Find all type_info files in given location
         typeinfo_files = [
@@ -618,32 +618,32 @@ class Builder:
                 if not hash in global_hash:
                     function_list[hash] = functions[hash]
 
-        # for jf in context_files:
-        #     contexts = json.load(open(jf.as_posix()))
-        #     if contexts is None:
-        #         print(" -- [Futag]: Warning: loading json from file %s failed!" %
-        #               (jf.as_posix()))
-        #         continue
-        #     # get global hash of all functions
-        #     global_hash = [x for x in function_list]
+        for jf in context_files:
+            contexts = json.load(open(jf.as_posix()))
+            if contexts is None:
+                print(" -- [Futag]: Warning: loading json from file %s failed!" %
+                      (jf.as_posix()))
+                continue
+            # get global hash of all functions
+            global_hash = [x for x in function_list]
 
-        #     # iterate function hash for adding to global hash list
-        #     for hash in contexts:
-        #         if hash in global_hash:
-        #             called_from_list = [
-        #                 x["called_from"] + x["called_from_func_name"]
-        #                 for x in function_list[hash]["call_contexts"]
-        #             ]
-        #             for call_xref in contexts[hash]["call_contexts"]:
-        #                 if (
-        #                     not call_xref["called_from"] +
-        #                         call_xref["called_from_func_name"]
-        #                     in called_from_list
-        #                 ):
-        #                     function_list[hash]["call_contexts"].append(
-        #                         call_xref)
-        #         else:
-        #             print(" -- %s not found in global hash list!" % (hash))
+            # iterate function hash for adding to global hash list
+            for hash in contexts:
+                if hash in global_hash:
+                    called_from_list = [
+                        x["called_from"] + x["called_from_func_name"]
+                        for x in function_list[hash]["call_contexts"]
+                    ]
+                    for call_xref in contexts[hash]["call_contexts"]:
+                        if (
+                            not call_xref["called_from"] +
+                                call_xref["called_from_func_name"]
+                            in called_from_list
+                        ):
+                            function_list[hash]["call_contexts"].append(
+                                call_xref)
+                else:
+                    print(" -- %s not found in global hash list!" % (hash))
 
         print("")
         print(" -- [Futag]: Analysing data types ..." )
@@ -716,7 +716,6 @@ class Builder:
                 "filename" : compiled_file['file'],
                 "headers" : headers,
                 "compiler_opts" : compiled_file['compiler_opts'],
-                # "real_includes" : includes['includes'],
             })
 
         functions_w_contexts = []
@@ -729,6 +728,7 @@ class Builder:
             fs = {
                 "name": function_list[func]["name"],
                 "qname": function_list[func]["qname"],
+                "hash": function_list[func]["hash"],
                 "is_simple": function_list[func]["is_simple"],
                 "func_type": function_list[func]["func_type"],
                 "access_type": function_list[func]["access_type"],
