@@ -725,6 +725,21 @@ class Builder:
                 for call_func in function_list[f]["call_contexts"]:
                     if call_func["called_from_func_name"] == function_list[func]["name"]:
                         contexts.append(call_func)
+            local_list = function_list[func]["location"].split(":")
+            line = local_list[-1]
+            local_list.pop()
+            fullpath = ":".join(local_list)
+            local_list = fullpath.split("/")
+            file = local_list[-1]
+            local_list.pop()
+            directory = "/".join(local_list)
+            location = {
+                "file": file,
+                "line": line,
+                "directory": directory,
+                "fullpath": fullpath,
+                
+            }
             fs = {
                 "name": function_list[func]["name"],
                 "qname": function_list[func]["qname"],
@@ -740,7 +755,7 @@ class Builder:
                 "params": function_list[func]["params"],
                 "fuzz_it": function_list[func]["fuzz_it"],
                 "contexts": contexts,
-                "location": function_list[func]["location"],
+                "location": location,
             }
             functions_w_contexts.append(fs)
         result = {

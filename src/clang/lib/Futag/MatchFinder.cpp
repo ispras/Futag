@@ -166,6 +166,10 @@ void FutagMatchCallExprCallBack::run(const MatchFinder::MatchResult &Result) {
   }
 
   // 2. Calculate ODRHash
+
+  std::string consummerFuncHash =
+      std::to_string(futag::utils::ODRHashCalculator::CalculateHash(func));
+
   std::string funcHash =
       std::to_string(futag::utils::ODRHashCalculator::CalculateHash(CurrFunc));
 
@@ -200,8 +204,9 @@ void FutagMatchCallExprCallBack::run(const MatchFinder::MatchResult &Result) {
       currFileName + ":" + std::to_string(srcMgr.getExpansionLineNumber(loc));
 
   json currentCallContext =
-      json{{"called_from", calledFromFullLoc},
+      json{{"called_from_location", calledFromFullLoc},
            {"called_from_func_name", func->getQualifiedNameAsString()},
+           {"called_from_func_hash", consummerFuncHash},
            {"args_desc", json::array()}};
 
   for (uint32_t i = 0; i < callExpr->getNumArgs(); i++) {
