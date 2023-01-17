@@ -47,19 +47,9 @@ cp $futag_src/Checkers/include/$Checkerstd $custom_llvm/clang/include/clang/Stat
 cp $futag_src/Checkers/lib/*.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
 cp -r $futag_src/Checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
 
-cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release  -DLLVM_BINUTILS_INCDIR=/usr/include/  -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt;"  $custom_llvm/llvm
+cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt;"  $custom_llvm/llvm
 
-make -j8 && make -j8 install
-
-export PATH="$(pwd)/bin:$PATH"
-export LLVM_CONFIG="$(pwd)/bin/llvm-config"
-export LD_LIBRARY_PATH="$(llvm-config --libdir)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-#build AFLplusplus
-cd AFLplusplus-4.02c
-make -j8 distrib
-make -j8 DESTDIR=$futag_install_folder/AFLplusplus install
-cd ..
+make -j16 && make -j16 install
 
 if [ -d $futag_install_folder/python-package ]
 then
@@ -68,13 +58,16 @@ fi
 mkdir $futag_install_folder/python-package
 cp -r $futag_src/python/futag-package/dist/*.tar.gz $futag_install_folder/python-package
 cp -r $futag_src/python/futag-package/requirements.txt $futag_install_folder/python-package
+cp -r $futag_src/python/*.py $futag_install_folder/python-package
 cp -r $futag_src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
 cp $custom_prepare/INFO $futag_install_folder/
+git rev-parse HEAD >> $futag_install_folder/INFO
 
 cd ../product-tests
-XZ_OPT='-T8 -9' tar cJf futag-llvm.AFLplusplus.latest.tar.xz ../futag-llvm
+XZ_OPT='-T12 -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm
+
 echo ""
 echo "======== End of build script for FUTAG - a fuzzing target automated generator ========"
 echo ""

@@ -14,3 +14,10 @@
 - A Guide to Undefined Behavior in C and C++, [Part 1](https://blog.regehr.org/archives/213)
 - [Address Sanitizer](https://github.com/google/sanitizers/wiki/AddressSanitizer)
 - [Address Sanitizer Flags](https://github.com/google/sanitizers/wiki/AddressSanitizerFlags)
+
+# Clang, LLVM
+- Clang AST Matcher [Reference](https://clang.llvm.org/docs/LibASTMatchersReference.html)
+- Clang Tutorial - [CS453 Automated Software Testing](https://swtv.kaist.ac.kr/courses/cs453-fall13/Clang%20tutorial%20v4.pdf)
+- Syntax Macros: [a Case-Study in Extending Clang](https://llvm.org/devmtg/2016-09/slides/Rink-SyntaxMacros.pdf)
+https://stackoverflow.com/questions/49877836/how-can-i-get-macro-name-from-cstylecastexpr-matcher-in-clang-tidy
+https://stackoverflow.com/questions/58620022/how-to-get-the-macro-and-its-expansion-with-clang-libtooling

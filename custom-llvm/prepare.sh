@@ -21,21 +21,6 @@ echo "* This script helps to download source code of *"
 echo "*            clang, llvm, compiler-rt          *"
 echo "************************************************"
 echo 
-echo "Futag will collect information for preparing build system."
-echo "========================================================="
-echo "-- [Futag] Select version of llvm for building:"
-echo "-- 1. LLVM 14.0.6"
-echo "-- 2. LLVM 13.0.1"
-echo "-- 3. LLVM 12.0.1"
-llvmVersion=(1 2 3)
-read -p "-- Your choice (1/2/3 - default to 1): " selectedVersion 
-if [[ ! " ${llvmVersion[*]} " =~ " ${selectedVersion} " ]]; then
-echo "-- [Futag] Wrong input! Please enter 1, 2 or 3! Exit..."
-exit
-fi
-echo
-# https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
-echo "========================================================="
 read -p "-- [Futag] Build with AFLplusplus-4.02c? (y/n): " wAFLplusplus
 if [[ ! $wAFLplusplus == [yYnN] ]]; then
     echo "-- [Futag] Wrong input! Please enter y or n! Exit..."
@@ -76,32 +61,11 @@ set -x
 if [ -d "llvm-project" ]; then
     rm -rf llvm-project
 fi
-if [ "$selectedVersion" == "1" ]; then
-    echo "LLVM=14.0.6" > $file_info
-    if [ ! -f llvm-project-14.0.6.src.tar.xz ]; then
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/llvm-project-14.0.6.src.tar.xz
-    fi
-    tar xf llvm-project-14.0.6.src.tar.xz
-    mv llvm-project-14.0.6.src llvm-project
+if [ ! -f llvm-project-14.0.6.src.tar.xz ]; then
+    wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/llvm-project-14.0.6.src.tar.xz
 fi
-
-if [ "$selectedVersion" == "2" ]; then
-    echo "LLVM=13.0.1" > $file_info
-    if [ ! -f llvm-project-13.0.1.src.tar.xz ]; then
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-project-13.0.1.src.tar.xz
-    fi
-    tar xf llvm-project-13.0.1.src.tar.xz
-    mv llvm-project-13.0.1.src llvm-project
-fi
-
-if [ "$selectedVersion" == "3" ]; then
-    echo "LLVM=12.0.1" > $file_info
-    if [ ! -f llvm-project-12.0.1.src.tar.xz ]; then
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-12.0.1/llvm-project-12.0.1.src.tar.xz
-    fi
-    tar xf llvm-project-12.0.1.src.tar.xz
-    mv llvm-project-12.0.1.src llvm-project
-fi
+tar xf llvm-project-14.0.6.src.tar.xz
+mv llvm-project-14.0.6.src llvm-project
 build_script="build.sh"
 
 if [ $wAFLplusplus == "Y" ] || [ $wAFLplusplus == "y" ]; then

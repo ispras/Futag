@@ -805,11 +805,6 @@ class Generator:
             " = " + func["qname"] + \
             "(" + ",".join(param_list)+");\n"
 
-        # !attempting free on address which was not malloc()-ed
-        #
-        # if func["return_type_pointer"]:
-        #     if func["return_type"].split(" ")[0] != "const" and not parent_func["return_type_pointer"]:
-        #         curr_gen_free += ["if(" + param_name+ ") free("+param_name+");\n"]
         gen_dict["gen_lines"] += [function_call]
         return gen_dict
 

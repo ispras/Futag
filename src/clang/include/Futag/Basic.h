@@ -123,19 +123,6 @@ typedef enum {
   _FUNC_UNKNOW_RECORD
 } FunctionType;
 
-typedef struct {
-  FutagDataType generator_type;
-  bool is_pointer = false;
-  uint64_t array_size = 0; // for saving the size of array, for example int[30]
-  std::string type_name = "";
-  std::string parent_type = "";
-  std::string parent_gen = ""; // save the function name for generating if
-                               // generator_type == GEN_STRUCT
-} DataTypeDetail;
-
-DataTypeDetail getDataTypeDetail(QualType type);
-typedef vector<DataTypeDetail> DecomposedType;
-
 typedef enum {
   F_BUILTIN,        // 0: All basic types: int, float, double,...
   F_CSTRING,        // 1: char *, const char *
