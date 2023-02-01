@@ -28,11 +28,10 @@ echo "========================================================="
 echo "-- [Futag] Select version of llvm for building:"
 echo "-- 1. LLVM 14.0.6"
 echo "-- 2. LLVM 13.0.1"
-echo "-- 3. LLVM 12.0.1"
-llvmVersion=(1 2 3)
-read -p "-- Your choice (1/2/3 - default to 1): " selectedVersion 
+llvmVersion=(1 2 )
+read -p "-- Your choice (1/2 - default to 1): " selectedVersion 
 if [[ ! " ${llvmVersion[*]} " =~ " ${selectedVersion} " ]]; then
-echo "-- [Futag] Wrong input! Please enter 1, 2 or 3! Exit..."
+echo "-- [Futag] Wrong input! Please enter 1 or 2! Exit..."
 exit
 fi
 echo
@@ -97,14 +96,6 @@ if [ "$selectedVersion" == "2" ]; then
     mv llvm-project-13.0.1.src llvm-project
 fi
 
-if [ "$selectedVersion" == "3" ]; then
-    echo "LLVM=12.0.1" > $file_info
-    if [ ! -f llvm-project-12.0.1.src.tar.xz ]; then
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-12.0.1/llvm-project-12.0.1.src.tar.xz
-    fi
-    tar xf llvm-project-12.0.1.src.tar.xz
-    mv llvm-project-12.0.1.src llvm-project
-fi
 build_script="build.sh"
 
 if [ $wAFLplusplus == "Y" ] || [ $wAFLplusplus == "y" ]; then
