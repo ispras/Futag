@@ -503,8 +503,9 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
         // Collect information in header file for searching context in consummer
         // programs or libraries
-        CollectBasicFunctionInfo(m_func_decl_info, func, Mgr, curr_func_begin_loc,
-                                 file_name, function_type, parent_hash);
+        CollectBasicFunctionInfo(m_func_decl_info, func, Mgr,
+                                 curr_func_begin_loc, file_name, function_type,
+                                 parent_hash);
     } else {
         // Collect definition of functions in source file for analyzing
         CollectBasicFunctionInfo(m_func_def_info, func, Mgr,

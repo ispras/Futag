@@ -791,7 +791,6 @@ class Builder:
                 "parent_hash": function_list[func]["parent_hash"],
                 "return_type": function_list[func]["return_type"],
                 "gen_return_type": function_list[func]["gen_return_type"],
-                # "return_type_pointer": function_list[func]["return_type_pointer"],
                 "params": function_list[func]["params"],
                 "fuzz_it": function_list[func]["fuzz_it"],
                 "contexts": contexts,

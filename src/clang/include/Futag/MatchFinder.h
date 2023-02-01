@@ -30,7 +30,8 @@ class FutagMatchVarDeclArgCallBack : public MatchFinder::MatchCallback {
   public:
     FutagMatchVarDeclArgCallBack(AnalysisManager &Mgr, Stmt *curr_node,
                                  const DeclRefExpr *arg, json &curr_arg_context)
-        : Mgr{Mgr}, curr_node{curr_node}, arg{arg}, curr_arg_context{curr_arg_context} {}
+        : Mgr{Mgr}, curr_node{curr_node}, arg{arg}, curr_arg_context{
+                                                        curr_arg_context} {}
     AnalysisManager &Mgr; // For passing the AnalysisManager
     Stmt *curr_node;      // For passing the current node for searching
     json &curr_arg_context;
@@ -42,8 +43,10 @@ class FutagMatchVarDeclArgCallBack : public MatchFinder::MatchCallback {
 class FutagMatchBinOperatorArgCallBack : public MatchFinder::MatchCallback {
   public:
     FutagMatchBinOperatorArgCallBack(AnalysisManager &Mgr, Stmt *curr_node,
-                                     const DeclRefExpr *arg, json &curr_arg_context)
-        : Mgr{Mgr}, curr_node{curr_node}, arg{arg}, curr_arg_context{curr_arg_context} {}
+                                     const DeclRefExpr *arg,
+                                     json &curr_arg_context)
+        : Mgr{Mgr}, curr_node{curr_node}, arg{arg}, curr_arg_context{
+                                                        curr_arg_context} {}
     AnalysisManager &Mgr; // For passing the AnalysisManager
     Stmt *curr_node;      // For passing the current node for searching
     json &curr_arg_context;

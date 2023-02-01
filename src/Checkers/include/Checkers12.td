@@ -23,7 +23,6 @@ def Core : Package<"core">;
 def CoreBuiltin : Package<"builtin">, ParentPackage<Core>, Hidden;
 def CoreUninitialized  : Package<"uninitialized">, ParentPackage<Core>;
 def CoreAlpha : Package<"core">, ParentPackage<Alpha>;
-
 def Futag: Package<"futag">;
 
 // The OptIn package is for checkers that are not alpha and that would normally
@@ -75,7 +74,6 @@ def Taint : Package<"taint">, ParentPackage<SecurityAlpha>;
 
 def CERT : Package<"cert">, ParentPackage<SecurityAlpha>;
 def POS : Package<"pos">, ParentPackage<CERT>;
-def ENV : Package<"env">, ParentPackage<CERT>;
 
 def Unix : Package<"unix">;
 def UnixAlpha : Package<"unix">, ParentPackage<Alpha>;
@@ -234,23 +232,23 @@ def NonnullGlobalConstantsChecker: Checker<"NonnilStringConstants">,
 
 } // end "core"
 
-
 //===----------------------------------------------------------------------===//
 // Futag Checkers.
 //===----------------------------------------------------------------------===//
 let ParentPackage = Futag in {
 
     def FutagAnalyzer : Checker<"FutagAnalyzer">,
-    HelpText<"Futag Checker for finding potential fuzzing functions.">,
+    HelpText<"Futag Checker for finding potential fuzzing functions. Use scan-build for viewing result and generating list of needed function">,
     CheckerOptions<[
         CmdLineOption<String,
                     "report_dir",
-                    "Absolute path to the directory, where to write results of the analysis",
+                    "Absolute path to the directory, where to write results of the analyzis",
                     "/tmp/futag-function-analyzer-reports/",
                     Released>,
     ]>,
     Documentation<NotDocumented>;
 
+    
     def FutagCatchInfo : Checker<"FutagCatchInfo">,
     HelpText<"Checker for finding context in consumer libraries.">,
     CheckerOptions<[
@@ -271,8 +269,8 @@ let ParentPackage = Futag in {
                     Released>,
     ]>,
     Documentation<NotDocumented>;
-} //end Futag 
 
+} //end Futag 
 
 let ParentPackage = CoreAlpha in {
 
@@ -528,17 +526,7 @@ def DynamicMemoryModeling: Checker<"DynamicMemoryModeling">,
                   "allocating and deallocating functions are annotated with "
                   "ownership_holds, ownership_takes and ownership_returns.",
                   "false",
-                  InAlpha>,
-    CmdLineOption<Boolean,
-                  "AddNoOwnershipChangeNotes",
-                  "Add an additional note to the bug report for leak-like "
-                  "bugs. Dynamically allocated objects passed to functions "
-                  "that neither deallocated it, or have taken responsibility "
-                  "of the ownership are noted, similarly to "
-                  "NoStoreFuncVisitor.",
-                  "true",
-                  Released,
-                  Hide>
+                  InAlpha>
   ]>,
   Dependencies<[CStringModeling]>,
   Documentation<NotDocumented>,
@@ -594,7 +582,7 @@ def StdCLibraryFunctionArgsChecker : Checker<"StdCLibraryFunctionArgs">,
            "or is EOF.">,
   Dependencies<[StdCLibraryFunctionsChecker]>,
   WeakDependencies<[CallAndMessageChecker, NonNullParamChecker, StreamChecker]>,
-  Documentation<HasAlphaDocumentation>;
+  Documentation<NotDocumented>;
 
 } // end "alpha.unix"
 
@@ -644,10 +632,6 @@ def SmartPtrModeling: Checker<"SmartPtrModeling">,
                   Hide>,
   ]>,
   Hidden;
-
-def StringChecker: Checker<"StringChecker">,
-  HelpText<"Checks C++ std::string bugs">,
-  Documentation<HasDocumentation>;
 
 def MoveChecker: Checker<"Move">,
   HelpText<"Find use-after-move bugs in C++">,
@@ -993,14 +977,6 @@ let ParentPackage = POS in {
   Documentation<HasDocumentation>;
 
 } // end "alpha.cert.pos"
-
-let ParentPackage = ENV in {
-
-  def InvalidPtrChecker : Checker<"InvalidPtr">,
-  HelpText<"Finds usages of possibly invalidated pointers">,
-  Documentation<HasDocumentation>;
-
-} // end "alpha.cert.env"
 
 let ParentPackage = SecurityAlpha in {
 

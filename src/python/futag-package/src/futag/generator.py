@@ -348,7 +348,6 @@ class Generator:
                     "unsigned int " + param_name + "_enum_index; \n",
                     "memcpy(&" + param_name +
                     "_enum_index, pos, sizeof(unsigned int));\n",
-                    # "enum " + enum_name + " " + param_name + " = " +
                     enum_name + " " + param_name + " = " +
                     param_name + "_enum_index % " +
                     str(enum_length) + ";\n"
@@ -984,12 +983,13 @@ class Generator:
                         str(self.dyn_size_idx) + "];\n")
                 if self.dyn_size_idx > 1:
                     f.write("    srand(time(NULL));\n")
-                    f.write("    dyn_size[0] = rand() % dyn_buffer;\n")
+                    f.write("    if(dyn_buffer == 0) dyn_size[0] = dyn_buffer; \n")
+                    f.write("    else dyn_size[0] = rand() % dyn_buffer; \n")
                     f.write("    size_t remain = dyn_size[0];\n")
                     f.write("    for(size_t i = 1; i< " +
                             str(self.dyn_size_idx) + " - 1; i++){\n")
-                    f.write(
-                        "        dyn_size[i] = rand() % (dyn_buffer - remain);\n")
+                    f.write("        if(dyn_buffer - remain == 0) dyn_size[i] = dyn_buffer - remain;\n")
+                    f.write("        else dyn_size[i] = rand() % (dyn_buffer - remain);\n")
                     f.write("        remain += dyn_size[i];\n")
                     f.write("    }\n")
                     f.write(
@@ -1014,12 +1014,13 @@ class Generator:
                         str(self.file_idx) + "];\n")
                 if self.file_idx > 1:
                     f.write("    srand(time(NULL));\n")
-                    f.write("    file_size[0] = rand() % file_buffer;\n")
+                    f.write("    if(file_buffer == 0) file_size[0] = file_buffer;\n")
+                    f.write("    else file_size[0] = rand() % file_buffer;\n")
                     f.write("    size_t remain = file_size[0];\n")
                     f.write("    for(size_t i = 1; i< " +
                             str(self.file_idx) + " - 1; i++){\n")
-                    f.write(
-                        "        file_size[i] = rand() % (file_buffer - remain);\n")
+                    f.write("        if(file_buffer - remain == 0) file_size[i] = file_buffer - remain;\n")
+                    f.write("        else file_size[i] = rand() % (file_buffer - remain));\n")
                     f.write("        remain += file_size[i];\n")
                     f.write("    }\n")
                     f.write(

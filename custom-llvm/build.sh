@@ -29,11 +29,21 @@ cp -r $vendors/json-3.10.5/single_include/nlohmann $custom_llvm/clang/include/
 
 set -x
 
-clanglibCMakeLists="CMakeLists.txt"
-ASTMatchFinderh="ASTMatchFinder.h"
-ASTMatchFindercpp="ASTMatchFinder.cpp"
-Checkerstd="Checkers.td"
-CheckerCMakeLists="CMakeLists.txt"
+llvmVersion=$(head -n 1 $custom_prepare/INFO)
+version=""
+
+if [ $llvmVersion == "LLVM=13.0.1" ]; then
+    version="13"
+fi
+if [ $llvmVersion == "LLVM=12.0.1" ]; then
+    version="12"
+fi
+
+clanglibCMakeLists="CMakeLists$version.txt"
+ASTMatchFinderh="ASTMatchFinder$version.h"
+ASTMatchFindercpp="ASTMatchFinder$version.cpp"
+Checkerstd="Checkers$version.td"
+CheckerCMakeLists="CMakeLists$version.txt"
 
 cp -r $futag_src/clang/include/clang/$ASTMatchFinderh $custom_llvm/clang/include/clang/ASTMatchers/ASTMatchFinder.h
 cp -r $futag_src/clang/lib/clang/$ASTMatchFindercpp $custom_llvm/clang/lib/ASTMatchers/ASTMatchFinder.cpp
@@ -47,9 +57,20 @@ cp $futag_src/Checkers/include/$Checkerstd $custom_llvm/clang/include/clang/Stat
 cp $futag_src/Checkers/lib/*.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
 cp -r $futag_src/Checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
 
-cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt;"  $custom_llvm/llvm
+if [ $llvmVersion == "LLVM=14.0.6" ]; then
+    cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt;"  $custom_llvm/llvm
 
-make -j8 && make -j8 install
+fi
+if [ $llvmVersion == "LLVM=13.0.1" ]; then
+    cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;compiler-rt;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host"  $custom_llvm/llvm
+
+fi
+if [ $llvmVersion == "LLVM=12.0.1" ]; then
+    cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;compiler-rt;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" $custom_llvm/llvm
+
+fi
+
+make -j16 && make -j16 install
 
 if [ -d $futag_install_folder/python-package ]
 then
