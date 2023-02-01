@@ -63,8 +63,6 @@ class FutagAnalyzer : public Checker<check::ASTDecl<TranslationUnitDecl>> {
     bool m_log_debug_message{false};
 
     mutable json m_call_context_info{};
-    mutable json m_sys_func_info{};
-    mutable json m_func_def_info{};
     mutable json m_func_decl_info{};
     mutable json m_types_info{};
     mutable json mIncludesInfo{};
@@ -116,9 +114,6 @@ class FutagAnalyzer : public Checker<check::ASTDecl<TranslationUnitDecl>> {
 
     // Full path to save the function declaration (in header files)
     mutable SmallString<0> func_decl_report_path{};
-
-    // Full path to save the function definitions
-    mutable SmallString<0> func_def_report_path{};
 
     // Full path to report that has information about structs, typedefs and
     // enums
@@ -343,9 +338,8 @@ void FutagAnalyzer::DetermineArgUsageInAST(
 FutagAnalyzer::FutagAnalyzer()
     : m_log_debug_message{std::getenv("FUTAG_FUNCTION_ANALYZER_DEBUG_LOG") !=
                           nullptr},
-      m_call_context_info{}, m_func_decl_info{}, m_func_def_info{},
-      m_sys_func_info{}, m_types_info{}, report_dir{}, context_report_path{},
-      func_decl_report_path{}, func_def_report_path{}, types_info_report_path{},
+      m_call_context_info{}, m_func_decl_info{}, m_types_info{}, report_dir{},
+      context_report_path{}, func_decl_report_path{}, types_info_report_path{},
       includesInfoReportPath{}, rand{} {
     m_types_info = {{"enums", json::array()},
                     {"typedefs", json::array()},
@@ -360,7 +354,6 @@ FutagAnalyzer::~FutagAnalyzer() {
     if (!m_call_context_info.empty()) {
         WriteInfoToTheFile(context_report_path, m_call_context_info);
     }
-    WriteInfoToTheFile(func_def_report_path, m_func_def_info);
     WriteInfoToTheFile(func_decl_report_path, m_func_decl_info);
     WriteInfoToTheFile(types_info_report_path, m_types_info);
     WriteInfoToTheFile(includesInfoReportPath, mIncludesInfo);
@@ -444,6 +437,11 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc())) {
         return;
     }
+    // If the provided function doesn't have a body or the function
+    // is a declaration (not a definition) -> skip this entry.
+    if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
+        return;
+    }
 
     FullSourceLoc func_begin_loc =
         Mgr.getASTContext().getFullLoc(func->getBeginLoc());
@@ -496,28 +494,10 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
             function_type = futag::_FUNC_GLOBAL;
         }
     }
-    bool is_declaration = false;
-
-    // If the provided function doesn't have a body or the function
-    // is a declaration (not a definition) -> skip this entry.
-    if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
-        // Collect information in header file for searching context in consummer
-        // programs or libraries
-        CollectBasicFunctionInfo(m_func_decl_info, func, Mgr,
-                                 curr_func_begin_loc, file_name, function_type,
-                                 parent_hash);
-    } else {
-        // Collect definition of functions in source file for analyzing
-        CollectBasicFunctionInfo(m_func_def_info, func, Mgr,
-                                 curr_func_begin_loc, file_name, function_type,
-                                 parent_hash);
-    }
-    // CollectAdvancedFunctionInfo(m_call_context_info, func, Mgr, file_name);
-    if (!is_declaration) {
-        // Collect advanced information about function calls inside current
-        // function
-        CollectAdvancedFunctionInfo(m_call_context_info, func, Mgr, file_name);
-    }
+    // Collect basic information about current function
+    CollectBasicFunctionInfo(m_func_decl_info, func, Mgr, curr_func_begin_loc,
+                             file_name, function_type, parent_hash);
+    CollectAdvancedFunctionInfo(m_call_context_info, func, Mgr, file_name);
     return;
 }
 
@@ -760,12 +740,6 @@ void ento::registerFutagAnalyzer(CheckerManager &Mgr) {
     sys::path::append(
         Chk->func_decl_report_path, Chk->report_dir,
         "declaration-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-            ".futag-analyzer.json");
-
-    Chk->func_def_report_path = "";
-    sys::path::append(
-        Chk->func_def_report_path, Chk->report_dir,
-        "definition-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
             ".futag-analyzer.json");
 
     Chk->types_info_report_path = "";

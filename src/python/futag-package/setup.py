@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
    name='futag',
-   version='1.3.2',
+   version='1.3.1',
    author='Futag-team of ISP RAS',
    author_email='thientcgithub@gmail.com',
    packages=['futag'],
