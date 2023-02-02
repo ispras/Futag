@@ -45,7 +45,6 @@ add_clang_library(clangStaticAnalyzerCheckers
   FuchsiaHandleChecker.cpp
   FutagAnalyzer.cpp
   FutagCatchInfo.cpp
-  FutagContextConsumer.cpp
   GCDAntipatternChecker.cpp
   GenericTaintChecker.cpp
   GTestChecker.cpp

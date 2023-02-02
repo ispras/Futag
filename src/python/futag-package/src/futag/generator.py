@@ -348,7 +348,6 @@ class Generator:
                     "unsigned int " + param_name + "_enum_index; \n",
                     "memcpy(&" + param_name +
                     "_enum_index, pos, sizeof(unsigned int));\n",
-                    # "enum " + enum_name + " " + param_name + " = " +
                     enum_name + " " + param_name + " = " +
                     param_name + "_enum_index % " +
                     str(enum_length) + ";\n"
@@ -497,8 +496,7 @@ class Generator:
                         self.curr_func_log += f"- Can not generate for object: {str(gen_type_info)}\n"
                         self.gen_this_function = False
                     else:
-                        compiler_info = self.__get_compile_command(
-                            self.curr_function["location"].split(':')[0])
+                        compiler_info = self.__get_compile_command(self.curr_function["location"]["fullpath"])
                         curr_gen = self.__gen_enum(
                             found_enum, curr_name, gen_type_info, compiler_info, self.gen_anonymous)
                         buffer_size += curr_gen["buffer_size"]
@@ -625,7 +623,7 @@ class Generator:
             # Search only simple function with the same return type
 
             compiler_info = self.__get_compile_command(
-                curr_function["location"].split(':')[0])
+                curr_function["location"]["fullpath"])
             compiler = compiler_info["compiler"]
 
             if f["gen_return_type"] and f["gen_return_type"][0]["type_name"] == param_gen_list[0]["type_name"] and f["is_simple"]:
@@ -763,7 +761,7 @@ class Generator:
                         self.gen_this_function = False
                     else:
                         compiler_info = self.__get_compile_command(
-                            func["location"].split(':')[0])
+                            func["location"]["fullpath"])
                         curr_gen = self.__gen_enum(
                             found_enum, curr_name, gen_type_info, compiler_info, self.gen_anonymous)
                         gen_dict["buffer_size"] += curr_gen["buffer_size"]
@@ -806,11 +804,6 @@ class Generator:
             " = " + func["qname"] + \
             "(" + ",".join(param_list)+");\n"
 
-        # !attempting free on address which was not malloc()-ed
-        #
-        # if func["return_type_pointer"]:
-        #     if func["return_type"].split(" ")[0] != "const" and not parent_func["return_type_pointer"]:
-        #         curr_gen_free += ["if(" + param_name+ ") free("+param_name+");\n"]
         gen_dict["gen_lines"] += [function_call]
         return gen_dict
 
@@ -823,7 +816,7 @@ class Generator:
         filename = func["qname"]
         filepath = self.tmp_output_path
 
-        self.target_extension = func["location"].split(":")[-2].split(".")[-1]
+        self.target_extension = func["location"]["fullpath"].split(".")[-1]
         file_index = 1
 
         # qname = func["qname"]
@@ -958,11 +951,11 @@ class Generator:
                 print(CANNOT_CREATE_WRAPPER_FILE, func["qname"])
                 return False
             print(WRAPPER_FILE_CREATED, f.name)
-            for line in self.__gen_header(func["location"].split(':')[0]):
+            for line in self.__gen_header(func["location"]["fullpath"]):
                 f.write(line)
             f.write('\n')
             compiler_info = self.__get_compile_command(
-                func["location"].split(':')[0])
+                func["location"]["fullpath"])
 
             if self.target_type == LIBFUZZER:
                 if compiler_info["compiler"] == "CC":
@@ -990,12 +983,13 @@ class Generator:
                         str(self.dyn_size_idx) + "];\n")
                 if self.dyn_size_idx > 1:
                     f.write("    srand(time(NULL));\n")
-                    f.write("    dyn_size[0] = rand() % dyn_buffer;\n")
+                    f.write("    if(dyn_buffer == 0) dyn_size[0] = dyn_buffer; \n")
+                    f.write("    else dyn_size[0] = rand() % dyn_buffer; \n")
                     f.write("    size_t remain = dyn_size[0];\n")
                     f.write("    for(size_t i = 1; i< " +
                             str(self.dyn_size_idx) + " - 1; i++){\n")
-                    f.write(
-                        "        dyn_size[i] = rand() % (dyn_buffer - remain);\n")
+                    f.write("        if(dyn_buffer - remain == 0) dyn_size[i] = dyn_buffer - remain;\n")
+                    f.write("        else dyn_size[i] = rand() % (dyn_buffer - remain);\n")
                     f.write("        remain += dyn_size[i];\n")
                     f.write("    }\n")
                     f.write(
@@ -1020,12 +1014,13 @@ class Generator:
                         str(self.file_idx) + "];\n")
                 if self.file_idx > 1:
                     f.write("    srand(time(NULL));\n")
-                    f.write("    file_size[0] = rand() % file_buffer;\n")
+                    f.write("    if(file_buffer == 0) file_size[0] = file_buffer;\n")
+                    f.write("    else file_size[0] = rand() % file_buffer;\n")
                     f.write("    size_t remain = file_size[0];\n")
                     f.write("    for(size_t i = 1; i< " +
                             str(self.file_idx) + " - 1; i++){\n")
-                    f.write(
-                        "        file_size[i] = rand() % (file_buffer - remain);\n")
+                    f.write("        if(file_buffer - remain == 0) file_size[i] = file_buffer - remain;\n")
+                    f.write("        else file_size[i] = rand() % (file_buffer - remain));\n")
                     f.write("        remain += file_size[i];\n")
                     f.write("    }\n")
                     f.write(
@@ -1175,7 +1170,7 @@ class Generator:
                         gen_curr_param = False
                     else:
                         compiler_info = self.__get_compile_command(
-                            func["location"].split(':')[0])
+                            func["location"]["fullpath"])
                         curr_gen = self.__gen_enum(
                             found_enum, curr_name, gen_type_info, compiler_info, self.gen_anonymous)
                         self.__append_gen_dict(curr_gen)
@@ -1532,7 +1527,7 @@ class Generator:
             if not len(search_curr_func):
                 continue
             current_func = search_curr_func[0]
-            func_file_location = current_func["location"].split(':')[0]
+            func_file_location = current_func["location"]["fullpath"]
             compiler_info = self.__get_compile_command(func_file_location)
             include_subdir = []
 
@@ -1664,59 +1659,12 @@ class Generator:
             + " fuzz-driver(s)\n"
         )
 
-    # def gen_from_callstack(self, jsonfile: str):
-    #     if not pathlib.Path(jsonfile).absolute().exists():
-    #         raise ValueError("File \"%s\" does not exist!" % jsonfile)
-        
-    #     natch = json.load(open(jsonfile))
-    #     if not natch:
-    #         raise ValueError(COULD_NOT_PARSE_NATCH_CALLSTACK)
-
-    #     # get the line number 
-    #     natch_location_split = natch["location"].split(":")
-    #     line = natch_location_split[-1]
-
-    #     # get the file name 
-    #     natch_location_split.pop()
-    #     path = ":".join(natch_location_split)
-    #     file = path.split("/")[-1]
-
-    #     location = {
-    #             "file": file,
-    #             "line": line
-    #         }
-
-    #     callstacks = []
-    #     for cs in  natch["callstack"]:
-    #         tmp_callstack = []
-    #         for c in cs:
-    #             # get the line number 
-    #             callstack_location_split = c["location"].split(":")
-    #             if not callstack_location_split:
-    #                 break
-    #             line = callstack_location_split[-1]
-    #             callstack_location_split.pop()
-
-    #             # get the file name 
-    #             path = ":".join(callstack_location_split)
-    #             file = path.split("/")[-1]
-
-    #             tmp_callstack.append({
-    #                 "function_name": c["function_name"],
-    #                 "location":{
-    #                     "file": file,
-    #                     "line": line
-    #                 }
-    #             })
-    #         callstacks.append(tmp_callstack)
-
-    #     target = {
-    #         "qname": natch["function_qualified_name"],
-    #         "location": location,
-    #         "callstack": callstacks
-    #     }
-    #     found_function = None
-    #     for func in self.target_library["functions"]:
-
-    #         if func["qname"] == target["qname"]:
-    #             found_function = func
+    def gen_targets_from_callstack(self, target):
+        found_function = None
+        for func in self.target_library["functions"]:
+            # if func["qname"] == target["qname"] and func["location"]["line"] == target["location"]["line"]and func["location"]["line"]["file"]== target["location"]["line"]:
+            if func["qname"] == target["qname"]:
+                found_function = func
+                self.__gen_target_function(func, 0)
+        if not found_function:
+            raise ValueError("Function \"%s\" not found in library!" % target["qname"])

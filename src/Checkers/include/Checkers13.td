@@ -248,7 +248,7 @@ let ParentPackage = Futag in {
     ]>,
     Documentation<NotDocumented>;
 
-    def FutagContextConsumer : Checker<"FutagContextConsumer">,
+    def FutagCatchInfo : Checker<"FutagCatchInfo">,
     HelpText<"Checker for finding context in consumer libraries.">,
     CheckerOptions<[
         CmdLineOption<String,
@@ -257,14 +257,14 @@ let ParentPackage = Futag in {
                     "main",
                     Released>,
         CmdLineOption<Integer,
-                    "LineNumber",
-                    "Line number",
-                    "main",
+                    "Beginline",
+                    "Begin line",
+                    "0",
                     Released>,
         CmdLineOption<Integer,
-                    "ColNumber",
-                    "Column number",
-                    "main",
+                    "EndLine",
+                    "End line",
+                    "0",
                     Released>,
     ]>,
     Documentation<NotDocumented>;
