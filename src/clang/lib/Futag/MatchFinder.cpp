@@ -142,9 +142,10 @@ void FutagMatchCallExprCallBack::HandleDeclRefExpr(const DeclRefExpr *arg,
 
     MatchFinder Finder;
     const auto matched_vardecl =
-        varDecl(hasName(arg->getDecl()->getNameAsString()),
-                hasDescendant(declRefExpr(
-                    to(functionDecl())).bind("FutagVarDeclArgCall")))
+        varDecl(
+            hasName(arg->getDecl()->getNameAsString()),
+            hasDescendant(
+                declRefExpr(to(functionDecl())).bind("FutagVarDeclArgCall")))
             .bind("FutagVarDeclArgName");
 
     const auto matched_binaryoperator =
@@ -156,8 +157,8 @@ void FutagMatchCallExprCallBack::HandleDeclRefExpr(const DeclRefExpr *arg,
 
     futag::FutagMatchBinOperatorArgCallBack search_binop_arg_init{
         Mgr, curr_node, arg, curr_arg_context};
-    futag::FutagMatchVarDeclArgCallBack search_vardecl_arg_init{Mgr, curr_node,
-                                                                arg, curr_arg_context};
+    futag::FutagMatchVarDeclArgCallBack search_vardecl_arg_init{
+        Mgr, curr_node, arg, curr_arg_context};
     Finder.addMatcher(matched_binaryoperator, &search_binop_arg_init);
     Finder.addMatcher(matched_vardecl, &search_vardecl_arg_init);
     Finder.futagMatchAST(Mgr.getASTContext(), curr_node);
