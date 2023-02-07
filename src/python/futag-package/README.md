@@ -20,7 +20,7 @@ This python package is for building library, generating and compiling fuzz-drive
 ## 1. Install
 
 ```bash 
-pip install dist/futag-1.3.tar.gz
+pip install dist/futag-1.3.1.tar.gz
 ```
 
 ## 2. Preprocessor

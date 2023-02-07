@@ -45,57 +45,57 @@ namespace {
 AST_MATCHER(BinaryOperator, isAssignmentOp) { return Node.isAssignmentOp(); }
 
 AST_MATCHER(UnaryOperator, isIncrementDecrementOp) {
-  return Node.isIncrementDecrementOp();
+    return Node.isIncrementDecrementOp();
 }
 
 class FutagCatchInfo : public Checker<check::ASTDecl<FunctionDecl>> {
-public:
-  string FuncName = "";
-  unsigned int BeginLine = 0;
-  unsigned int EndLine = 0;
-  void checkASTDecl(const FunctionDecl *D, AnalysisManager &Mgr,
-                    BugReporter &BR) const;
+  public:
+    string FuncName = "";
+    unsigned int BeginLine = 0;
+    unsigned int EndLine = 0;
+    void checkASTDecl(const FunctionDecl *D, AnalysisManager &Mgr,
+                      BugReporter &BR) const;
 };
 
 } // namespace
 
 void FutagCatchInfo::checkASTDecl(const FunctionDecl *func,
                                   AnalysisManager &Mgr, BugReporter &BR) const {
-  if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc()) ||
-      !func->hasBody()) {
-    return;
-  }
-  MatchFinder Finder;
+    if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc()) ||
+        !func->hasBody()) {
+        return;
+    }
+    MatchFinder Finder;
 
-  if (func->getNameAsString() != this->FuncName)
-    return;
-  clang::LangOptions lo;
-  string out_str;
-  llvm::raw_string_ostream outstream(out_str);
+    if (func->getNameAsString() != this->FuncName)
+        return;
+    clang::LangOptions lo;
+    string out_str;
+    llvm::raw_string_ostream outstream(out_str);
 
-  // auto MatchFuncCall = stmt().bind("stmt");
-  auto MatchFuncCall = declRefExpr().bind("declRefExpr");
-  Stmt *CurrentNode = func->getBody();
-  futag::FutagCatchInfoCallBack statementMatchCallBack{Mgr, func, BeginLine,
-                                                     EndLine};
-  llvm::outs() << "-- Begin line: " << statementMatchCallBack.BeginLine << "\n";
-  llvm::outs() << "-- End line: " << statementMatchCallBack.EndLine << "\n";
+    // auto MatchFuncCall = stmt().bind("stmt");
+    auto MatchFuncCall = declRefExpr().bind("declRefExpr");
+    Stmt *CurrentNode = func->getBody();
+    futag::FutagCatchInfoCallBack statementMatchCallBack{Mgr, func, BeginLine,
+                                                         EndLine};
+    llvm::outs() << "-- Begin line: " << statementMatchCallBack.BeginLine
+                 << "\n";
+    llvm::outs() << "-- End line: " << statementMatchCallBack.EndLine << "\n";
 
-  Finder.addMatcher(MatchFuncCall, &statementMatchCallBack);
-  Finder.futagMatchAST(Mgr.getASTContext(), CurrentNode);
-
+    Finder.addMatcher(MatchFuncCall, &statementMatchCallBack);
+    Finder.futagMatchAST(Mgr.getASTContext(), CurrentNode);
 }
 
 void ento::registerFutagCatchInfo(CheckerManager &Mgr) {
-  auto *Chk = Mgr.registerChecker<FutagCatchInfo>();
-  Chk->FuncName = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
-      Mgr.getCurrentCheckerName(), "FuncName"));
-  Chk->BeginLine = Mgr.getAnalyzerOptions().getCheckerIntegerOption(
-      Mgr.getCurrentCheckerName(), "BeginLine");
-  Chk->EndLine = Mgr.getAnalyzerOptions().getCheckerIntegerOption(
-      Mgr.getCurrentCheckerName(), "EndLine");
+    auto *Chk = Mgr.registerChecker<FutagCatchInfo>();
+    Chk->FuncName = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
+        Mgr.getCurrentCheckerName(), "FuncName"));
+    Chk->BeginLine = Mgr.getAnalyzerOptions().getCheckerIntegerOption(
+        Mgr.getCurrentCheckerName(), "BeginLine");
+    Chk->EndLine = Mgr.getAnalyzerOptions().getCheckerIntegerOption(
+        Mgr.getCurrentCheckerName(), "EndLine");
 }
 
 bool ento::shouldRegisterFutagCatchInfo(const CheckerManager &mgr) {
-  return true;
+    return true;
 }

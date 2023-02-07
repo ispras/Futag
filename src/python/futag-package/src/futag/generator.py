@@ -429,9 +429,11 @@ class Generator:
         gen_free = []
         buffer_size = []
         field_id = 0
+        
         for field in struct["fields"]:
             curr_name = field["field_name"]
             for gen_type_info in field["gen_list"]:
+                this_gen_size = False
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
                     if field_id > 0 and (struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING]):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
@@ -1248,12 +1250,12 @@ class Generator:
                         else:
                             found_struct = None
                             for record in self.target_library["records"]:
-                                if record["type"] == STRUCT_RECORD and record["name"] == curr_param["gen_list"][0]["type_name"].split(" ")[1] and record["is_simple"]:
+                                if len(curr_param["gen_list"][0]["type_name"].split(" ")) > 1 and record["type"] == STRUCT_RECORD and record["name"] == curr_param["gen_list"][0]["type_name"].split(" ")[1] and record["is_simple"]:
                                     found_struct = record
                                     break
                             if found_struct:
                                 curr_gen = self.__gen_struct(
-                                    curr_name, record, gen_type_info)
+                                    curr_name, record, curr_param["gen_list"][0])
                                 self.__append_gen_dict(curr_gen)
                             else:
                                 _tmp = curr_param["gen_list"][0]
