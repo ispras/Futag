@@ -61,3 +61,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Fix errors while compiling AFL++, return coverage parameters
 - Fix Readme
 - change LLVM_ENABLE_ZLIB to ON
+
+## 20230214
+- Add is_simple for 4consummer_analysis_db
+- Add CFG and DFC analysis
+- Add Fuzzer extra params support

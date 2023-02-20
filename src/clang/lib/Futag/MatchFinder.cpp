@@ -191,7 +191,7 @@ void FutagMatchCallExprCallBack::HandleFloatingLiteral(
 void FutagMatchCallExprCallBack::HandleImaginaryLiteral(
     const ImaginaryLiteral *arg, json &curr_arg_context) {
     curr_arg_context["futag_type"] = FutagType::ConstValStr();
-    // curr_arg_context["literal_value"] = arg->get;
+    curr_arg_context["literal_value"] = "";
 }
 
 void FutagMatchCallExprCallBack::HandleIntegerLiteral(const IntegerLiteral *arg,
@@ -222,7 +222,7 @@ void FutagMatchCallExprCallBack::HandleCallExpr(const CallExpr *arg,
         arg->printPretty(rso, nullptr, Mgr.getASTContext().getPrintingPolicy());
 
         llvm::errs() << __func__
-                     << " - Cannot get direct callee: " + rso.str() + " " +
+                     << " - Cannot get direct callee: " + rso.str() + ", location: " +
                             callExprLoc.printToString(Mgr.getSourceManager()) +
                             "\n";
         return;
@@ -325,6 +325,7 @@ void FutagMatchCallExprCallBack::run(const MatchFinder::MatchResult &Result) {
             if (const auto *arg =
                     dyn_cast<DeclRefExpr>(implicitArg->IgnoreParenImpCasts())) {
                 HandleDeclRefExpr(arg, curr_arg_context);
+            }else if (HandleLiterals(callExpr->getArg(i)->IgnoreParenCasts(), curr_arg_context)){
             }
         }
 

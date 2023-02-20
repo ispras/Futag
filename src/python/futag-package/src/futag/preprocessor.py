@@ -17,9 +17,10 @@ import json
 import pathlib
 import os
 import re
+import sys
 
 from futag.sysmsg import *
-from subprocess import Popen, PIPE, run
+from subprocess import Popen, PIPE
 
 
 def delete_folder(pth):
@@ -67,7 +68,7 @@ class Builder:
         try:
             processes = int(processes)
             if processes < 0:
-                raise ValueError(INVALID_INPUT_PROCESSES)
+                sys.exit(INVALID_INPUT_PROCESSES)
         except ValueError:
             print(INVALID_INPUT_PROCESSES)
         self.processes = processes
@@ -76,12 +77,12 @@ class Builder:
             self.futag_llvm_package = pathlib.Path(
                 self.futag_llvm_package).absolute()
         else:
-            raise ValueError(INVALID_FUTAG_PATH, futag_llvm_package)
+            sys.exit(INVALID_FUTAG_PATH, futag_llvm_package)
 
         if pathlib.Path(library_root).absolute().exists():
             self.library_root = pathlib.Path(self.library_root).absolute()
         else:
-            raise ValueError(INVALID_LIBPATH)
+            sys.exit(INVALID_LIBPATH)
 
         if (self.library_root / build_path).exists() and clean:
             delete_folder(self.library_root / build_path)
@@ -149,7 +150,7 @@ class Builder:
         my_env = os.environ.copy()
         print(LIB_ANALYSIS_STARTED)
         if self.build_path.resolve() == self.library_root.resolve():
-            raise ValueError(CMAKE_PATH_ERROR)
+            sys.exit(CMAKE_PATH_ERROR)
 
         my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
@@ -182,7 +183,7 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_CONFIGURE_FAILED)
+            sys.exit(LIB_CONFIGURE_FAILED)
         else:
             print(LIB_CONFIGURE_SUCCEEDED)
         curr_dir = os.getcwd()
@@ -218,7 +219,7 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_ANALYZING_FAILED)
+            sys.exit(LIB_ANALYZING_FAILED)
         else:
             print(LIB_ANALYZING_SUCCEEDED)
 
@@ -253,7 +254,7 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_CONFIGURE_FAILED)
+            sys.exit(LIB_CONFIGURE_FAILED)
         else:
             print(output)
             print(LIB_CONFIGURE_SUCCEEDED)
@@ -346,7 +347,7 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_CONFIGURE_FAILED)
+            sys.exit(LIB_CONFIGURE_FAILED)
 
         # Analyzing the library
         analysis_command = [
@@ -378,7 +379,7 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_ANALYZING_FAILED)
+            sys.exit(LIB_ANALYZING_FAILED)
         else:
             print(LIB_ANALYZING_SUCCEEDED)
 
@@ -419,7 +420,7 @@ class Builder:
         print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_CONFIGURE_FAILED)
+            sys.exit(LIB_CONFIGURE_FAILED)
         else:
             print(output)
             print(LIB_CONFIGURE_SUCCEEDED)
@@ -445,7 +446,7 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_BUILD_FAILED)
+            sys.exit(LIB_BUILD_FAILED)
         else:
             print(output)
             print(LIB_BUILD_SUCCEEDED)
@@ -460,7 +461,7 @@ class Builder:
         if p.returncode:
             print(LIB_INSTALL_COMMAND, " ".join(p.args))
             print(errors)
-            raise ValueError(LIB_INSTALL_FAILED)
+            sys.exit(LIB_INSTALL_FAILED)
         else:
             print(output)
             print(LIB_INSTALL_SUCCEEDED)
@@ -510,7 +511,7 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_ANALYZING_FAILED)
+            # sys.exit(LIB_ANALYZING_FAILED)
         else:
             print(LIB_ANALYZING_SUCCEEDED)
 
@@ -551,7 +552,7 @@ class Builder:
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
-            raise ValueError(LIB_BUILD_FAILED)
+            # sys.exit(LIB_BUILD_FAILED)
         else:
             print(output)
             print(LIB_BUILD_SUCCEEDED)
@@ -567,7 +568,7 @@ class Builder:
         if p.returncode:
             print(LIB_INSTALL_COMMAND, " ".join(p.args))
             print(errors)
-            raise ValueError(LIB_INSTALL_FAILED)
+            # sys.exit(LIB_INSTALL_FAILED)
         else:
             print(output)
             print(LIB_INSTALL_SUCCEEDED)
@@ -772,6 +773,7 @@ class Builder:
             fdecl = {
                 "name": function_list[func]["name"],
                 "qname": function_list[func]["qname"],
+                "is_simple": function_list[func]["is_simple"],
                 "return_type": function_list[func]["return_type"],
                 "params": function_list[func]["params"],
                 "location": location,

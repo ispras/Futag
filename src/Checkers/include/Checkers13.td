@@ -248,6 +248,22 @@ let ParentPackage = Futag in {
     ]>,
     Documentation<NotDocumented>;
 
+    def FutagConsummerAnalyzer : Checker<"FutagConsummerAnalyzer">,
+    HelpText<"Futag Checker for finding potential fuzzing functions. Use scan-build for viewing result and generating list of needed function">,
+    CheckerOptions<[
+        CmdLineOption<String,
+                    "report_dir",
+                    "Absolute path to the directory, where to write results of the analyzis",
+                    "/tmp/futag-function-analyzer-reports/",
+                    Released>,
+        CmdLineOption<String,
+                    "db_file",
+                    "Absolute path to the json db file, which contains results of the analyzis",
+                    "",
+                    Released>,
+    ]>,
+    Documentation<NotDocumented>;
+
     def FutagCatchInfo : Checker<"FutagCatchInfo">,
     HelpText<"Checker for finding context in consumer libraries.">,
     CheckerOptions<[
