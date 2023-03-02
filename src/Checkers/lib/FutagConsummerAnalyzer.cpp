@@ -87,8 +87,11 @@ class FutagConsummerAnalyzer
                     const StringRef report_path) const;
 
     void FindAllCFGPaths(const CFG *cfg, CFGBlock cfg_block, FutagGraph &fgraph,
-                         FutagPath &curr_paths,
+                         FutagPath &curr_path,
                          std::vector<FutagPath> &all_cfg_paths) const;
+    // void SearchContextInCFGPath(std::string var_name, CFGBlock cfg_block,
+    //                             FutagPath &curr_path,
+    //                             FutagContext &curr_context) const;
 
   public:
     std::string report_dir = "";
@@ -132,6 +135,7 @@ class FutagConsummerAnalyzer
 };
 
 } // namespace
+
 void FutagConsummerAnalyzer::WriteInfoToTheFile(
     const StringRef t_curr_report_path, json &tState) const {
 
@@ -163,27 +167,41 @@ void FutagConsummerAnalyzer::WriteInfoToTheFile(
                          t_curr_report_path.str() + "!";
     }
 }
+
+// /**
+//  * @brief
+//  *
+//  * @param var_name
+//  * @param cfg_block
+//  * @param curr_path
+//  */
+// void SearchContextInCFGPath(std::string var_name, CFGBlock cfg_block,
+//                             FutagPath &curr_path,
+//                             FutagContext &curr_context) const {
+
+//                             }
+
 /**
- * @brief This function searches for all paths in the CFG of analyzed function
- * recursively
+ * @brief This function searches for all paths in the CFG of analyzed
+ * function recursively
  *
  * @param cfg           The Control Flow graph of analyzed function
  * @param cfg_block     Represents for current node in CFG
  * @param fgraph        The generated graph of CFG (set of edges and nodes)
- * @param curr_paths    saves the current discovered path
+ * @param curr_path    saves the current discovered path
  * @param all_cfg_paths saves all discovered paths
  */
 void FutagConsummerAnalyzer::FindAllCFGPaths(
     const CFG *cfg, CFGBlock cfg_block, FutagGraph &fgraph,
-    FutagPath &curr_paths, std::vector<FutagPath> &all_cfg_paths) const {
+    FutagPath &curr_path, std::vector<FutagPath> &all_cfg_paths) const {
 
     if (cfg_block.getBlockID() == cfg->getExit().getBlockID()) {
-        curr_paths.insert(curr_paths.end(), cfg_block.getBlockID());
-        all_cfg_paths.insert(all_cfg_paths.end(), curr_paths);
+        // curr_path.insert(curr_path.end(), cfg_block.getBlockID());
+        all_cfg_paths.insert(all_cfg_paths.end(), curr_path);
     } else {
-        curr_paths.insert(curr_paths.end(), cfg_block.getBlockID());
+
         // llvm::outs()<< "Current path:\n";
-        // for(auto i : curr_paths){
+        // for(auto i : curr_path){
         //     llvm::outs()<< i << " ";
         // }
         // llvm::outs()<< "\n";
@@ -191,9 +209,11 @@ void FutagConsummerAnalyzer::FindAllCFGPaths(
             if (!succ)
                 continue;
             FutagEdge tmp = {cfg_block.getBlockID(), succ->getBlockID()};
-            if (std::find(fgraph.begin(), fgraph.end(), &tmp) == fgraph.end()) {
+            if (std::find(fgraph.begin(), fgraph.end(), tmp) == fgraph.end()) {
                 fgraph.insert(fgraph.end(), tmp);
-                FindAllCFGPaths(cfg, *succ, fgraph, curr_paths, all_cfg_paths);
+                curr_path.insert(curr_path.end(), succ->getBlockID());
+                FindAllCFGPaths(cfg, *succ, fgraph, curr_path, all_cfg_paths);
+                curr_path.erase(curr_path.end() - 1);
                 fgraph.erase(fgraph.end() - 1);
             }
         }
@@ -201,14 +221,14 @@ void FutagConsummerAnalyzer::FindAllCFGPaths(
 }
 
 /**
- * @brief This function generates information of Control Flow graph: the graph
- * with edges and nodes, all the paths in this graph
+ * @brief This function generates information of Control Flow graph: the
+ * graph with edges and nodes, all the paths in this graph
  *
  * @param Mgr           The Analysis manager
  * @param cfg           The Control Flow graph of analyzed function
  * @param func          The analyzed function
- * @param report_path   The system path for saving files: .dot for the graphviz
- * format, and .raw for raw data of CFG
+ * @param report_path   The system path for saving files: .dot for the
+ * graphviz format, and .raw for raw data of CFG
  */
 void FutagConsummerAnalyzer::GenCFGInfo(AnalysisManager &Mgr, CFG *cfg,
                                         const FunctionDecl *func,
@@ -221,7 +241,7 @@ void FutagConsummerAnalyzer::GenCFGInfo(AnalysisManager &Mgr, CFG *cfg,
     std::string graphviz_filename = report_path.str() +
                                     func->getNameAsString() + "-" +
                                     curr_func_hash + "-graphviz.dot";
-    llvm::outs() << "Graph file: " << graphviz_filename << "\n";
+    // llvm::outs() << "Graph file: " << graphviz_filename << "\n";
     if (sys::fs::exists(cfg_raw_filename) &&
         sys::fs::exists(graphviz_filename)) {
         return;
@@ -284,24 +304,6 @@ void FutagConsummerAnalyzer::GenCFGInfo(AnalysisManager &Mgr, CFG *cfg,
     }
     graphviz_file << "}";
     graphviz_file.close();
-    fgraph.clear();
-    FutagPath curr_path;
-    FindAllCFGPaths(cfg, cfg->getEntry(), fgraph, curr_path, all_cfg_paths);
-    std::string paths_filename = report_path.str() + func->getNameAsString() +
-                                 "-" + curr_func_hash + "-path.raw";
-    std::fstream paths_report(paths_filename, std::ios::out);
-    if (!paths_report.is_open()) {
-        std::cerr << " -> Cannot write to the file: " + paths_filename + "!\n";
-        return;
-    }
-
-    for (auto path : all_cfg_paths) {
-        for (auto i : path) {
-            paths_report << i << " ";
-        }
-        paths_report << "\n";
-    }
-    paths_report.close();
 }
 
 FutagConsummerAnalyzer::FutagConsummerAnalyzer()
@@ -340,8 +342,8 @@ void FutagConsummerAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
         string include_path =
             utils::PathProcessor::RemoveUnnecessaryPathComponents(
                 it->first->getName().str());
-        // include_path[0] != '/' - is probably an awfully bad check to avoid
-        // system headers, but I couldn't find any way around
+        // include_path[0] != '/' - is probably an awfully bad check to
+        // avoid system headers, but I couldn't find any way around
         if (includeLoc.isValid() && sm.isInMainFile(includeLoc)) {
             mIncludesInfo["includes"].push_back(include_path);
         }
@@ -399,82 +401,270 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
         file_name = fe->tryGetRealPathName().str();
     }
     MatchFinder Finder;
+    const auto matched_binaryoperator =
+        binaryOperator(
+            isAssignmentOperator(),
+            hasLHS(declRefExpr(to(varDecl().bind("VarName")))),
+            hasRHS(hasDescendant(
+                declRefExpr(to(functionDecl().bind("TargetFunctionCall")))
+                    .bind("DeclRefExpr"))))
+            .bind("FutagBinOpArg");
+    const auto matched_vardecl =
+        varDecl(hasDescendant(
+                    declRefExpr(to(functionDecl().bind("TargetFunctionCall")))
+                        .bind("DeclRefExpr")))
+            .bind("FutagVarDecl");
+
     // Match all CallExpression of target function
-    auto matcher_callexpr =
+    const auto matcher_callexpr =
         callExpr(callee(functionDecl())).bind("FunctionCallee");
+
     // callExpr(anyOf(callExpr(callee(functionDecl())).bind("FunctionCallee"),
     //                callExpr(hasDescendant(declRefExpr(to(functionDecl()))))
     //                    .bind("DeclRefExpr")));
     // Callback to match call-expresions in Function Body
-    Stmt *curr_node = func->getBody();
-    std::vector<const CallExpr *> matched_call_expr;
 
-    futag::FutagMatchConsummerCallExprCallBack target_func_call_callback{
-        Mgr,               // Analysis manager
-        func,              // Function
-        matched_call_expr, // result - matched call expressions
-        analysis_jdb       // Analysis database
+    Stmt *curr_search_node = func->getBody();
+
+    std::map<const VarDecl *, const CallExpr *> matched_init_contexts;
+
+    // Save init context of argument
+    std::map<std::string, FutagCallContext> call_contexts;
+
+    // init_contexts;
+
+    futag::FutagMatchInitCallExprCB target_func_call_callback{
+        Mgr,                   // Analysis manager
+        func,                  // Function
+        matched_init_contexts, // result - matched call expressions
+        analysis_jdb           // Analysis database
     };
-    Finder.addMatcher(matcher_callexpr, &target_func_call_callback);
-    Finder.futagMatchAST(Mgr.getASTContext(), curr_node);
+    Finder.addMatcher(matched_binaryoperator, &target_func_call_callback);
+    Finder.addMatcher(matched_vardecl, &target_func_call_callback);
+    Finder.futagMatchAST(Mgr.getASTContext(), curr_search_node);
 
-    if (matched_call_expr.size()) {
+    if (matched_init_contexts.size()) {
+        llvm::outs() << "[Futag]: Analyzing function \""
+                     << func->getNameAsString() << "\"\n";
         // Build the CFG of current function
         CFG *cfg = Mgr.getCFG(func);
-        if (!cfg)
+        if (!cfg) {
+            llvm::outs() << "-- Empty CFG for function: "
+                         << func->getNameAsString() << "\n";
             return;
+        }
+
+        std::string curr_func_hash = std::to_string(
+            futag::utils::ODRHashCalculator::CalculateHash(func));
+
         GenCFGInfo(Mgr, cfg, func, report_path);
-        llvm::outs() << "`Total matched call expressions: "
-                     << matched_call_expr.size() << "\n";
-        for (const CallExpr *iter : matched_call_expr) {
+
+        FutagPath result_path;
+        result_path.insert(result_path.end(), cfg->getEntry().getBlockID());
+        FutagGraph fgraph;
+        FindAllCFGPaths(cfg, cfg->getEntry(), fgraph, result_path,
+                        all_cfg_paths);
+
+        std::string paths_filename = report_path.c_str() +
+                                     func->getNameAsString() + "-" +
+                                     curr_func_hash + "-path.raw";
+
+        std::fstream paths_report(paths_filename, std::ios::out);
+        if (!paths_report.is_open()) {
+            std::cerr << " -> Cannot write to the file: " + paths_filename +
+                             "!\n";
+            return;
+        }
+
+        for (auto path : all_cfg_paths) {
+            for (auto i : path) {
+                paths_report << i << " ";
+            }
+            paths_report << "\n";
+        }
+        paths_report.close();
+
+        // llvm::outs() << "`Total matched call expressions: "
+        //              << matched_init_contexts.size() << "\n";
+        for (const auto &[var, callexpr] : matched_init_contexts) {
+            std::vector<FutagInitVarDeclCallExpr> init_calls;
+
             clang::LangOptions lo;
             std::string stmt_str;
             llvm::raw_string_ostream rso_stmt(stmt_str);
-            iter->printPretty(rso_stmt, NULL,
-                              Mgr.getASTContext().getPrintingPolicy());
-
-            ParentMap parent_map = ParentMap(func->getBody());
+            callexpr->printPretty(rso_stmt, NULL,
+                                  Mgr.getASTContext().getPrintingPolicy());
+            // llvm::outs() << " -- variable: \"" << var->getNameAsString()
+            //              << "\",";
+            // llvm::outs() << " callexpr: \"" << stmt_str << "\"\n";
 
             //  Match the CFGStmtMap
+            ParentMap parent_map = ParentMap(func->getBody());
             auto *cfg_stmt_map = CFGStmtMap::Build(cfg, &parent_map);
-            const CFGBlock *stmt_block = cfg_stmt_map->getBlock(iter);
-            llvm::outs() << " |-- CallExpr: " << stmt_str
-                         << "; of block: " << stmt_block->getBlockID() << "\n";
+            const CFGBlock *stmt_block = cfg_stmt_map->getBlock(callexpr);
+            // llvm::outs() << " |-- CallExpr: " << stmt_str
+            //              << "; of block: " << stmt_block->getBlockID() <<
+            //              "\n";
+            FutagCallExprInfo init_call_expr =
+                GetCallExprInfo(callexpr, cfg_stmt_map, Mgr);
 
-            // for (uint32_t i = 0; i < iter->getNumArgs(); i++) {
-            //     if (const auto *callExprArg =
-            //             dyn_cast<CallExpr>(iter->getArg(i))) {
-            //         // Handle CallExpr inside argument list of target function
-            //         // call
-            //         HandleCallExpr(callExprArg, curr_arg_context);
-            //     } else if (const auto *declRefExpr =
-            //                    dyn_cast<DeclRefExpr>(iter->getArg(i))) {
-            //         HandleDeclRefExpr(declRefExpr, curr_arg_context);
-            //     } else if (HandleLiterals(iter->getArg(i),
-            //                               curr_arg_context)) {
-            //     } else if (const auto *implicitArg = dyn_cast<ImplicitCastExpr>(
-            //                    iter->getArg(i))) {
-            //         if (const auto *arg = dyn_cast<DeclRefExpr>(
-            //                 implicitArg->IgnoreParenImpCasts())) {
-            //             HandleDeclRefExpr(arg, curr_arg_context);
-            //         } else if (HandleLiterals(
-            //                        iter->getArg(i)->IgnoreParenCasts(),
-            //                        curr_arg_context)) {
-            //         }
-            //     }
-            // }
+            FutagInitVarDeclCallExpr curr_init{var->getNameAsString(),
+                                               init_call_expr};
+            init_calls.insert(init_calls.begin(), curr_init);
+            for (auto curr_analyzed_path : all_cfg_paths) {
+                // Find all paths, which contains BlockID
+                auto curr_analyzed_pos = std::find(curr_analyzed_path.begin(),
+                                                   curr_analyzed_path.end(),
+                                                   stmt_block->getBlockID());
 
-            // llvm::outs() << " `- Paths found:\n";
-            // for (auto path : all_cfg_paths) {
-            //     if (std::find(path.begin(), path.end(),
-            //                   stmt_block->getBlockID()) != path.end()) {
-            //         llvm::outs() << "    [ ";
-            //         for (auto node : path) {
-            //             llvm::outs() << node << " ";
-            //         }
-            //         llvm::outs() << "]\n";
-            //     }
-            // }
+                if (curr_analyzed_pos == curr_analyzed_path.end())
+                    continue;
+
+                FutagPath curr_context_path = {stmt_block->getBlockID()};
+                // For each argument, if argument is VarRef -> search for
+                // InitVarDeclCallExpr in current block and precedent blocks
+
+                for (auto iter_arg : init_call_expr.args) {
+                    // Search in each predecent block!!!!
+                    if (iter_arg.init_type == futag::ArgVarRef) {
+                        bool found_definition = false;
+                        for (auto def : init_calls) {
+                            if (def.var_name == iter_arg.value) {
+                                found_definition = true;
+                                break;
+                            }
+                        }
+                        if (found_definition)
+                            break;
+                        SearchVarDeclInBlock(
+                            Mgr,
+                            iter_arg,           // current argument for search
+                            curr_search_node,   // current node for search
+                            cfg_stmt_map,       // for matching found callexpr
+                            curr_context_path,  // for adding node to curr path
+                            curr_analyzed_pos,  // for checking match
+                            curr_analyzed_path, // for checking match
+                            init_calls,         //
+                            analysis_jdb);
+                    }
+                }
+                std::vector<FutagCallExprInfo> modifying_calls;
+                if (var->getType()->isPointerType()) {
+                    SearchModifyingCallExprInBlock(
+                        Mgr,
+                        var->getNameAsString(), // current argument for search
+                        curr_search_node,       // current node for search
+                        cfg_stmt_map,           // for matching found callexpr
+                        curr_context_path,      // for adding node to curr path
+                        curr_analyzed_pos,      // for checking match
+                        curr_analyzed_path,     // for checking match
+                        init_calls,             //
+                        modifying_calls,        //
+                        analysis_jdb);
+                }
+                /*
+
+            */
+                llvm::outs() << "\nContext:\n";
+                clang::LangOptions lo;
+                std::string stmt_str;
+                llvm::raw_string_ostream rso_stmt(stmt_str);
+
+                std::vector<unsigned int>
+                    found_blocks; // Saving all CFG Block of found call
+                                  // expressions
+                for (auto iter_call : init_calls) {
+                    stmt_str = "";
+                    iter_call.call_expr_info.call_expr->printPretty(
+                        rso_stmt, NULL,
+                        Mgr.getASTContext().getPrintingPolicy());
+                    llvm::outs()
+                        << "Init var: " << iter_call.var_name
+                        << ", init call: " << stmt_str << ", blockID: "
+                        << iter_call.call_expr_info.cfg_block_ID << "; \n";
+                    // If cfg_block_ID is not in found_block -> add
+                    if (std::find(found_blocks.begin(), found_blocks.end(),
+                                  iter_call.call_expr_info.cfg_block_ID) ==
+                        found_blocks.end()) {
+                        found_blocks.insert(
+                            found_blocks.end(),
+                            iter_call.call_expr_info.cfg_block_ID);
+                    }
+                }
+                for (auto iter_call : modifying_calls) {
+                    stmt_str = "";
+                    iter_call.call_expr->printPretty(
+                        rso_stmt, NULL,
+                        Mgr.getASTContext().getPrintingPolicy());
+                    llvm::outs() << "`-->> modifying_calls: " << stmt_str
+                                 << ", blockID: " << iter_call.cfg_block_ID
+                                 << ", location: " << iter_call.location.file
+                                 << ":" << iter_call.location.line << ":"
+                                 << iter_call.location.col << ";\n";
+
+                    // If cfg_block_ID is not in found_block -> add
+                    if (std::find(found_blocks.begin(), found_blocks.end(),
+                                  iter_call.cfg_block_ID) ==
+                        found_blocks.end()) {
+                        found_blocks.insert(found_blocks.end(),
+                                            iter_call.cfg_block_ID);
+                    }
+                }
+
+                std::map<unsigned int, unsigned int>
+                    block_Idx; //<position, BlockID>
+                // Search found blocks in current path, if not found -> quit!
+                bool not_found_item = false;
+                unsigned int *help_array =
+                    new unsigned int(found_blocks.size());
+                unsigned int idx = 0;
+                llvm::outs() << "Current analyzed path: ";
+                for(auto item :curr_analyzed_path){
+                    llvm::outs() << item << " ";
+                }
+                llvm::outs() << "\n";
+                for (auto item : found_blocks) {
+                    auto pos = std::find(curr_analyzed_path.begin(),
+                                         curr_analyzed_path.end(), item);
+                    if (pos == curr_analyzed_path.end()) {
+                        not_found_item = true;
+                        break;
+                    } else {
+                        help_array[idx] = pos - curr_analyzed_path.begin();
+                        idx++;
+                        block_Idx.insert(
+                            block_Idx.end(),
+                            {pos - curr_analyzed_path.begin(), item});
+                    }
+                }
+                if (not_found_item) {
+                    break;
+                    // llvm::outs()<< " \n\nbreak\n\n\n";
+                }
+                std::vector<unsigned int> sorted_block_Idx;
+
+                for (int i = 0; i < found_blocks.size(); i++) {
+                    for (int j = i + i; j < found_blocks.size(); j++) {
+                        if (help_array[j] < help_array[i]) {
+                            unsigned int tmp = help_array[j];
+                            help_array[j] = help_array[i];
+                            help_array[i] = tmp;
+                        }
+                    }
+                }
+                llvm::outs() << ".... found_blocks: ";
+                for (auto item : found_blocks) {
+                    llvm::outs() << item << " ";
+                }
+                llvm::outs() << "\n";
+                llvm::outs() << ".... sorted blocks: ";
+                for (int i = 0; i < found_blocks.size(); i++) {
+                    sorted_block_Idx.insert(sorted_block_Idx.end(),
+                                            block_Idx[help_array[i]]);
+                    llvm::outs() << block_Idx[help_array[i]] << " ";
+                }
+                llvm::outs() << "\n";
+            }
         }
     }
     return;
@@ -492,7 +682,6 @@ void ento::registerFutagConsummerAnalyzer(CheckerManager &Mgr) {
     Chk->db_file = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
         Mgr.getCurrentCheckerName(), "db_file"));
 
-    llvm::errs() << Chk->report_dir << "\n";
     if (!sys::fs::exists(Chk->db_file)) {
         llvm::errs() << "db file not found!";
         return;
