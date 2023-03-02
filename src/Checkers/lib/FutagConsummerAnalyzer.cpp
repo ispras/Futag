@@ -638,13 +638,13 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
                     }
                 }
                 if (not_found_item) {
-                    break;
-                    // llvm::outs()<< " \n\nbreak\n\n\n";
+                    continue;
                 }
+
                 std::vector<unsigned int> sorted_block_Idx;
 
                 for (int i = 0; i < found_blocks.size(); i++) {
-                    for (int j = i + i; j < found_blocks.size(); j++) {
+                    for (int j = i + 1; j < found_blocks.size(); j++) {
                         if (help_array[j] < help_array[i]) {
                             unsigned int tmp = help_array[j];
                             help_array[j] = help_array[i];
@@ -657,6 +657,11 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
                     llvm::outs() << item << " ";
                 }
                 llvm::outs() << "\n";
+                llvm::outs() << ".... help_array: ";
+                for (int i = 0; i < found_blocks.size(); i++) {
+                    llvm::outs() << help_array[i] << " ";
+                }
+                llvm::outs() << "\n";
                 llvm::outs() << ".... sorted blocks: ";
                 for (int i = 0; i < found_blocks.size(); i++) {
                     sorted_block_Idx.insert(sorted_block_Idx.end(),
@@ -664,6 +669,7 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
                     llvm::outs() << block_Idx[help_array[i]] << " ";
                 }
                 llvm::outs() << "\n";
+                break;
             }
         }
     }

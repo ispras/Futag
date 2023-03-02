@@ -152,7 +152,7 @@ class FutagMatchInitCallExprCB : public MatchFinder::MatchCallback {
 // Class for matching definition CallExpression
 class FutagMatchDefCallExprCB : public MatchFinder::MatchCallback {
   public:
-    FutagMatchDefCallExprCB(AnalysisManager &Mgr,            //
+    FutagMatchDefCallExprCB(AnalysisManager &Mgr, //
                             clang::CFGStmtMap *cfg_stmt_map,
                             FutagPath &curr_context_path,
                             futag::FutagPath::iterator &curr_analyzed_pos,
@@ -170,7 +170,7 @@ class FutagMatchDefCallExprCB : public MatchFinder::MatchCallback {
     virtual void run(const MatchFinder::MatchResult &Result);
 
   private:
-  AnalysisManager &Mgr;
+    AnalysisManager &Mgr;
     clang::CFGStmtMap *cfg_stmt_map; // map for matching found callexpr
     FutagPath &curr_context_path;    // current path for adding node to path
     futag::FutagPath::iterator &curr_analyzed_pos; // for checking reverse match
