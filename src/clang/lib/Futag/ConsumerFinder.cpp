@@ -1,3 +1,13 @@
+/**
+ * @file ConsumerFinder.cpp
+ * @author Tran Chi Thien
+ * @brief This file contains functions for analyzing consumer program
+ * @version 0.1
+ * @date 2023-03-20
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
 #include "Futag/ConsumerFinder.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
@@ -20,7 +30,14 @@ using namespace llvm;
 
 // using namespace clang::ast_matchers;
 namespace futag {
-
+/**
+ * @brief Get the Call Expr Simple Info object
+ * 
+ * @param call_expr 
+ * @param cfg_stmt_map 
+ * @param Mgr 
+ * @return futag::FutagCallExprInfo 
+ */
 futag::FutagCallExprInfo GetCallExprSimpleInfo( //
     const CallExpr *call_expr,                  //
     clang::CFGStmtMap *cfg_stmt_map,            //
@@ -62,7 +79,7 @@ futag::FutagCallExprInfo GetCallExprSimpleInfo( //
             if (const auto *charecterLiteralArg =
                     dyn_cast<CharacterLiteral>(curr_arg)) {
                 curr_init_arg.init_type = ArgConstValue;
-                curr_init_arg.value = "\"" + std::to_string(charecterLiteralArg->getValue()) + "\"";
+                curr_init_arg.value = "chr(" + std::to_string(charecterLiteralArg->getValue()) + ")";
             }
 
             if (const auto *fixedPointLiteralArg =
@@ -126,6 +143,16 @@ futag::FutagCallExprInfo GetCallExprSimpleInfo( //
     return result;
 }
 
+/**
+ * @brief Get the Call Expr Info object
+ * 
+ * @param call_expr 
+ * @param cfg_stmt_map 
+ * @param Mgr 
+ * @param analysis_jdb 
+ * @param init_calls 
+ * @return futag::FutagCallExprInfo 
+ */
 futag::FutagCallExprInfo GetCallExprInfo(              //
     const CallExpr *call_expr,                         //
     clang::CFGStmtMap *cfg_stmt_map,                   //
@@ -214,6 +241,20 @@ futag::FutagCallExprInfo GetCallExprInfo(              //
     return result;
 }
 
+/**
+ * @brief 
+ * 
+ * @param Mgr 
+ * @param var_name 
+ * @param curr_search_node 
+ * @param cfg_stmt_map 
+ * @param curr_context_path 
+ * @param curr_analyzed_pos 
+ * @param curr_analyzed_path 
+ * @param init_calls 
+ * @param modifying_calls 
+ * @param analysis_jdb 
+ */
 void SearchModifyingCallExprInBlock(
     AnalysisManager &Mgr,
     std::string var_name,            // current argument for search
@@ -246,6 +287,20 @@ void SearchModifyingCallExprInBlock(
     Finder.futagMatchAST(Mgr.getASTContext(), curr_search_node);
 }
 
+
+/**
+ * @brief 
+ * 
+ * @param Mgr 
+ * @param iter_arg 
+ * @param curr_search_node 
+ * @param cfg_stmt_map 
+ * @param curr_context_path 
+ * @param curr_analyzed_pos 
+ * @param curr_analyzed_path 
+ * @param init_calls 
+ * @param analysis_jdb 
+ */
 void SearchVarDeclInBlock(
     AnalysisManager &Mgr,
     FutagInitArg iter_arg,           // current argument for search
@@ -288,10 +343,18 @@ void SearchVarDeclInBlock(
     return;
 }
 
+/**
+ * @brief 
+ * 
+ * @param arg 
+ * @param curr_init_arg 
+ * @return true 
+ * @return false 
+ */
 bool HandleLiterals(const Expr *arg, FutagInitArg &curr_init_arg) {
     if (const auto *charecterLiteralArg = dyn_cast<CharacterLiteral>(arg)) {
         curr_init_arg.init_type = ArgConstValue;
-        curr_init_arg.value = "\"" + std::to_string(charecterLiteralArg->getValue()) + "\"";
+        curr_init_arg.value = "chr(" + std::to_string(charecterLiteralArg->getValue()) + ")";
         return true;
     }
 

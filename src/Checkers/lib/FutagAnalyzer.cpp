@@ -1,11 +1,13 @@
-//== FutagAnalyzer.cpp ----------------------------------- -*- C++ -*--=//
-//
-//===----------------------------------------------------------------------===//
-//
-// This module tries to collect some useful information to use with futag
-// while generating libfuzzer targets.
-//
-//===----------------------------------------------------------------------===//
+/**
+ * @file FutagAnalyzer.cpp
+ * @author Tran Chi Thien (thientcgithub@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-03-20
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
 
 #include <algorithm>
 #include <fstream>

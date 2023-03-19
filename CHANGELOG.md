@@ -66,3 +66,6 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Add is_simple for 4consummer_analysis_db
 - Add CFG and DFC analysis
 - Add Fuzzer extra params support
+
+## 20230320
+- Support for context generation

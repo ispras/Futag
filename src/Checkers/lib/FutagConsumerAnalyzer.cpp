@@ -1,13 +1,13 @@
-/***
- *
+/**
+ * @file FutagConsumerAnalyzer.cpp
+ * @author Tran Chi Thien
+ * @brief 
+ * @version 0.1
+ * @date 2023-03-20
+ * 
+ * @copyright Copyright (c) 2023
+ * 
  */
-//== FutagConsumerAnalyzer.cpp ==//
-//===----------------------------------------------------------------------===//
-//
-// This checker finds usage context of tested library in consumer
-// libraries/programs
-//
-//===----------------------------------------------------------------------===//
 
 #include <algorithm>
 #include <fstream>
