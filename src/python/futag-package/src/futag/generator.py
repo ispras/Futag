@@ -3505,7 +3505,6 @@ class ContextGenerator:
         f.close()
 
     def gen_context(self):
-        
         self.sort_callexprs()
         if not self.total_context:
             sys.exit("-- [Futag] empty context, exited!")

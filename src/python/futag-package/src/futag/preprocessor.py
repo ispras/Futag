@@ -865,7 +865,7 @@ class ConsumerBuilder:
         self.build_path = self.consumer_root / build_path
 
         if not pathlib.Path(self.library_root / db_filepath).absolute().exists():
-            sys.exit(INVALID_DB_FILEPATH, futag_llvm_package)
+            sys.exit(INVALID_DB_FILEPATH)
 
         self.db_filepath = pathlib.Path(self.library_root / db_filepath).absolute()
 
