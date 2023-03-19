@@ -32,7 +32,7 @@ struct FutagCodeLoc {
 typedef std::vector<const CallExpr *> FutagCallContext;
 
 // Enum of argument generating type
-typedef enum { ArgVarRef, ArgConstValue, ArgFuncCall, ArgUnknown } ArgInitType;
+typedef enum { ArgVarRef, ArgConstValue, ArgFuncCall, ArgUnknown,  ArgConstValueSTR} ArgInitType;
 
 // Struct for generating argument
 struct FutagInitArg {
@@ -51,6 +51,8 @@ struct FutagInitCallExpr {
 
 struct FutagCallExprInfo {
     const CallExpr *call_expr;
+    std::string qname;
+    std::string name;
     std::string str_stmt;
     std::vector<FutagInitArg> args;
     unsigned int cfg_block_ID;
@@ -78,9 +80,17 @@ typedef std::vector<FutagEdge> FutagGraph;
 
 typedef std::vector<unsigned int> FutagPath;
 
-futag::FutagCallExprInfo GetCallExprInfo(const CallExpr *call_expr,
-                                         clang::CFGStmtMap *cfg_stmt_map,
-                                         AnalysisManager &Mgr);
+futag::FutagCallExprInfo GetCallExprSimpleInfo( //
+    const CallExpr *call_expr,                  //
+    clang::CFGStmtMap *cfg_stmt_map,            //
+    AnalysisManager &Mgr);
+bool HandleLiterals(const Expr *arg, FutagInitArg &curr_init_arg);
+futag::FutagCallExprInfo GetCallExprInfo( //
+    const CallExpr *call_expr,            //
+    clang::CFGStmtMap *cfg_stmt_map,      //
+    AnalysisManager &Mgr,                 //
+    const json &analysis_jdb,             //
+    std::vector<FutagInitVarDeclCallExpr> &init_calls);
 
 void SearchModifyingCallExprInBlock(
     AnalysisManager &Mgr,
@@ -109,17 +119,17 @@ void SearchVarDeclInBlock(
 class FutagMatchInitCallExprCB : public MatchFinder::MatchCallback {
   public:
     FutagMatchInitCallExprCB(
-        AnalysisManager &Mgr, const FunctionDecl *consummer_func,
+        AnalysisManager &Mgr, const FunctionDecl *consumer_func,
         std::map<const VarDecl *, const CallExpr *> &matched_init_callexpr,
         const json &analysis_jdb)
         : Mgr{Mgr},                       // Analysis manager
-          consummer_func{consummer_func}, // Function
+          consumer_func{consumer_func}, // Function
           matched_init_callexpr{
               matched_init_callexpr},   // result - matched call expressions
           analysis_jdb{analysis_jdb} {} // Analysis database
 
     AnalysisManager &Mgr;               // For passing the AnalysisManager
-    const FunctionDecl *consummer_func; // Current analyzed function
+    const FunctionDecl *consumer_func; // Current analyzed function
     virtual void run(const MatchFinder::MatchResult &Result);
 
   private:

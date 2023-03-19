@@ -27,7 +27,7 @@ from futag.sysmsg import *
 class Fuzzer:
     """Futag Fuzzer"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False):
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, extra_params: str = ""):
         """
         Parameters
         ----------
@@ -64,19 +64,19 @@ class Fuzzer:
         if Path(self.futag_llvm_package).exists():
             self.futag_llvm_package = Path(self.futag_llvm_package).absolute()
         else:
-            raise ValueError(INVALID_FUTAG_PATH)
+            sys.exit(INVALID_FUTAG_PATH)
 
         if Path(self.fuzz_driver_path).exists():
             self.fuzz_driver_path = Path(self.fuzz_driver_path).absolute()
         else:
-            raise ValueError(INVALID_FUZZ_DRIVER_PATH)
+            sys.exit(INVALID_FUZZ_DRIVER_PATH)
 
         self.svres = svres
         self.leak = leak
         self.debug = debug
         self.gdb = gdb
         if self.gdb and which("gdb") is None:
-            raise ValueError(GDB_NOT_FOUND)
+            sys.exit(GDB_NOT_FOUND)
 
         self.fork = fork
         self.timeout = timeout

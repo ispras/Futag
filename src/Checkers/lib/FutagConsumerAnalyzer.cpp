@@ -1,10 +1,10 @@
 /***
  *
  */
-//== FutagConsummerAnalyzer.cpp ==//
+//== FutagConsumerAnalyzer.cpp ==//
 //===----------------------------------------------------------------------===//
 //
-// This checker finds usage context of tested library in consummer
+// This checker finds usage context of tested library in consumer
 // libraries/programs
 //
 //===----------------------------------------------------------------------===//
@@ -19,7 +19,7 @@
 #include <utility>
 #include <vector>
 
-#include "Futag/ConsummerFinder.h"
+#include "Futag/ConsumerFinder.h"
 #include "nlohmann/json.hpp"
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
@@ -67,7 +67,7 @@ namespace {
  * @brief This is class for checker
  *
  */
-class FutagConsummerAnalyzer
+class FutagConsumerAnalyzer
     : public Checker<check::ASTDecl<TranslationUnitDecl>> {
   private:
     bool m_log_debug_message{false};
@@ -94,9 +94,9 @@ class FutagConsummerAnalyzer
     //                             FutagContext &curr_context) const;
 
   public:
-    std::string report_dir = "";
+    mutable SmallString<0> consumer_report_path;
     // Path to json db file
-    std::string db_file = "";
+    std::string db_filepath = "";
     // json db
     json analysis_jdb;
 
@@ -104,10 +104,8 @@ class FutagConsummerAnalyzer
     mutable std::vector<FutagPath> all_cfg_paths;
 
     // Full path to the current context report file
-    mutable SmallString<0> context_report_path{};
+    // mutable SmallString<0> context_report_path{};
 
-    // Full path to the graphviz file
-    mutable SmallString<0> report_path;
 
     // Full path to save the function declaration (in header files)
     mutable SmallString<0> func_decl_report_path{};
@@ -122,8 +120,8 @@ class FutagConsummerAnalyzer
     // Used to generate random filename
     utils::Random rand{};
 
-    FutagConsummerAnalyzer();
-    ~FutagConsummerAnalyzer();
+    FutagConsumerAnalyzer();
+    ~FutagConsumerAnalyzer();
 
     // Entry point. Collects all needed information using recursive ast visitor
     void checkASTDecl(const TranslationUnitDecl *TUD, AnalysisManager &Mgr,
@@ -136,7 +134,73 @@ class FutagConsummerAnalyzer
 
 } // namespace
 
-void FutagConsummerAnalyzer::WriteInfoToTheFile(
+void WriteContextToFile(                               //
+    std::fstream &output_context_file,                 //
+    std::vector<FutagInitVarDeclCallExpr> &init_calls, //
+    std::vector<FutagCallExprInfo> &modifying_calls,   //
+    std::vector<unsigned int> sorted_block_Idx         //
+) {
+    json init_calls_json;
+    for (auto call : init_calls) {
+        json args = json::array();
+        for (auto arg : call.call_expr_info.args) {
+            json arg_info = {
+                {"init_type", arg.init_type}, //
+                {"value", arg.value}          //
+            };
+            args.push_back(arg_info);
+        }
+        json call_expr_json = {
+            {"name", call.call_expr_info.name},
+            {"qname", call.call_expr_info.name},
+            {"cfg_block_ID", call.call_expr_info.cfg_block_ID},
+            {"str_stmt", call.call_expr_info.str_stmt},
+            {"file", call.call_expr_info.location.file},
+            {"line", call.call_expr_info.location.line},
+            {"col", call.call_expr_info.location.col},
+            {"args", args} //
+        };
+        init_calls_json[call.var_name] = call_expr_json;
+    }
+    json cfg_blocks = json::array();
+    for (auto idx : sorted_block_Idx) {
+        cfg_blocks.push_back(idx);
+    }
+    json modifying_calls_json = json::array();
+    for (auto call : modifying_calls) {
+        if (std::find(sorted_block_Idx.begin(), sorted_block_Idx.end(),
+                      call.cfg_block_ID) == sorted_block_Idx.end()) {
+            continue;
+        }
+
+        json args = json::array();
+        for (auto arg : call.args) {
+            json arg_info = {
+                {"init_type", arg.init_type}, //
+                {"value", arg.value}          //
+            };
+            args.push_back(arg_info);
+        }
+
+        modifying_calls_json.push_back({
+            {"name", call.name},
+            {"qname", call.name},
+            {"cfg_block_ID", call.cfg_block_ID},
+            {"str_stmt", call.str_stmt},
+            {"file", call.location.file},
+            {"line", call.location.line},
+            {"col", call.location.col},
+            {"args", args} //
+        });
+    }
+    json result;
+    result["cfg_blocks"] = cfg_blocks;
+    result["init_calls"] = init_calls_json;
+    result["modifying_calls"] = modifying_calls_json;
+    output_context_file << std::setw(4) << result << std::endl;
+};
+
+void FutagConsumerAnalyzer::WriteInfoToTheFile(
     const StringRef t_curr_report_path, json &tState) const {
 
     if (m_log_debug_message) {
@@ -191,7 +255,7 @@ void FutagConsummerAnalyzer::WriteInfoToTheFile(
  * @param curr_path    saves the current discovered path
  * @param all_cfg_paths saves all discovered paths
  */
-void FutagConsummerAnalyzer::FindAllCFGPaths(
+void FutagConsumerAnalyzer::FindAllCFGPaths(
     const CFG *cfg, CFGBlock cfg_block, FutagGraph &fgraph,
     FutagPath &curr_path, std::vector<FutagPath> &all_cfg_paths) const {
 
@@ -230,7 +294,7 @@ void FutagConsummerAnalyzer::FindAllCFGPaths(
  * @param report_path   The system path for saving files: .dot for the
  * graphviz format, and .raw for raw data of CFG
  */
-void FutagConsummerAnalyzer::GenCFGInfo(AnalysisManager &Mgr, CFG *cfg,
+void FutagConsumerAnalyzer::GenCFGInfo(AnalysisManager &Mgr, CFG *cfg,
                                         const FunctionDecl *func,
                                         const StringRef report_path) const {
     std::string curr_func_hash =
@@ -306,27 +370,27 @@ void FutagConsummerAnalyzer::GenCFGInfo(AnalysisManager &Mgr, CFG *cfg,
     graphviz_file.close();
 }
 
-FutagConsummerAnalyzer::FutagConsummerAnalyzer()
+FutagConsumerAnalyzer::FutagConsumerAnalyzer()
     : m_log_debug_message{std::getenv("FUTAG_FUNCTION_ANALYZER_DEBUG_LOG") !=
                           nullptr},
       callexpr_context_json{},
       //   m_func_decl_info{},
       //   m_types_info{},
-      report_dir{},
+      consumer_report_path{},
       //   context_report_path{},
       //   func_decl_report_path{},
       //   types_info_report_path{},
       //   includesInfoReportPath{},
       rand{} {}
 
-FutagConsummerAnalyzer::~FutagConsummerAnalyzer() {
+FutagConsumerAnalyzer::~FutagConsumerAnalyzer() {
     // Write new data to the json state file
-    if (!callexpr_context_json.empty()) {
-        WriteInfoToTheFile(context_report_path, callexpr_context_json);
-    }
+    // if (!callexpr_context_json.empty()) {
+    //     WriteInfoToTheFile(context_report_path, callexpr_context_json);
+    // }
 }
 
-void FutagConsummerAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
+void FutagConsumerAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
                                           AnalysisManager &Mgr,
                                           BugReporter &BR) const {
 
@@ -361,10 +425,10 @@ void FutagConsummerAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
     mIncludesInfo["compiler_opts"] = compiler_opts;
 
     struct LocalVisitor : public RecursiveASTVisitor<LocalVisitor> {
-        const FutagConsummerAnalyzer *futag_checker;
+        const FutagConsumerAnalyzer *futag_checker;
         AnalysisManager &analysisMgr;
 
-        explicit LocalVisitor(const FutagConsummerAnalyzer *Checker,
+        explicit LocalVisitor(const FutagConsumerAnalyzer *Checker,
                               AnalysisManager &AnalysisMgr)
             : futag_checker(Checker), analysisMgr(AnalysisMgr) {}
 
@@ -380,16 +444,20 @@ void FutagConsummerAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
 }
 
 // Called for every function declaration
-void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
+void FutagConsumerAnalyzer::AnalyzeVisitedFunctionDecl(
     const FunctionDecl *func, AnalysisManager &Mgr) const {
 
     // If the provided function doesn't have a body or the function
     // is a declaration (not a definition) -> skip this entry.
-    if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
+    if (!func->hasBody()) {
+        return;
+    }
+    if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc())) {
         return;
     }
     FullSourceLoc func_begin_loc =
         Mgr.getASTContext().getFullLoc(func->getBeginLoc());
+
     auto fe = func_begin_loc.getFileEntry();
     if (!fe)
         return;
@@ -442,10 +510,10 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
     Finder.addMatcher(matched_binaryoperator, &target_func_call_callback);
     Finder.addMatcher(matched_vardecl, &target_func_call_callback);
     Finder.futagMatchAST(Mgr.getASTContext(), curr_search_node);
-
+    llvm::outs() << "[Futag]: Analyzing function \"" << func->getNameAsString()
+                 << "\"\n";
     if (matched_init_contexts.size()) {
-        llvm::outs() << "[Futag]: Analyzing function \""
-                     << func->getNameAsString() << "\"\n";
+        llvm::outs() << "[Futag]: Print contexts\n";
         // Build the CFG of current function
         CFG *cfg = Mgr.getCFG(func);
         if (!cfg) {
@@ -457,7 +525,7 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
         std::string curr_func_hash = std::to_string(
             futag::utils::ODRHashCalculator::CalculateHash(func));
 
-        GenCFGInfo(Mgr, cfg, func, report_path);
+        GenCFGInfo(Mgr, cfg, func, consumer_report_path);
 
         FutagPath result_path;
         result_path.insert(result_path.end(), cfg->getEntry().getBlockID());
@@ -465,7 +533,7 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
         FindAllCFGPaths(cfg, cfg->getEntry(), fgraph, result_path,
                         all_cfg_paths);
 
-        std::string paths_filename = report_path.c_str() +
+        std::string paths_filename = consumer_report_path.c_str() +
                                      func->getNameAsString() + "-" +
                                      curr_func_hash + "-path.raw";
 
@@ -484,10 +552,9 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
         }
         paths_report.close();
 
-        // llvm::outs() << "`Total matched call expressions: "
-        //              << matched_init_contexts.size() << "\n";
+        std::vector<std::string> result_context_files;
+
         for (const auto &[var, callexpr] : matched_init_contexts) {
-            std::vector<FutagInitVarDeclCallExpr> init_calls;
 
             clang::LangOptions lo;
             std::string stmt_str;
@@ -500,18 +567,33 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
 
             //  Match the CFGStmtMap
             ParentMap parent_map = ParentMap(func->getBody());
-            auto *cfg_stmt_map = CFGStmtMap::Build(cfg, &parent_map);
+            clang::CFGStmtMap *cfg_stmt_map;
+            cfg_stmt_map = CFGStmtMap::Build(cfg, &parent_map);
             const CFGBlock *stmt_block = cfg_stmt_map->getBlock(callexpr);
             // llvm::outs() << " |-- CallExpr: " << stmt_str
             //              << "; of block: " << stmt_block->getBlockID() <<
             //              "\n";
-            FutagCallExprInfo init_call_expr =
-                GetCallExprInfo(callexpr, cfg_stmt_map, Mgr);
 
-            FutagInitVarDeclCallExpr curr_init{var->getNameAsString(),
-                                               init_call_expr};
-            init_calls.insert(init_calls.begin(), curr_init);
             for (auto curr_analyzed_path : all_cfg_paths) {
+                if (std::find(curr_analyzed_path.begin(),
+                              curr_analyzed_path.end(),
+                              stmt_block->getBlockID()) ==
+                    curr_analyzed_path.end()) { // If the block of FIRST context
+                                                // init not found -
+                                                // break and continue new path
+                    continue;
+                }
+                std::vector<FutagInitVarDeclCallExpr> init_calls;
+                std::vector<FutagCallExprInfo> modifying_calls;
+
+                FutagCallExprInfo init_call_expr = GetCallExprInfo(
+                    callexpr, cfg_stmt_map, Mgr, analysis_jdb, init_calls);
+
+                FutagInitVarDeclCallExpr curr_init{var->getNameAsString(),
+                                                   init_call_expr};
+
+                init_calls.insert(init_calls.begin(), curr_init);
+
                 // Find all paths, which contains BlockID
                 auto curr_analyzed_pos = std::find(curr_analyzed_path.begin(),
                                                    curr_analyzed_path.end(),
@@ -548,7 +630,7 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
                             analysis_jdb);
                     }
                 }
-                std::vector<FutagCallExprInfo> modifying_calls;
+
                 if (var->getType()->isPointerType()) {
                     SearchModifyingCallExprInBlock(
                         Mgr,
@@ -614,37 +696,48 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
                 std::map<unsigned int, unsigned int>
                     block_Idx; //<position, BlockID>
                 // Search found blocks in current path, if not found -> quit!
-                bool not_found_item = false;
-                unsigned int *help_array =
-                    new unsigned int(found_blocks.size());
+                int *help_array = new int(found_blocks.size());
                 unsigned int idx = 0;
                 llvm::outs() << "Current analyzed path: ";
-                for(auto item :curr_analyzed_path){
+                for (auto item : curr_analyzed_path) {
                     llvm::outs() << item << " ";
                 }
                 llvm::outs() << "\n";
-                for (auto item : found_blocks) {
-                    auto pos = std::find(curr_analyzed_path.begin(),
-                                         curr_analyzed_path.end(), item);
+                for (int i = 0; i < found_blocks.size(); i++) {
+                    auto pos =
+                        std::find(curr_analyzed_path.begin(),
+                                  curr_analyzed_path.end(), found_blocks[i]);
                     if (pos == curr_analyzed_path.end()) {
-                        not_found_item = true;
-                        break;
+
+                        help_array[idx] = -1;
                     } else {
                         help_array[idx] = pos - curr_analyzed_path.begin();
-                        idx++;
-                        block_Idx.insert(
-                            block_Idx.end(),
-                            {pos - curr_analyzed_path.begin(), item});
+
+                        block_Idx.insert(block_Idx.end(),
+                                         {pos - curr_analyzed_path.begin(),
+                                          found_blocks[i]});
                     }
-                }
-                if (not_found_item) {
-                    continue;
+                    idx++;
                 }
 
+                // llvm::outs() << ".... found_blocks: ";
+                // for (auto item : found_blocks) {
+                //     llvm::outs() << item << " ";
+                // }
+                // llvm::outs() << "\n";
+                // llvm::outs() << ".... help_array: ";
+                // for (int i = 0; i < found_blocks.size(); i++) {
+                //     llvm::outs() << help_array[i] << " ";
+                // }
+                // llvm::outs() << "\n";
                 std::vector<unsigned int> sorted_block_Idx;
 
                 for (int i = 0; i < found_blocks.size(); i++) {
+                    if (help_array[i] == -1)
+                        continue;
                     for (int j = i + 1; j < found_blocks.size(); j++) {
+                        if (help_array[j] == -1)
+                            continue;
                         if (help_array[j] < help_array[i]) {
                             unsigned int tmp = help_array[j];
                             help_array[j] = help_array[i];
@@ -652,62 +745,86 @@ void FutagConsummerAnalyzer::AnalyzeVisitedFunctionDecl(
                         }
                     }
                 }
-                llvm::outs() << ".... found_blocks: ";
-                for (auto item : found_blocks) {
-                    llvm::outs() << item << " ";
-                }
-                llvm::outs() << "\n";
-                llvm::outs() << ".... help_array: ";
+
+                // llvm::outs() << ".... help_array after sorted: ";
+                // for (int i = 0; i < found_blocks.size(); i++) {
+                //     llvm::outs() << help_array[i] << " ";
+                // }
+                // llvm::outs() << "\n";
+                // llvm::outs() << ".... sorted blocks: ";
                 for (int i = 0; i < found_blocks.size(); i++) {
-                    llvm::outs() << help_array[i] << " ";
+                    if (help_array[i] >= 0) {
+                        sorted_block_Idx.insert(sorted_block_Idx.end(),
+                                                block_Idx[help_array[i]]);
+                        // llvm::outs() << block_Idx[help_array[i]] << " ";
+                    }
                 }
-                llvm::outs() << "\n";
-                llvm::outs() << ".... sorted blocks: ";
-                for (int i = 0; i < found_blocks.size(); i++) {
-                    sorted_block_Idx.insert(sorted_block_Idx.end(),
-                                            block_Idx[help_array[i]]);
-                    llvm::outs() << block_Idx[help_array[i]] << " ";
+                // llvm::outs() << "\n";
+                std::string tmp = "_";
+                for (unsigned int sb : sorted_block_Idx) {
+                    tmp += std::to_string(sb);
                 }
-                llvm::outs() << "\n";
-                break;
+
+                std::string output_context_filename =
+                    func->getNameAsString() + "_" + var->getNameAsString() +
+                    tmp;
+                // llvm::outs()
+                //     << "output_context_filename: " << output_context_filename
+                //     << "\n";
+                if (std::find(result_context_files.begin(),
+                              result_context_files.end(),
+                              output_context_filename) ==
+                        result_context_files.end() &&
+                    sorted_block_Idx.size()) {
+                    // llvm::outs() << "=== Context found!!!!!";
+                    result_context_files.insert(result_context_files.end(),
+                                                output_context_filename);
+                    utils::Random rand{};
+                    // llvm::outs()<< "output file path: "<< consumer_report_path.c_str() + output_context_filename + ".json" << "\n";
+                    std::fstream output_context_file(
+                        consumer_report_path.c_str() + output_context_filename + ".json",
+                        std::ios::out);
+                    if (!output_context_file.is_open()) {
+                        std::cerr << " -> Cannot write to the file: " +
+                                         output_context_filename + "!\n";
+                        return;
+                    }
+                    WriteContextToFile(output_context_file, init_calls,
+                                       modifying_calls, sorted_block_Idx);
+                    output_context_file.close();
+                }
             }
         }
     }
     return;
 }
 
-void ento::registerFutagConsummerAnalyzer(CheckerManager &Mgr) {
-    auto *Chk = Mgr.registerChecker<FutagConsummerAnalyzer>();
-    Chk->report_dir =
+void ento::registerFutagConsumerAnalyzer(CheckerManager &Mgr) {
+    auto *Chk = Mgr.registerChecker<FutagConsumerAnalyzer>();
+    std::string consumer_report_path =
         std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
-            Mgr.getCurrentCheckerName(), "report_dir"));
+            Mgr.getCurrentCheckerName(), "consumer_report_path"));
 
-    if (!sys::fs::exists(Chk->report_dir)) {
-        sys::fs::create_directory(Chk->report_dir);
+    if (!sys::fs::exists(consumer_report_path)) {
+        sys::fs::create_directory(consumer_report_path);
     }
-    Chk->db_file = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
-        Mgr.getCurrentCheckerName(), "db_file"));
+    Chk->db_filepath = std::string(Mgr.getAnalyzerOptions().getCheckerStringOption(
+        Mgr.getCurrentCheckerName(), "db_filepath"));
 
-    if (!sys::fs::exists(Chk->db_file)) {
+    if (!sys::fs::exists(Chk->db_filepath)) {
         llvm::errs() << "db file not found!";
         return;
     }
-    std::ifstream ifs(Chk->db_file);
+    std::ifstream ifs(Chk->db_filepath);
     Chk->analysis_jdb = json::parse(ifs);
 
-    if (!sys::fs::exists(Chk->report_dir)) {
-        sys::fs::create_directory(Chk->report_dir);
+    if (!sys::fs::exists(Chk->consumer_report_path)) {
+        sys::fs::create_directory(Chk->consumer_report_path);
     }
-    Chk->report_path = "";
-    sys::path::append(Chk->report_path, Chk->report_dir, "_");
-
-    Chk->context_report_path = "";
-    sys::path::append(
-        Chk->context_report_path, Chk->report_dir,
-        "context-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-            ".futag-analyzer.json");
+    Chk->consumer_report_path = "";
+    sys::path::append(Chk->consumer_report_path, consumer_report_path, "_");
 }
 
-bool ento::shouldRegisterFutagConsummerAnalyzer(const CheckerManager &mgr) {
+bool ento::shouldRegisterFutagConsumerAnalyzer(const CheckerManager &mgr) {
     return true;
 }

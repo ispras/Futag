@@ -1,4 +1,4 @@
-#include "Futag/ConsummerFinder.h"
+#include "Futag/ConsumerFinder.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ParentMap.h"
@@ -21,9 +21,12 @@ using namespace llvm;
 // using namespace clang::ast_matchers;
 namespace futag {
 
-futag::FutagCallExprInfo GetCallExprInfo(const CallExpr *call_expr,
-                                         clang::CFGStmtMap *cfg_stmt_map,
-                                         AnalysisManager &Mgr) {
+futag::FutagCallExprInfo GetCallExprSimpleInfo( //
+    const CallExpr *call_expr,                  //
+    clang::CFGStmtMap *cfg_stmt_map,            //
+    AnalysisManager &Mgr)                       //
+{
+
     FullSourceLoc full_loc =
         Mgr.getASTContext().getFullLoc(call_expr->getBeginLoc());
     futag::FutagCodeLoc code_loc;
@@ -42,8 +45,9 @@ futag::FutagCallExprInfo GetCallExprInfo(const CallExpr *call_expr,
         curr_init_arg.init_type = ArgUnknown;
 
         if (const auto *callExprArg = dyn_cast<CallExpr>(curr_arg)) {
-            curr_init_arg.init_type = ArgFuncCall;
-            curr_init_arg.func_call = const_cast<CallExpr *>(callExprArg);
+            if (!callExprArg->getDirectCallee()) {
+                continue;
+            }
         } else if (declRefExpr = const_cast<DeclRefExpr *>(
                        dyn_cast<DeclRefExpr>(curr_arg))) {
             is_decl_ref_expr = true;
@@ -58,7 +62,7 @@ futag::FutagCallExprInfo GetCallExprInfo(const CallExpr *call_expr,
             if (const auto *charecterLiteralArg =
                     dyn_cast<CharacterLiteral>(curr_arg)) {
                 curr_init_arg.init_type = ArgConstValue;
-                curr_init_arg.value = charecterLiteralArg->getValue();
+                curr_init_arg.value = "\"" + std::to_string(charecterLiteralArg->getValue()) + "\"";
             }
 
             if (const auto *fixedPointLiteralArg =
@@ -93,7 +97,7 @@ futag::FutagCallExprInfo GetCallExprInfo(const CallExpr *call_expr,
             if (const auto *stringLiteralArg =
                     dyn_cast<clang::StringLiteral>(curr_arg)) {
                 curr_init_arg.init_type = ArgConstValue;
-                curr_init_arg.value = stringLiteralArg->getBytes().str();
+                curr_init_arg.value = "\"" + stringLiteralArg->getBytes().str()+"\"";
             }
         }
         if (is_decl_ref_expr) {
@@ -111,8 +115,102 @@ futag::FutagCallExprInfo GetCallExprInfo(const CallExpr *call_expr,
     llvm::raw_string_ostream rso_stmt(stmt_str);
     call_expr->printPretty(rso_stmt, NULL,
                            Mgr.getASTContext().getPrintingPolicy());
-    FutagCallExprInfo result{call_expr, stmt_str, init_args, cfg_block_ID,
-                             code_loc};
+    FutagCallExprInfo result{
+        call_expr,
+        call_expr->getDirectCallee()->getQualifiedNameAsString(),
+        call_expr->getDirectCallee()->getNameAsString(),
+        stmt_str,
+        init_args,
+        cfg_block_ID,
+        code_loc};
+    return result;
+}
+
+futag::FutagCallExprInfo GetCallExprInfo(              //
+    const CallExpr *call_expr,                         //
+    clang::CFGStmtMap *cfg_stmt_map,                   //
+    AnalysisManager &Mgr,                              //
+    const json &analysis_jdb,                          //
+    std::vector<FutagInitVarDeclCallExpr> &init_calls) //
+{
+
+    FullSourceLoc full_loc =
+        Mgr.getASTContext().getFullLoc(call_expr->getBeginLoc());
+    futag::FutagCodeLoc code_loc;
+    code_loc.line = full_loc.getSpellingLineNumber();
+    code_loc.col = full_loc.getSpellingColumnNumber();
+    code_loc.file = (full_loc.getFileEntry() == nullptr
+                         ? ""
+                         : full_loc.getFileEntry()->getName().str());
+    unsigned int cfg_block_ID = cfg_stmt_map->getBlock(call_expr)->getBlockID();
+    // unsigned int cfg_block_ID = 0;
+    std::vector<futag::FutagInitArg> init_args;
+    for (uint32_t i = 0; i < call_expr->getNumArgs(); i++) {
+        auto curr_arg = call_expr->getArg(i);
+        DeclRefExpr *declRefExpr;
+        bool is_decl_ref_expr = false;
+        FutagInitArg curr_init_arg;
+        curr_init_arg.init_type = ArgUnknown;
+
+        if (const auto *callExprArg = dyn_cast<CallExpr>(curr_arg)) {
+            curr_init_arg.init_type = ArgUnknown;
+            if (!callExprArg->getDirectCallee()) {
+                continue;
+            }
+            for (auto it : analysis_jdb["functions"]) {
+                if (callExprArg->getDirectCallee()->getNameAsString() ==
+                    it["name"]) {
+                    utils::Random rand{};
+                    std::string rand_name =
+                        "FutagRefVar" +
+                        rand.GenerateRandomString(consts::cAlphabet, 3);
+                    init_calls.insert(
+                        init_calls.begin(),
+                        {rand_name, GetCallExprSimpleInfo(callExprArg,
+                                                          cfg_stmt_map, Mgr)});
+                    curr_init_arg.init_type = ArgVarRef;
+                    curr_init_arg.value = rand_name;
+                    break;
+                }
+            }
+
+        } else if (declRefExpr = const_cast<DeclRefExpr *>(
+                       dyn_cast<DeclRefExpr>(curr_arg))) {
+            is_decl_ref_expr = true;
+
+        } else if (HandleLiterals(curr_arg, curr_init_arg)) {
+        } else if (const auto *implicitArg =
+                       dyn_cast<ImplicitCastExpr>(curr_arg)) {
+            if (declRefExpr = const_cast<DeclRefExpr *>(dyn_cast<DeclRefExpr>(
+                    implicitArg->IgnoreParenImpCasts()))) {
+                is_decl_ref_expr = true;
+            } else if (HandleLiterals(curr_arg->IgnoreParenCasts(),
+                                      curr_init_arg)) {
+            }
+        }
+        if (is_decl_ref_expr) {
+            curr_init_arg.init_type = ArgVarRef;
+            if (declRefExpr->getDecl()) {
+                curr_init_arg.value = declRefExpr->getDecl()->getNameAsString();
+                curr_init_arg.var_decl =
+                    const_cast<ValueDecl *>(declRefExpr->getDecl());
+            }
+        }
+        init_args.insert(init_args.end(), curr_init_arg);
+    }
+    clang::LangOptions lo;
+    std::string stmt_str;
+    llvm::raw_string_ostream rso_stmt(stmt_str);
+    call_expr->printPretty(rso_stmt, NULL,
+                           Mgr.getASTContext().getPrintingPolicy());
+    FutagCallExprInfo result{
+        call_expr,
+        call_expr->getDirectCallee()->getQualifiedNameAsString(),
+        call_expr->getDirectCallee()->getNameAsString(),
+        stmt_str,
+        init_args,
+        cfg_block_ID,
+        code_loc};
     return result;
 }
 
@@ -190,89 +288,46 @@ void SearchVarDeclInBlock(
     return;
 }
 
-void FutagMatchInitCallExprCB::HandleDeclRefExpr(const DeclRefExpr *arg,
-                                                 json &curr_arg_context) {}
-
-bool FutagMatchInitCallExprCB::HandleLiterals(const Expr *arg, json &attr) {
+bool HandleLiterals(const Expr *arg, FutagInitArg &curr_init_arg) {
     if (const auto *charecterLiteralArg = dyn_cast<CharacterLiteral>(arg)) {
-        HandleCharacterLiteral(charecterLiteralArg, attr);
+        curr_init_arg.init_type = ArgConstValue;
+        curr_init_arg.value = "\"" + std::to_string(charecterLiteralArg->getValue()) + "\"";
         return true;
     }
 
     if (const auto *fixedPointLiteralArg = dyn_cast<FixedPointLiteral>(arg)) {
-        HandleFixedPointLiteral(fixedPointLiteralArg, attr);
+        curr_init_arg.init_type = ArgConstValue;
+        curr_init_arg.value = fixedPointLiteralArg->getValueAsString(10);
         return true;
     }
 
     if (const auto *floatingPointLiteralArg = dyn_cast<FloatingLiteral>(arg)) {
-        HandleFloatingLiteral(floatingPointLiteralArg, attr);
+        curr_init_arg.init_type = ArgConstValue;
+        curr_init_arg.value =
+            floatingPointLiteralArg->getValueAsApproximateDouble();
         return true;
     }
 
     if (const auto *imaginaryLiteralArg = dyn_cast<ImaginaryLiteral>(arg)) {
-        HandleImaginaryLiteral(imaginaryLiteralArg, attr);
+        curr_init_arg.init_type = ArgConstValue;
+        curr_init_arg.value = "";
         return true;
     }
 
     if (const auto *integerLiteralArg = dyn_cast<IntegerLiteral>(arg)) {
-        HandleIntegerLiteral(integerLiteralArg, attr);
+        curr_init_arg.init_type = ArgConstValue;
+        curr_init_arg.value =
+            (integerLiteralArg->getValue().isSignBitSet())
+                ? integerLiteralArg->getValue().getSExtValue()
+                : integerLiteralArg->getValue().getZExtValue();
         return true;
     }
 
     if (const auto *stringLiteralArg = dyn_cast<clang::StringLiteral>(arg)) {
-        HandleStringLiteral(stringLiteralArg, attr);
-        return true;
+        curr_init_arg.init_type = ArgConstValue;
+        curr_init_arg.value = "\"" + stringLiteralArg->getBytes().str()+"\"";
     }
-
     return false;
-}
-
-void FutagMatchInitCallExprCB::HandleCharacterLiteral(
-    const CharacterLiteral *arg, json &attr) {
-    llvm::outs() << "HandleCharacterLiteral\n";
-    attr["literal_type"] = "CharacterLiteral";
-    attr["value"] = arg->getValue();
-}
-
-void FutagMatchInitCallExprCB::HandleFixedPointLiteral(
-    const FixedPointLiteral *arg, json &attr) {
-    llvm::outs() << "HandleFixedPointLiteral\n";
-    attr["literal_type"] = "FixedPointLiteral";
-    // @TODO: radix value selected arbitrary!
-    attr["value"] = arg->getValueAsString(10);
-}
-
-void FutagMatchInitCallExprCB::HandleFloatingLiteral(const FloatingLiteral *arg,
-                                                     json &attr) {
-    llvm::outs() << "HandleFloatingLiteral\n";
-    // arg->getValueAsApproximateDouble();
-    attr["literal_type"] = "FloatingLiteral";
-    attr["value"] = arg->getValueAsApproximateDouble();
-}
-
-void FutagMatchInitCallExprCB::HandleImaginaryLiteral(
-    const ImaginaryLiteral *arg, json &attr) {
-    llvm::outs() << "HandleImaginaryLiteral\n";
-    attr["literal_type"] = "ImaginaryLiteral";
-    attr["value"] = "";
-}
-
-void FutagMatchInitCallExprCB::HandleIntegerLiteral(const IntegerLiteral *arg,
-                                                    json &attr) {
-    // Process signed and unsigned integers separately
-    llvm::outs() << "HandleIntegerLiteral\n";
-    attr["literal_type"] = "IntegerLiteral";
-    attr["value"] = (arg->getValue().isSignBitSet())
-                        ? arg->getValue().getSExtValue()
-                        : arg->getValue().getZExtValue();
-}
-
-void FutagMatchInitCallExprCB::HandleStringLiteral(
-    const clang::StringLiteral *arg, json &attr) {
-    // llvm::outs() << "HandleStringLiteral\n";
-    attr["literal_type"] = "StringLiteral";
-
-    attr["value"] = arg->getBytes();
 }
 
 /**
@@ -310,7 +365,8 @@ void FutagMatchInitCallExprCB::run(const MatchFinder::MatchResult &Result) {
         MatchedDeclRefExpr) {
         std::string target_func_name = MatchedFunctionDecl->getNameAsString();
         for (auto it : analysis_jdb["functions"]) {
-            if (target_func_name == it["name"] && it["is_simple"]) {
+            // if (target_func_name == it["name"] && it["is_simple"]) {
+            if (target_func_name == it["name"]) { //} && it["is_simple"]) {
                 // llvm::outs()
                 //     << "Found variable \"" <<
                 //     MatchedVarDecl->getNameAsString()
@@ -342,13 +398,15 @@ void FutagMatchInitCallExprCB::run(const MatchFinder::MatchResult &Result) {
 
     if (MatchedVarDecl && MatchedFunctionDecl && MatchedDeclRefExpr) {
         for (auto it : analysis_jdb["functions"]) {
-            if (MatchedFunctionDecl->getNameAsString() == it["name"] &&
-                it["is_simple"]) {
-                // llvm::outs()
-                //     << "Found variable \"" <<
-                //     MatchedVarDecl->getNameAsString()
-                //     << "\" \t initialized with VarDecl \""
-                //     << MatchedFunctionDecl->getNameAsString() << "\"\n";
+            // if (MatchedFunctionDecl->getNameAsString() == it["name"] &&
+            //     it["is_simple"]) {
+            if (MatchedFunctionDecl->getNameAsString() == it["name"]) { //} &&
+                // it["is_simple"]) {
+                //  llvm::outs()
+                //      << "Found variable \"" <<
+                //      MatchedVarDecl->getNameAsString()
+                //      << "\" \t initialized with VarDecl \""
+                //      << MatchedFunctionDecl->getNameAsString() << "\"\n";
                 const auto *expr = MatchedVarDecl->getAnyInitializer();
 
                 const auto *call_expr = dyn_cast<CallExpr>(expr);
@@ -404,25 +462,19 @@ void FutagMatchDefCallExprCB::run(const MatchFinder::MatchResult &Result) {
                         << "MatchedVarDecl->getAnyInitializer(): "
                         << call_expr->getDirectCallee()->getNameAsString()
                         << "\n";
-                    unsigned int found_block_ID =
-                        cfg_stmt_map->getBlock(call_expr)->getBlockID();
-                    if (std::find(curr_analyzed_path.begin(),
-                                  curr_analyzed_path.end(),
-                                  found_block_ID) <= curr_analyzed_pos) {
-                        if (std::find(curr_analyzed_path.begin(),
-                                      curr_analyzed_path.end(),
-                                      found_block_ID) < curr_analyzed_pos) {
-                            curr_context_path.insert(curr_context_path.begin(),
-                                                     found_block_ID);
-                        }
-                        init_calls.insert(
-                            init_calls.begin(),
-                            {MatchedVarDecl->getNameAsString(),
-                             GetCallExprInfo(call_expr, cfg_stmt_map, Mgr)});
-                        return;
-                    }
+                    cfg_stmt_map->getBlock(call_expr)->getBlockID();
+                    init_calls.insert(init_calls.begin(),
+                                      {
+                                          MatchedVarDecl->getNameAsString(),
+                                          GetCallExprInfo(  //
+                                              call_expr,    //
+                                              cfg_stmt_map, //
+                                              Mgr,          //
+                                              analysis_jdb, //
+                                              init_calls)   //
+                                      });
+                    return;
                 }
-                break;
             }
         }
     }
@@ -449,25 +501,18 @@ void FutagMatchDefCallExprCB::run(const MatchFinder::MatchResult &Result) {
                         << "MatchedVarDecl->getAnyInitializer(): "
                         << call_expr->getDirectCallee()->getNameAsString()
                         << "\n";
-                    unsigned int found_block_ID =
-                        cfg_stmt_map->getBlock(call_expr)->getBlockID();
-                    if (std::find(curr_analyzed_path.begin(),
-                                  curr_analyzed_path.end(),
-                                  found_block_ID) <= curr_analyzed_pos) {
-                        if (std::find(curr_analyzed_path.begin(),
-                                      curr_analyzed_path.end(),
-                                      found_block_ID) < curr_analyzed_pos) {
-                            curr_context_path.insert(curr_context_path.begin(),
-                                                     found_block_ID);
-                        }
-                        init_calls.insert(
-                            init_calls.begin(),
-                            {MatchedVarDecl->getNameAsString(),
-                             GetCallExprInfo(call_expr, cfg_stmt_map, Mgr)});
-                        return;
-                    }
+                    init_calls.insert(init_calls.begin(),
+                                      {
+                                          MatchedVarDecl->getNameAsString(),
+                                          GetCallExprInfo(  //
+                                              call_expr,    //
+                                              cfg_stmt_map, //
+                                              Mgr,          //
+                                              analysis_jdb, //
+                                              init_calls)   //
+                                      });
+                    return;
                 }
-                break;
             }
         }
     }
@@ -488,32 +533,14 @@ void FutagMatchModCallExprCB::run(const MatchFinder::MatchResult &Result) {
     for (auto it : analysis_jdb["functions"]) {
         if (ModCallExpr->getDirectCallee()->getNameAsString() == it["name"]) {
 
-            futag::FutagCallExprInfo call_expr_info =
-                futag::GetCallExprInfo(ModCallExpr, cfg_stmt_map, Mgr);
+            futag::FutagCallExprInfo call_expr_info = futag::GetCallExprInfo( //
+                ModCallExpr,                                                  //
+                cfg_stmt_map,                                                 //
+                Mgr,                                                          //
+                analysis_jdb,                                                 //
+                init_calls                                                    //
+            );
             modifying_calls.insert(modifying_calls.end(), call_expr_info);
-
-            for (auto iter_arg : call_expr_info.args) {
-                if (iter_arg.init_type == futag::ArgVarRef) {
-                    bool found_init_arg = false;
-                    for (auto iter_init_call : init_calls) {
-                        if (iter_arg.value == iter_init_call.var_name) {
-                            found_init_arg = true;
-                        }
-                    }
-                    if (!found_init_arg) {
-                        SearchVarDeclInBlock(
-                            Mgr,
-                            iter_arg,           // current argument for search
-                            curr_search_node,   // current node for search
-                            cfg_stmt_map,       // for matching found callexpr
-                            curr_context_path,  // for adding node to curr path
-                            curr_analyzed_pos,  // for checking match
-                            curr_analyzed_path, // for checking match
-                            init_calls,         //
-                            analysis_jdb);
-                    }
-                }
-            }
             break;
         }
     }
