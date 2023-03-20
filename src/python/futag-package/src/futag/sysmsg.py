@@ -23,7 +23,11 @@ COMPILER_FLAGS = "-fsanitize=address"
 COMPILER_COVERAGE_FLAGS = "-fprofile-instr-generate -fcoverage-mapping "
 FUZZ_COMPILER_FLAGS = "-fsanitize=address,fuzzer"
 FUZZ_DRIVER_PATH = "futag-fuzz-drivers"
+CONTEXT_FUZZ_DRIVER_PATH = "futag-context-fuzz-drivers"
 ANALYSIS_FILE_PATH=".futag-analysis/futag-analysis-result.json"
+CONTEXT_FILE_PATH=".futag-consumer/futag-contexts.json"
+FOR_CONSUMER_FILEPATH=".futag-analysis/futag-4consumer.json"
+CONSUMER_REPORT_PATH=".futag-consumer"
 
 # messages of Futag
 CMAKE_PATH_ERROR="Please specify other directory for building with cmake."
@@ -32,7 +36,10 @@ INVALID_FUTAG_PATH = "-- [Futag]: Incorrect path to FUTAG llvm package"
 INVALID_FUZZ_DRIVER_PATH = "-- [Futag]: Incorrect path to fuzz-drivers"
 INVALID_ANALYSIS_PATH = "-- [Futag]: Incorrect path to analysis folder"
 INVALID_ANALYSIS_FILE = "-- [Futag]: Incorrect path to analysis result file"
+INVALID_CONTEXT_FILE_PATH = "-- [Futag]: Incorrect path to consumer context file"
 INVALID_LIBPATH = "-- [Futag]: Incorrect path to the library root"
+INVALID_CONSUMER_PATH = "-- [Futag]: Incorrect path to the consumer program"
+INVALID_DB_FILEPATH = "-- [Futag]: analysis result of testing library not found"
 INVALID_BUILPATH = "-- [Futag]: Incorrect path to the library build path"
 INVALID_INSTALLPATH = "-- [Futag]: Incorrect path to the library install path"
 GDB_NOT_FOUND = "-- [Futag]: GDB is not found in your system, Futag can not debug with GDB"
@@ -54,6 +61,7 @@ LIB_INSTALL_FAILED = "-- [Futag]: Install library failed, please install it your
 LIB_INSTALL_SUCCEEDED = "-- [Futag]: Library was installed successfully!"
 LIB_INSTALL_COMMAND = "-- [Futag]: Install command: "
 AUTO_BUILD_MSG = "-- [Futag]: Futag is finding for makefile, configure or cmake in you library root"
+AUTO_CONSUMER_BUILD_MSG = "-- [Futag]: Futag is analyzing consumer program for finding context of testing library"
 AUTO_BUILD_FAILED = "-- [Futag]: Futag is unable to automatically build your library. Please do it yourself!"
 CONFIGURE_FOUND = "-- [Futag]: File configure found, trying to build library with configure... "
 CMAKE_FOUND = "-- [Futag]: File CMakeList.txt found, trying to build library with cmake... "
@@ -68,6 +76,9 @@ COULD_NOT_PARSE_NATCH_CALLSTACK = "-- [Futag] Error: Could not parse file!"
 CANNOT_CREATE_LOG_FILE = "-- [Futag] Error: Can not create log file for function: "
 CANNOT_CREATE_WRAPPER_FILE = "-- [Futag] Error: Can not create fuzz-wrapper file for function: "
 WRAPPER_FILE_CREATED = "           [*]file fuzz-wrapper was created: "
+
+#messages for ConsumerBuilder:
+INVALID_DB_FILEPATH = "-- [Futag] Error: analysis result of testing library not found!"
 
 # Constants for GENERATOR
 GEN_BUILTIN   = 0
@@ -135,6 +146,12 @@ SC_PRIVATEEXTERN = 3
 # These are only legal on variables.
 SC_AUTO = 4
 SC_REGISTER = 5
+
+#Contants for ConsumerGenerator:
+ARG_INIT_VARREF   = 0
+ARG_INIT_CONST    = 1
+ARG_INIT_FUNCCALL = 2
+ARG_INIT_UNKNOWN  = 3
 
 AFLPLUSPLUS_PREFIX = '''__AFL_FUZZ_INIT();
 

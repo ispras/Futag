@@ -1,3 +1,14 @@
+/**
+ * @file MatchFinder.cpp
+ * @author Tran Chi Thien
+ * @brief 
+ * @version 0.1
+ * @date 2023-03-20
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #include "Futag/MatchFinder.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
@@ -191,7 +202,7 @@ void FutagMatchCallExprCallBack::HandleFloatingLiteral(
 void FutagMatchCallExprCallBack::HandleImaginaryLiteral(
     const ImaginaryLiteral *arg, json &curr_arg_context) {
     curr_arg_context["futag_type"] = FutagType::ConstValStr();
-    // curr_arg_context["literal_value"] = arg->get;
+    curr_arg_context["literal_value"] = "";
 }
 
 void FutagMatchCallExprCallBack::HandleIntegerLiteral(const IntegerLiteral *arg,
@@ -222,7 +233,7 @@ void FutagMatchCallExprCallBack::HandleCallExpr(const CallExpr *arg,
         arg->printPretty(rso, nullptr, Mgr.getASTContext().getPrintingPolicy());
 
         llvm::errs() << __func__
-                     << " - Cannot get direct callee: " + rso.str() + " " +
+                     << " - Cannot get direct callee: " + rso.str() + ", location: " +
                             callExprLoc.printToString(Mgr.getSourceManager()) +
                             "\n";
         return;
@@ -255,8 +266,8 @@ void FutagMatchCallExprCallBack::run(const MatchFinder::MatchResult &Result) {
     std::string called_func_hash = std::to_string(
         futag::utils::ODRHashCalculator::CalculateHash(called_func));
 
-    std::string consummer_func_hash = std::to_string(
-        futag::utils::ODRHashCalculator::CalculateHash(consummer_func));
+    std::string consumer_func_hash = std::to_string(
+        futag::utils::ODRHashCalculator::CalculateHash(consumer_func));
 
     // 3. Get instance of SourceManager to extract information about call
     // location
@@ -265,18 +276,18 @@ void FutagMatchCallExprCallBack::run(const MatchFinder::MatchResult &Result) {
 
     // If we don't have basic information for currently processed call,
     // Create new object with the key = funcHash
-    if (!curr_context.contains(consummer_func_hash))
-        curr_context[consummer_func_hash] = json{};
+    if (!curr_context.contains(consumer_func_hash))
+        curr_context[consumer_func_hash] = json{};
 
     // Check if we have call_contexts field
-    if (!curr_context[consummer_func_hash].contains("call_contexts")) {
-        curr_context[consummer_func_hash]["call_contexts"] = json::array();
+    if (!curr_context[consumer_func_hash].contains("call_contexts")) {
+        curr_context[consumer_func_hash]["call_contexts"] = json::array();
     }
 
     // Check if we have func_name field
-    if (!curr_context[consummer_func_hash].contains("func_name")) {
-        curr_context[consummer_func_hash]["func_name"] =
-            consummer_func->getQualifiedNameAsString();
+    if (!curr_context[consumer_func_hash].contains("func_name")) {
+        curr_context[consumer_func_hash]["func_name"] =
+            consumer_func->getQualifiedNameAsString();
     }
 
     // Preprocess current filename by deleting all ./ and ../
@@ -325,6 +336,7 @@ void FutagMatchCallExprCallBack::run(const MatchFinder::MatchResult &Result) {
             if (const auto *arg =
                     dyn_cast<DeclRefExpr>(implicitArg->IgnoreParenImpCasts())) {
                 HandleDeclRefExpr(arg, curr_arg_context);
+            }else if (HandleLiterals(callExpr->getArg(i)->IgnoreParenCasts(), curr_arg_context)){
             }
         }
 
@@ -332,7 +344,7 @@ void FutagMatchCallExprCallBack::run(const MatchFinder::MatchResult &Result) {
     }
 
     // Write new call location to the array
-    curr_context[consummer_func_hash]["call_contexts"].push_back(
+    curr_context[consumer_func_hash]["call_contexts"].push_back(
         currentCallContext);
     return;
 }

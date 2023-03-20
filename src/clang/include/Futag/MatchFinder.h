@@ -7,6 +7,7 @@
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
+#include "llvm/Support/Process.h"
 
 #include "Futag/Utils.h"
 
@@ -66,12 +67,12 @@ class FutagMatchCallExprCallBack : public MatchFinder::MatchCallback {
   public:
     FutagMatchCallExprCallBack(json &curr_context, AnalysisManager &Mgr,
                                Stmt *curr_node,
-                               const FunctionDecl *consummer_func)
+                               const FunctionDecl *consumer_func)
         : curr_context{curr_context}, Mgr{Mgr}, curr_node{curr_node},
-          consummer_func{consummer_func} {}
+          consumer_func{consumer_func} {}
     AnalysisManager &Mgr; // For passing the AnalysisManager
     Stmt *curr_node;      // For passing the current node for searching
-    const FunctionDecl *consummer_func; // Current analyzed function
+    const FunctionDecl *consumer_func; // Current analyzed function
     virtual void run(const MatchFinder::MatchResult &Result);
 
   private:
@@ -101,12 +102,12 @@ class FutagMatchCallExprCallBack : public MatchFinder::MatchCallback {
 class FutagArgUsageDeterminer : public MatchFinder::MatchCallback {
   public:
     FutagArgUsageDeterminer(json &curr_param_context, AnalysisManager &Mgr,
-                            Stmt *curr_node, const FunctionDecl *consummer_func)
-        : Mgr{Mgr}, curr_node{curr_node}, consummer_func{consummer_func},
+                            Stmt *curr_node, const FunctionDecl *consumer_func)
+        : Mgr{Mgr}, curr_node{curr_node}, consumer_func{consumer_func},
           curr_param_context{curr_param_context} {}
     AnalysisManager &Mgr;
     Stmt *curr_node; // For passing the current node for searching
-    const FunctionDecl *consummer_func; // Currently analyzed function
+    const FunctionDecl *consumer_func; // Currently analyzed function
     virtual void run(const MatchFinder::MatchResult &Result);
 
   private:

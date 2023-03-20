@@ -59,6 +59,13 @@ class FutagCatchInfo : public Checker<check::ASTDecl<FunctionDecl>> {
 
 } // namespace
 
+/**
+ * @brief 
+ * 
+ * @param func 
+ * @param Mgr 
+ * @param BR 
+ */
 void FutagCatchInfo::checkASTDecl(const FunctionDecl *func,
                                   AnalysisManager &Mgr, BugReporter &BR) const {
     if (Mgr.getSourceManager().isInSystemHeader(func->getBeginLoc()) ||
