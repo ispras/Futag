@@ -8,7 +8,7 @@
 3. в папке futag-build запускается configure или cmake с заданными аргументами (install_path, build_ex_params, и т.д.)
 4. запускается make (в сфере scan-build с чекером futag.FutagFunctionAnalyzer), зависимости извлекаются и сохраняются в папку analysis_path
 5. выполняется удаление собранных файлов
-6. запускается make с параметрами flags. По умолчанию параметры имеют значение: "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping" - AddressSanitizer, debug, without optimization, information generation for coverage) - в результате сборки с параметрами по умолчанию формируется фаззинг-цель, включающая опции сбора отладочной информации и покрытия.
+6. запускается make с параметрами flags. По умолчанию параметры имеют значение: "-fsanitize=address -g -O0 -fprofile-instr-generate -fcoverage-mapping" - (AddressSanitizer, debug, without optimization, information generation for coverage) - в результате сборки с параметрами по умолчанию формируется фаззинг-цель, включающая опции сбора отладочной информации и покрытия.
 7. запустить make install чтобы установить библиотеку в пользовательскую папку.
 
 Есть возможность объединить шаги [4] и [6], но scan-build не собирает с флагами "-fprofile-instr-generate -fcoverage-mapping", соответственно в собранной цели будет отсутстовать инструментация, позволяющая собирать информацию о покрытии.

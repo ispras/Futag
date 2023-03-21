@@ -12,7 +12,7 @@ RUN ln -fs /usr/share/zoneinfo/Europe/Moscow /etc/localtime
 RUN apt-get install -y tzdata
 
 #Установка необходимых библиотек для futag
-RUN apt install -y libncurses5 libtinfo5 gcc-multilib g++ make gdb binutils python3 git openssh-client cmake wget xz-utils python3 python3-pip texinfo libbison-dev nano
+RUN apt install -y libncurses5 libtinfo5 gcc-multilib g++ make gdb binutils binutils-gold binutils-dev python3 python3-pip python-is-python3 git openssh-client cmake wget xz-utils python3-pip texinfo libbison-dev nano
 
 USER futag
 WORKDIR /home/futag/

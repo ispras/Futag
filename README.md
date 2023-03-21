@@ -48,10 +48,14 @@ FUTAG  использует, в  качестве внешнего интерф�
 - [pip](https://pypi.org/project/pip/) >=22.0.4
 - [zlib](http://zlib.net/) >=1.2.3.4 Compression library
 - [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1 Makefile/build processor
+- [Binutils](https://www.gnu.org/software/binutils/)
 
 Для получения более детальной информации о зависимостях, необходимых для сборки LLVM, вы можете ознакомиться с документацией по указанной [ссылке](https://llvm.org/docs/GettingStarted.html#requirements)
 
-Так же необходимо создать симбольную ссылку "python" на "python3" если такой ссылки не существует в вашей системе. В системе Ubuntu это можно сделать, установив пакет python-is-python3.
+В системе Ubuntu возможно требуется установить пакеты:
+- python-is-python3.
+- gcc-multilib
+- binutils-gold binutils-dev
 
 ### 2.3.2. Сборка и установка
 
@@ -139,22 +143,23 @@ from futag.fuzzer import *
 FUTAG_PATH = "/home/futag/Futag/futag-llvm"
 library_root = "json-c-json-c-0.16-20220414"
 consumer_root = "libstorj-1.0.3"
-build_test = ConsumerBuilder(
+consumber_builder = ConsumerBuilder(
    FUTAG_PATH, # путь к директории "futag-llvm"
    library_root, # путь к директории содержащей исходные кода тестируемой библиотеки
    consumer_root, # путь к директории содержащей исходные кода потребительской программы
   #  clean=True,
   #  processes=16,
 )
-build_test.auto_build()
-build_test.analyze()
+consumber_builder.auto_build()
+consumber_builder.analyze()
 
-generator = ContextGenerator(
+context_generator = ContextGenerator(
     FUTAG_PATH, 
     library_root, 
 )
-generator.gen_context() # генерация фаззинг-оберток для контекстов
-generator.compile_targets( #компиляция сгенерированных фаззинг-оберток
+
+context_generator.gen_context() # генерация фаззинг-оберток для контекстов
+context_generator.compile_targets( #компиляция сгенерированных фаззинг-оберток
     keep_failed=True,
 )
 ```

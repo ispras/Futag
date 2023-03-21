@@ -27,4 +27,27 @@ generator.compile_targets(
     keep_failed=True
 )
 
-print("-- [Futag]: fuzz-drivers are saved in json-c/futag-fuzz-targets!")
+
+FUTAG_PATH = "/home/futag/Futag/futag-llvm"
+library_root = "json-c-json-c-0.16-20220414"
+
+consumer_root = "libstorj-1.0.3"
+consumber_builder = ConsumerBuilder(
+   FUTAG_PATH, # путь к директории "futag-llvm"
+   library_root, # путь к директории содержащей исходные кода тестируемой библиотеки
+   consumer_root, # путь к директории содержащей исходные кода потребительской программы
+  #  clean=True,
+  #  processes=16,
+)
+consumber_builder.auto_build()
+consumber_builder.analyze()
+
+context_generator = ContextGenerator(
+    FUTAG_PATH, 
+    library_root, 
+)
+
+context_generator.gen_context() # генерация фаззинг-оберток для контекстов
+context_generator.compile_targets( #компиляция сгенерированных фаззинг-оберток
+    keep_failed=True,
+)
