@@ -27,36 +27,23 @@ from futag.sysmsg import *
 class Fuzzer:
     """Futag Fuzzer"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, extra_params: str = ""):
-        """
-        Parameters
-        ----------
-        futag_llvm_package: str
-            path to the futag llvm package (with binaries, scripts, etc)
-        fuzz_driver_path: str
-            location of fuzz-drivers, default "futag-fuzz-drivers"
-        debug: bool = False
-            print debug infomation while fuzzing, default False
-        gdb: bool = False
-            debug crashes with GDB, default False
-        svres: bool = False
-            generate svres file for Svace (if you have Svace), default False
-        fork: int = 1
-            fork mode of libFuzzer (https://llvm.org/docs/LibFuzzer.html#fork-mode), default 1 - no fork mode
-        totaltime: int = 300
-            total time of fuzzing one fuzz-driver, default 300 seconds
-        timeout: int = 10
-            if an fuzz-drive takes longer than this timeout, the process is treated as a failure case, default 10 seconds
-        memlimit: int = 2048
-            option for rss_limit_mb of libFuzzer - Memory usage limit in Mb, default 2048 Mb, Use 0 to disable the limit.
-        coverage: bool = False
-            option for showing coverage of fuzzing, default False.
-        leak: bool = False
-            detecting memory leak, default False
-        introspect: bool = False
-            option for integrate with fuzz-introspector (to be add soon).
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False):
+        """_summary_
 
-        """
+        Args:
+            futag_llvm_package (str): path to the futag llvm package (with binaries, scripts, etc)
+            fuzz_driver_path (str, optional): location of fuzz-drivers, default "futag-fuzz-drivers". Defaults to FUZZ_DRIVER_PATH.
+            debug (bool, optional): print debug infomation while fuzzing, default False. Defaults to False.
+            gdb (bool, optional): debug crashes with GDB, default False. Defaults to False.
+            svres (bool, optional): generate svres file for Svace (if you have Svace), default False. Defaults to False.
+            fork (int, optional): fork mode of libFuzzer (https://llvm.org/docs/LibFuzzer.html#fork-mode). Defaults to 1 - no fork mode.
+            totaltime (int, optional): total time of fuzzing one fuzz-driver, default 300 seconds. Defaults to 300.
+            timeout (int, optional): if an fuzz-drive takes longer than this timeout, the process is treated as a failure case. Defaults to 10.
+            memlimit (int, optional): option for rss_limit_mb of libFuzzer - Memory usage limit in Mb, 0 - disable the limit. Defaults to 2048.
+            coverage (bool, optional): option for showing coverage of fuzzing. Defaults to False.
+            leak (bool, optional): detecting memory leak, default False. Defaults to False.
+            introspect (bool, optional): option for integrate with fuzz-introspector (to be add soon). Defaults to False.
+        """        
 
         self.futag_llvm_package = futag_llvm_package
         self.fuzz_driver_path = fuzz_driver_path
@@ -143,16 +130,13 @@ class Fuzzer:
         return hash(str(backtrace["warnID"]) + input_str)
 
     def __libFuzzerLog_parser(self, fuzz_driver: str, libFuzzer_log: str, gdb: bool = False):
-        """
-        Parameters
-        ----------
-        fuzz_driver: str
-            path to the fuzz-driver
-        libFuzzer_log: str
-            path of libFuzzer log
-        gdb: bool = False
-            option for parsing with GDB
-        """
+        """_summary_
+
+        Args:
+            fuzz_driver (str): path to the fuzz-driver
+            libFuzzer_log (str): path of libFuzzer log
+            gdb (bool, optional): option for parsing with GDB. Defaults to False.
+        """        
 
         # Thank https://regex101.com/
         # match_error = "^==\d*==ERROR: (\w*): (.*)$"
@@ -581,7 +565,12 @@ class Fuzzer:
             os.system("rm -f types_*")
             os.system("rm -f trace_*")
 
-    def fuzz(self):
+    def fuzz(self, extra_param: str = ""):
+        """ helper for automatic fuzzing
+
+        Args:
+            extra_param (str, optional): Extra params for fuzzing. Defaults to "".
+        """        
         symbolizer = self.futag_llvm_package / "bin/llvm-symbolizer"
         generated_functions = [
             x for x in (self.fuzz_driver_path / "succeeded").iterdir() if x.is_dir()]
@@ -623,11 +612,11 @@ class Fuzzer:
                             "-max_total_time=" + str(self.totaltime),
                             "-artifact_prefix=" + dir.as_posix() + "/",
                         ]
+                    if not extra_param:
+                        execute_command = execute_command + extra_param.split(" ")
                     if self.debug:
                         print("-- [Futag] FUZZING command:" +
                               " ".join(execute_command))
-
-                    # print(" ".join(execute_command))
                     p = call(
                         execute_command,
                         stdout=PIPE,
@@ -637,7 +626,6 @@ class Fuzzer:
                     )
 
                     # 2. Find all crash-* leak-* ... in artifact folder
-                    # print(dir.as_posix())
                     crashes_files = [x for x in dir.glob(
                         "**/crash-*") if x.is_file()]
                     for cr in crashes_files:

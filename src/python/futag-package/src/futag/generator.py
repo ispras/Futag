@@ -1480,20 +1480,16 @@ class Generator:
         target_file.close()
 
     def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
-        """
-        Parameters
-        ----------
-        workers: int
-            number of processes for compiling, default to 4.
-        keep_failed: bool
-            option for saving not compiled fuzz-targets, default to False.
-        extra_include: str
-            option for add included directories while compiling, default to empty string.
-        extra_dynamiclink: str
-            option for add dynamic libraries while compiling, default to empty string.
-        flags: str
-            flags for compiling fuzz-drivers, default to "-fsanitize=address,fuzzer -g -O0".
-        """
+        """_summary_
+
+        Args:
+            workers (int, optional): number of processes for compiling. Defaults to 4.
+            keep_failed (bool, optional): option for saving not compiled fuzz-targets. Defaults to False.
+            extra_include (str, optional): option for add included directories while compiling. Defaults to "".
+            extra_dynamiclink (str, optional): option for add dynamic libraries while compiling. Defaults to "".
+            flags (str, optional): flags for compiling fuzz-drivers. Defaults to "-fsanitize=address -g -O0".
+            coverage (bool, optional): option for add coverage flag. Defaults to False.
+        """        
 
         # include_subdir = self.target_library["header_dirs"]
         # include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.hpp")] + [self.build_path.as_posix()]
@@ -1503,11 +1499,11 @@ class Generator:
         # include_subdir = list(set(include_subdir))
         if not flags:
             if coverage:
-                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
+                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
                 compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " +\
                     COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS
             else:
-                compiler_flags_aflplusplus = DEBUG_FLAGS + " -fPIE "
+                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + DEBUG_FLAGS + " -fPIE "
                 compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " + DEBUG_FLAGS
         else:
             compiler_flags_aflplusplus = flags
@@ -2986,73 +2982,6 @@ class ContextGenerator:
             param_id += 1
             self.__gen_target_function(call, func, param_id)
 
-    def gen_targets(self, anonymous: bool = False):
-        """
-        Parameters
-        ----------
-        anonymous: bool
-            option for generating fuzz-targets of non-public functions, default to False.
-        """
-        self.gen_anonymous = anonymous
-        C_generated_function = []
-        C_unknown_function = []
-        Cplusplus_usual_class_method = []
-        Cplusplus_static_class_method = []
-        Cplusplus_anonymous_class_method = []
-        for func in self.target_library["functions"]:
-            # For C
-            if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (func["parent_hash"] == ""):
-                print(
-                    "-- [Futag] Try to generate fuzz-driver for function: ", func["name"], "...")
-                C_generated_function.append(func["name"])
-                self.gen_this_function = True
-                self.buffer_size = []
-                self.gen_lines = []
-                self.gen_free = []
-                self.dyn_size_idx = 0
-                self.file_idx = 0
-                self.var_function_idx = 0
-                self.param_list = []
-                self.curr_function = func
-                self.curr_func_log = ""
-                self.__gen_target_function(func, 0)
-
-            # For C++, Declare object of class and then call the method
-            if func["access_type"] == AS_PUBLIC and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR, FUNC_GLOBAL, FUNC_STATIC] and (not "::operator" in func["qname"]):
-                Cplusplus_usual_class_method.append(func["qname"])
-                print(
-                    "-- [Futag] Try to generate fuzz-driver for class method: ", func["name"], "...")
-                self.gen_this_function = True
-                self.buffer_size = []
-                self.gen_lines = []
-                self.gen_free = []
-                self.dyn_size_idx = 0
-                self.file_idx = 0
-                self.var_function_idx = 0
-                self.param_list = []
-                self.curr_function = func
-                self.curr_func_log = ""
-                self.__gen_target_function(func, 0)
-
-            # For C++, Call the static function of class without declaring object
-            if func["access_type"] in [AS_NONE, AS_PUBLIC] and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_GLOBAL, FUNC_STATIC] and func["storage_class"] == SC_STATIC:
-                if (not "(anonymous namespace)" in func["qname"]) and (not "::operator" in func["qname"]):
-                    Cplusplus_static_class_method.append(func["qname"])
-
-            # We dont generate for static function of C
-            if func["func_type"] == FUNC_UNKNOW_RECORD and func["storage_class"] == 2:
-                C_unknown_function.append(func["qname"])
-
-        self.result_report = {
-            "C_generated_functions": C_generated_function,
-            "Cplusplus_static_class_methods": Cplusplus_static_class_method,
-            "Cplusplus_usual_class_methods": Cplusplus_usual_class_method,
-            "Cplusplus_anonymous_class_methods": Cplusplus_anonymous_class_method,
-            "C_unknown_functions": C_unknown_function
-        }
-        json.dump(self.result_report, open(
-            (self.build_path / "result-report.json").as_posix(), "w"))
-
     def compile_driver_worker(self, bgen_args):
         with open(bgen_args["error_path"], "w") as error_log_file:
             p = Popen(
@@ -3135,11 +3064,11 @@ class ContextGenerator:
         # include_subdir = list(set(include_subdir))
         if not flags:
             if coverage:
-                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
+                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
                 compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " +\
                     COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS
             else:
-                compiler_flags_aflplusplus = DEBUG_FLAGS + " -fPIE "
+                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + DEBUG_FLAGS + " -fPIE "
                 compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " + DEBUG_FLAGS
         else:
             compiler_flags_aflplusplus = flags
@@ -3312,17 +3241,12 @@ class ContextGenerator:
             + " fuzz-driver(s)\n"
         )
 
-    def gen_targets_from_callstack(self, target):
-        found_function = None
-        for func in self.target_library["functions"]:
-            # if func["qname"] == target["qname"] and func["location"]["line"] == target["location"]["line"]and func["location"]["line"]["file"]== target["location"]["line"]:
-            if func["qname"] == target["qname"]:
-                found_function = func
-                self.__gen_target_function(func, 0)
-        if not found_function:
-            sys.exit("Function \"%s\" not found in library!" % target["qname"])
-
     def sort_callexprs(self):
+        """This function sorts all found callexpresions to CFG block
+
+        Returns:
+            _type_: _description_
+        """        
         if not self.consumer_contexts:
             return False
 
