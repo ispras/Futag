@@ -169,7 +169,7 @@ private:
   // - We should add support for return types
   const std::unordered_map<std::string, std::vector<ArgumentType>>
       fuctionArgsToTypes = {
-          {"read", {AT::FILE_PATH, AT::UNKNOWN, AT::SIZE_FIELD}},
+          {"read", {AT::FILE_DESCRIPTOR, AT::UNKNOWN, AT::SIZE_FIELD}},
           {"open", {AT::FILE_PATH, AT::UNKNOWN}},
           {"fopen", {AT::FILE_PATH, AT::UNKNOWN}},
           {"write", {AT::FILE_DESCRIPTOR, AT::UNKNOWN, AT::SIZE_FIELD}},

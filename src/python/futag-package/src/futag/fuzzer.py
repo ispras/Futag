@@ -612,7 +612,7 @@ class Fuzzer:
                             "-max_total_time=" + str(self.totaltime),
                             "-artifact_prefix=" + dir.as_posix() + "/",
                         ]
-                    if not extra_param:
+                    if extra_param:
                         execute_command = execute_command + extra_param.split(" ")
                     if self.debug:
                         print("-- [Futag] FUZZING command:" +

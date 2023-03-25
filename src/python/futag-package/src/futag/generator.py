@@ -57,6 +57,7 @@ class Generator:
         self.futag_llvm_package = futag_llvm_package
         self.library_root = library_root
         self.target_library = None
+        self.header = []
 
         self.gen_anonymous = False
         self.gen_this_function = True
@@ -218,6 +219,9 @@ class Generator:
             include_lines.append("#include <" + i + ">\n")
         for i in included_headers:
             include_lines.append("#include " + i + "\n")
+        if self.header:
+            for i in self.header:
+                include_lines.append("#include " + i + "\n")
         return include_lines
 
     def __gen_builtin(self, param_name, gen_type_info):
@@ -608,6 +612,35 @@ class Generator:
             "buffer_size": []
         }
 
+    def __gen_file_descriptor(self, param_name, gen_type_info):
+        if not "<fcntl.h>" in self.header:
+            self.header += ["<fcntl.h>"]
+        cur_gen_free = ["    " + x for x in self.gen_free]
+        gen_lines = [
+            "//GEN_FILE_DESCRIPTOR\n",
+            "const char* " + param_name + "_tmp" + str(self.file_idx) + " = \"futag_input_file_" +
+            str(self.file_idx - 1) + "\";\n",
+            "FILE * fp_" + str(self.file_idx - 1) +
+            " = fopen(" + param_name + "_tmp" + str(self.file_idx)  + ",\"w\");\n",
+            "if (fp_" + str(self.file_idx - 1) + "  == NULL) {\n",
+        ]
+        gen_lines += cur_gen_free
+        gen_lines += [
+            "    return 0;\n",
+            "}\n",
+            "fwrite(pos, 1, file_size[" + str(self.file_idx - 1) +
+            "], fp_" + str(self.file_idx - 1) + ");\n",
+            "fclose(fp_" + str(self.file_idx - 1) + ");\n",
+            "pos += file_size[" + str(self.file_idx - 1) + "];\n",
+            gen_type_info["type_name"] + " " + param_name  + "= open(" + param_name + "_tmp" + str(self.file_idx) + ", O_RDWR);\n"
+        ]
+        gen_free = ["close(" + param_name + ");\n"]
+        return {
+            "gen_lines": gen_lines,
+            "gen_free": gen_free,
+            "buffer_size": []
+        }
+
     def __search_in_typedefs(self, type_name, typedefs):
         # Are there multiple type definitions for the same data type???
         result = None
@@ -692,7 +725,16 @@ class Generator:
             for gen_type_info in arg["gen_list"]:
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
                     this_gen_size = False
-                    if param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or arg["param_usage"] == "SIZE_FIELD"):
+                    if arg["param_usage"] in ["FILE_DESCRIPTOR"]:
+                        curr_name = "fd_" + curr_name + str(self.file_idx)  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_file_descriptor(
+                            curr_name, gen_type_info)
+                        gen_dict["buffer_size"] += curr_gen["buffer_size"]
+                        gen_dict["gen_lines"] += curr_gen["gen_lines"]
+                        gen_dict["gen_free"] += curr_gen["gen_free"]
+                        break
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or arg["param_usage"] == "SIZE_FIELD"):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
@@ -702,7 +744,6 @@ class Generator:
                             gen_dict["gen_free"] += curr_gen["gen_free"]
                             this_gen_size = True  # with break, we may not need this variable :)
                             break
-
                     if not this_gen_size:
                         curr_name = "b_" + curr_name  # builtin_prefix
                         curr_gen = self.__gen_builtin(curr_name, gen_type_info)
@@ -1112,16 +1153,24 @@ class Generator:
             for gen_type_info in curr_param["gen_list"]:
                 prev_param_name = curr_name
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
-                    # GEN FILE DESCRIPTOR
-                    # GEN STRING SIZE
                     this_gen_size = False
-                    if param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
+                    if curr_param["param_usage"] in ["FILE_DESCRIPTOR"]:
+                        curr_name = "fd_" + curr_name + str(self.file_idx) # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_file_descriptor(
+                            curr_name, gen_type_info)
+                        self.__append_gen_dict(curr_gen)
+                        break
+                    # GEN STRING SIZE
+                    
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
+                        
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
                                 curr_name, curr_param["param_type"], self.dyn_size_idx)
                             self.__append_gen_dict(curr_gen)
-                            this_gen_size = True  # with break, we may not need this variable :)
+                            this_gen_size = True  
                             break
                     if not this_gen_size:
                         curr_name = "b_" + curr_name  # builtin_prefix
@@ -1489,7 +1538,7 @@ class Generator:
             extra_dynamiclink (str, optional): option for add dynamic libraries while compiling. Defaults to "".
             flags (str, optional): flags for compiling fuzz-drivers. Defaults to "-fsanitize=address -g -O0".
             coverage (bool, optional): option for add coverage flag. Defaults to False.
-        """        
+        """
 
         # include_subdir = self.target_library["header_dirs"]
         # include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.hpp")] + [self.build_path.as_posix()]
@@ -1499,7 +1548,8 @@ class Generator:
         # include_subdir = list(set(include_subdir))
         if not flags:
             if coverage:
-                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
+                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + \
+                    COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
                 compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " +\
                     COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS
             else:
@@ -1719,7 +1769,8 @@ class ContextGenerator:
         self.target_library = None
         self.consumer_contexts = None
         self.total_context = []
-
+        self.header = []
+        
         self.gen_anonymous = False
         self.gen_this_function = True
         self.gen_lines = []
@@ -1894,6 +1945,9 @@ class ContextGenerator:
             include_lines.append("#include <" + i + ">\n")
         for i in included_headers:
             include_lines.append("#include " + i + "\n")
+        if self.header:
+            for i in self.header:
+                include_lines.append("#include " + i + "\n")
         return include_lines
 
     def __gen_builtin(self, param_name, gen_type_info):
@@ -2283,6 +2337,36 @@ class ContextGenerator:
             "gen_free": [],
             "buffer_size": []
         }
+    
+    def __gen_file_descriptor(self, param_name, gen_type_info):
+        if not "<fcntl.h>" in self.header:
+            self.header += ["<fcntl.h>"]
+        cur_gen_free = ["    " + x for x in self.gen_free]
+        gen_lines = [
+            "//GEN_FILE_DESCRIPTOR\n",
+            "const char* " + param_name + "_tmp" + str(self.file_idx) + " = \"futag_input_file_" +
+            str(self.file_idx - 1) + "\";\n",
+            "FILE * fp_" + str(self.file_idx - 1) +
+            " = fopen(" + param_name + "_tmp" + str(self.file_idx)  + ",\"w\");\n",
+            "if (fp_" + str(self.file_idx - 1) + "  == NULL) {\n",
+        ]
+        gen_lines += cur_gen_free
+        gen_lines += [
+            "    return 0;\n",
+            "}\n",
+            "fwrite(pos, 1, file_size[" + str(self.file_idx - 1) +
+            "], fp_" + str(self.file_idx - 1) + ");\n",
+            "fclose(fp_" + str(self.file_idx - 1) + ");\n",
+            "pos += file_size[" + str(self.file_idx - 1) + "];\n",
+            gen_type_info["type_name"] + " " + param_name  + "= open(" + param_name + "_tmp" + str(self.file_idx) + ", O_RDWR);\n"
+        ]
+        gen_free = ["close(" + param_name + ");\n"]
+        return {
+            "gen_lines": gen_lines,
+            "gen_free": gen_free,
+            "buffer_size": []
+        }
+
 
     def __search_in_typedefs(self, type_name, typedefs):
         # Are there multiple type definitions for the same data type???
@@ -2368,7 +2452,16 @@ class ContextGenerator:
             for gen_type_info in arg["gen_list"]:
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
                     this_gen_size = False
-                    if param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or arg["param_usage"] == "SIZE_FIELD"):
+                    if curr_param["param_usage"] in ["FILE_DESCRIPTOR"]:
+                        curr_name = "fd_" + curr_name + str(self.file_idx) # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_file_descriptor(
+                            curr_name, gen_type_info)
+                        gen_dict["buffer_size"] += curr_gen["buffer_size"]
+                        gen_dict["gen_lines"] += curr_gen["gen_lines"]
+                        gen_dict["gen_free"] += curr_gen["gen_free"]
+                        break
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or arg["param_usage"] == "SIZE_FIELD"):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
@@ -2684,7 +2777,7 @@ class ContextGenerator:
                     func_call += ",".join(param_list)
                     func_call += ");\n"
                     gen_lines.append(func_call)
-            
+
             if self.gen_free:
                 gen_lines.append("//FREE\n")
                 for line in self.gen_free:
@@ -2742,7 +2835,14 @@ class ContextGenerator:
                     # GEN FILE DESCRIPTOR
                     # GEN STRING SIZE
                     this_gen_size = False
-                    if param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
+                    if curr_param["param_usage"] in ["FILE_DESCRIPTOR"]:
+                        curr_name = "fd_" + curr_name + str(self.file_idx) # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_file_descriptor(
+                            curr_name, gen_type_info)
+                        self.__append_gen_dict(curr_gen)
+                        break
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
@@ -3064,7 +3164,8 @@ class ContextGenerator:
         # include_subdir = list(set(include_subdir))
         if not flags:
             if coverage:
-                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
+                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + \
+                    COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
                 compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " +\
                     COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS
             else:
@@ -3246,7 +3347,7 @@ class ContextGenerator:
 
         Returns:
             _type_: _description_
-        """        
+        """
         if not self.consumer_contexts:
             return False
 
