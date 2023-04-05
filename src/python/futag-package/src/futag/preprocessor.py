@@ -77,7 +77,7 @@ class Builder:
             self.futag_llvm_package = pathlib.Path(
                 self.futag_llvm_package).absolute()
         else:
-            sys.exit(INVALID_FUTAG_PATH, futag_llvm_package)
+            sys.exit(INVALID_FUTAG_PATH + futag_llvm_package)
 
         if pathlib.Path(library_root).absolute().exists():
             self.library_root = pathlib.Path(self.library_root).absolute()
@@ -846,7 +846,7 @@ class ConsumerBuilder:
             self.futag_llvm_package = pathlib.Path(
                 self.futag_llvm_package).absolute()
         else:
-            sys.exit(INVALID_FUTAG_PATH, futag_llvm_package)
+            sys.exit(INVALID_FUTAG_PATH + futag_llvm_package)
 
         if pathlib.Path(library_root).absolute().exists():
             self.library_root = pathlib.Path(self.library_root).absolute()

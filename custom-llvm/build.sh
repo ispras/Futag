@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#===-- build.bash -------*- bash script -*-===//
+#===-- build.sh -------*- bash script -*-===//
 #
 # This file is distributed under the GPL v3 license (https://www.gnu.org/licenses/gpl-3.0.en.html).
 #

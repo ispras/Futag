@@ -13,8 +13,8 @@
  *             a tool of ISP RAS                *
  ************************************************
  *
- * @version 1.3.1
- * @date 2023-01-29
+ * @version 2.0.1
+ * @date 2023-04-05
  *
  * @copyright This file is distributed under the GPL v3 license
  *
@@ -400,11 +400,13 @@ vector<GenTypeInfo> getGenType(QualType type) {
         if (std::find(str_types.begin(), str_types.end(),
                       type.getCanonicalType().getAsString()) !=
             str_types.end()) {
+            gen_list.gen_type = FutagGenType::F_CSTRING;
             gen_list.base_type_name = "char *";
             if (std::find(wchar_str_types.begin(), wchar_str_types.end(),
                           type.getCanonicalType().getAsString()) !=
                 wchar_str_types.end()) {
                 gen_list.base_type_name = "wchar_t *";
+                gen_list.gen_type = FutagGenType::F_WSTRING;
             }
             if (std::find(const_str_types.begin(), const_str_types.end(),
                           type.getCanonicalType().getAsString()) !=
@@ -416,9 +418,10 @@ vector<GenTypeInfo> getGenType(QualType type) {
                 if (canonical_type.getAsString() == "const wchar_t *" ||
                     canonical_type.getAsString() == "const wchar_t *const") {
                     gen_list.base_type_name = "wchar_t *";
+                    gen_list.gen_type = FutagGenType::F_WSTRING;
                 }
             }
-            gen_list.gen_type = FutagGenType::F_CSTRING;
+
             result.insert(result.begin(), gen_list);
             return result;
         }
@@ -582,6 +585,10 @@ std::string GetFutagGenTypeFromIdx(FutagGenType idx) {
 
     case FutagGenType::F_CSTRING:
         return "_CSTRING";
+        break;
+
+    case FutagGenType::F_WSTRING:
+        return "_WSTRING";
         break;
 
     case FutagGenType::F_CXXSTRING:

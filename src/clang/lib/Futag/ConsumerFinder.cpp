@@ -311,7 +311,9 @@ void SearchVarDeclInBlock(
     futag::FutagPath &curr_analyzed_path,          // for checking reverse match
     std::vector<FutagInitVarDeclCallExpr> &init_calls,
     const json &analysis_jdb) {
+    
     MatchFinder Finder;
+
     const auto matched_binaryoperator =
         binaryOperator(
             isAssignmentOperator(),
@@ -321,6 +323,7 @@ void SearchVarDeclInBlock(
                 declRefExpr(to(functionDecl().bind("DefTargetFunctionCall")))
                     .bind("DefDeclRefExpr"))))
             .bind("DefFutagBinOpArg");
+
     const auto matched_vardecl =
         varDecl(hasName(iter_arg.value),
                 hasDescendant(declRefExpr(to(functionDecl().bind(

@@ -126,22 +126,23 @@ typedef enum {
 typedef enum {
   F_BUILTIN,        // 0: All basic types: int, float, double,...
   F_CSTRING,        // 1: char *, const char *
-  F_CXXSTRING,      // 2: char *, const char *
-  F_ENUM,           // 3
-  F_ARRAY,          // 4
-  F_VOIDP,          // 5
-  F_QUALIFIER,      // 6: const, volatile, and restrict qualifiers
-  F_POINTER,        // 7
-  F_STRUCT,         // 8
-  F_UNION,          // 9
-  F_CLASS,          // 10
-  F_INCOMPLETE,     // 11
-  F_FUNCTION,       // 12
-  F_INPUT_CXXFILE,  // 13
-  F_OUTPUT_CXXFILE, // 14
-  F_CXXFILE,        // 15
-  F_CFILE,          // 16
-  F_UNKNOWN,        // 17
+  F_WSTRING,        // 2: char *, const char *
+  F_CXXSTRING,      // 3: char *, const char *
+  F_ENUM,           // 4
+  F_ARRAY,          // 5
+  F_VOIDP,          // 6
+  F_QUALIFIER,      // 7: const, volatile, and restrict qualifiers
+  F_POINTER,        // 8
+  F_STRUCT,         // 9
+  F_UNION,          // 10
+  F_CLASS,          // 11
+  F_INCOMPLETE,     // 12
+  F_FUNCTION,       // 13
+  F_INPUT_CXXFILE,  // 14
+  F_OUTPUT_CXXFILE, // 15
+  F_CXXFILE,        // 16
+  F_CFILE,          // 17
+  F_UNKNOWN,        // 18
 } FutagGenType;
 
 typedef struct {

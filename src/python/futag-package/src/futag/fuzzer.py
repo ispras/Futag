@@ -582,10 +582,9 @@ class Fuzzer:
                 for x in [t for t in dir.glob("*.out") if t.is_file()]:
                     print("\n-- [Futag] FUZZING driver: " + x.stem + "... \n")
                     my_env = os.environ.copy()
-                    if self.leak:
-                        my_env["ASAN_OPTIONS"] = "allocator_may_return_null=1"
-                    else:
-                        my_env["ASAN_OPTIONS"] = "detect_leaks=0:allocator_may_return_null=1"
+                    if not self.leak:
+                        my_env["ASAN_OPTIONS"] = "detect_leaks=0"
+
                     my_env["ASAN_SYMBOLIZER_PATH"] = symbolizer.as_posix()
                     if self.coverage:
                         my_env["LLVM_PROFILE_FILE"] = x.as_posix() + ".profraw"

@@ -64,7 +64,9 @@ class Generator:
         self.gen_lines = []
         self.buffer_size = []
         self.gen_free = []
-        self.dyn_size_idx = 0
+        self.dyn_cstring_size_idx = 0
+        self.dyn_cxxstring_size_idx = 0
+        self.dyn_wstring_size_idx = 0
         self.file_idx = 0
         self.curr_function = None
         self.curr_func_log = ""
@@ -221,8 +223,46 @@ class Generator:
             include_lines.append("#include " + i + "\n")
         if self.header:
             for i in self.header:
-                include_lines.append("#include " + i + "\n")
+                if i not in included_headers:
+                    include_lines.append("#include " + i + "\n")
         return include_lines
+
+    def __get_function_header(self, func_location):
+        """ Generate header for the target function
+
+        Args:
+            func_location (string): function location.
+
+        Returns:
+            list: list of included header.
+        """
+        defaults = ["stdio.h", "stddef.h", "time.h",
+                    "stdlib.h", "string.h", "stdint.h"]
+        compiled_files = self.target_library["compiled_files"]
+        included_headers = []
+        found = False
+        for f in compiled_files:
+            if f["filename"] == func_location:
+                found = True
+                for header in f["headers"]:
+                    if not header[1:-1] in defaults:
+                        included_headers.append(header)
+                break
+        if not found:
+            short_filename = func_location.split('/')[-1]
+            for f in compiled_files:
+                if f["filename"].split('/')[-1] == short_filename:
+                    found = True
+                    for header in f["headers"]:
+                        if not header[1:-1] in defaults:
+                            included_headers.append(header)
+                    break
+        return included_headers
+
+    def __add_header(self, function_headers):
+        for h in function_headers:
+            if h not in self.header:
+                self.header.append(h)
 
     def __gen_builtin(self, param_name, gen_type_info):
         """Declare and assign value for a builtin type
@@ -238,33 +278,33 @@ class Generator:
             "gen_lines": [
                 "//GEN_BUILTIN\n",
                 gen_type_info["type_name"] + " " + param_name + ";\n",
-                "memcpy(&"+param_name+", pos, sizeof(" +
+                "memcpy(&"+param_name+", futag_pos, sizeof(" +
                 gen_type_info["type_name"] + "));\n",
-                "pos += sizeof(" + gen_type_info["type_name"] + ");\n"
+                "futag_pos += sizeof(" + gen_type_info["type_name"] + ");\n"
             ],
             "gen_free": [],
             "buffer_size": ["sizeof(" + gen_type_info["type_name"]+")"]
         }
 
-    def __gen_strsize(self, param_name, param_type, dyn_size_idx):
+    def __gen_strsize(self, param_name, param_type, dyn_size_idx, array_name):
         return {
             "gen_lines": [
                 "//GEN_SIZE\n",
                 param_type + " " + param_name +
                 " = (" + param_type +
-                ") dyn_size[" + str(dyn_size_idx - 1) + "];\n",
+                ") " + array_name + "[" + str(dyn_size_idx - 1) + "];\n",
             ],
             "gen_free": [],
             "buffer_size": []
         }
 
-    def __gen_cstring(self, param_name, gen_type_info, dyn_size_idx):
+    def __gen_cstring(self, param_name, gen_type_info, dyn_cstring_size_idx):
         """Declare and assign value for a C string type
 
         Args:
             param_name (str): parameter's name
             gen_type_info (dict): information of parameter's type
-            dyn_size_idx (int): id of dynamic size
+            dyn_cstring_size_idx (int): id of dynamic cstring size
 
         Returns:
             dict: (gen_lines, gen_free, buffer_size)
@@ -272,24 +312,58 @@ class Generator:
         ref_name = param_name
         if (gen_type_info["local_qualifier"]):
             ref_name = "r" + ref_name
-        sizeof = ""
 
-        malloc = gen_type_info["base_type_name"] + " " + ref_name + \
-            " = (" + gen_type_info["base_type_name"] + \
-            ") malloc(dyn_size[" + str(dyn_size_idx - 1) + "] + 1);\n"
-        if "wchar_t" in gen_type_info["base_type_name"]:
-            malloc = gen_type_info["base_type_name"] + " " + ref_name + \
-                " = (" + gen_type_info["base_type_name"] + \
-                ") malloc(sizeof(wchar_t)*dyn_size[" + \
-                str(dyn_size_idx - 1) + "] + 1);\n"
         gen_lines = [
             "//GEN_CSTRING\n",
-            malloc,
+            gen_type_info["base_type_name"] + " " + ref_name + \
+            " = (" + gen_type_info["base_type_name"] + \
+            ") malloc((dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "] + 1)* sizeof(char));\n",
             "memset(" + ref_name +
-            ", 0, dyn_size[" + str(dyn_size_idx - 1) + "] + 1);\n",
+            ", 0, dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "] + 1);\n",
             "memcpy(" + ref_name +
-            ", pos, dyn_size[" + str(dyn_size_idx - 1) + "] );\n",
-            "pos += dyn_size[" + str(dyn_size_idx - 1) + "];\n",
+            ", futag_pos, dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "]);\n",
+            "futag_pos += dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "];\n",
+        ]
+        if (gen_type_info["local_qualifier"]):
+            gen_lines += [gen_type_info["type_name"] +
+                          " " + param_name + " = " + ref_name + ";\n"]
+
+        return {
+            "gen_lines": gen_lines,
+            "gen_free": [
+                "if (" + ref_name + ") {\n",
+                "    free(" + ref_name + ");\n",
+                "    " + ref_name + " = NULL;\n",
+                "}\n"
+            ],
+            "buffer_size": []
+        }
+    
+    def __gen_wstring(self, param_name, gen_type_info, dyn_wstring_size_idx):
+        """Declare and assign value for a C string type
+
+        Args:
+            param_name (str): parameter's name
+            gen_type_info (dict): information of parameter's type
+            dyn_wstring_size_idx (int): id of dynamic wstring size
+
+        Returns:
+            dict: (gen_lines, gen_free, buffer_size)
+        """
+        ref_name = param_name
+        if (gen_type_info["local_qualifier"]):
+            ref_name = "r" + ref_name
+
+        gen_lines = [
+            "//GEN_WSTRING\n",
+            gen_type_info["base_type_name"] + " " + ref_name + \
+            " = (" + gen_type_info["base_type_name"] + \
+            ") malloc((dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "] + 1)* sizeof(wchar_t));\n",
+            "memset(" + ref_name +
+            ", 0, (dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "] + 1)* sizeof(wchar_t));\n",
+            "memcpy(" + ref_name +
+            ", futag_pos, dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t)]);\n",
+            "futag_pos += dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t)];\n",
         ]
         if (gen_type_info["local_qualifier"]):
             gen_lines += [gen_type_info["type_name"] +
@@ -306,7 +380,7 @@ class Generator:
             "buffer_size": []
         }
 
-    def __gen_cxxstring(self, param_name, gen_type_info, dyn_size_idx):
+    def __gen_cxxstring(self, param_name, gen_type_info, dyn_cxxstring_size_idx):
         """Declare and assign value for a C++ string type
 
         Args:
@@ -329,8 +403,8 @@ class Generator:
         return {
             "gen_lines": [
                 gen_type_info["type_name"] + " " + param_name +
-                "(pos, dyn_size[" + str(dyn_size_idx - 1) + "]); \n",
-                "pos += dyn_size[" + str(dyn_size_idx - 1) + "];\n",
+                "(futag_pos, dyn_cxxstring_size[" + str(dyn_cxxstring_size_idx - 1) + "]); \n",
+                "futag_pos += dyn_cxxstring_size[" + str(dyn_cxxstring_size_idx - 1) + "];\n",
             ],
             "gen_free": [],
             "buffer_size": []
@@ -351,7 +425,7 @@ class Generator:
                     "//GEN_ENUM\n",
                     "unsigned int " + param_name + "_enum_index; \n",
                     "memcpy(&" + param_name +
-                    "_enum_index, pos, sizeof(unsigned int));\n",
+                    "_enum_index, futag_pos, sizeof(unsigned int));\n",
                     enum_name + " " + param_name + " = " +
                     param_name + "_enum_index % " +
                     str(enum_length) + ";\n"
@@ -365,7 +439,7 @@ class Generator:
                     "//GEN_ENUM\n",
                     "unsigned int " + param_name + "_enum_index; \n",
                     "memcpy(&" + param_name +
-                    "_enum_index, pos, sizeof(unsigned int));\n",
+                    "_enum_index, futag_pos, sizeof(unsigned int));\n",
                     # "enum " + enum_name + " " + param_name + " = static_cast<enum " + enum_name +
                     enum_name + " " + param_name + " = static_cast<" + enum_name +
                     ">(" + param_name + "_enum_index % " + str(enum_length) + ");\n"
@@ -381,9 +455,9 @@ class Generator:
                 gen_type_info["type_name"] + " " + param_name + " = (" + gen_type_info["type_name"] + ") " +
                 "malloc(sizeof(" + gen_type_info["base_type_name"] +
                 ") * " + str(gen_type_info["length"]) + ");\n",
-                "memcpy(" + param_name + ", pos, " + str(
+                "memcpy(" + param_name + ", futag_pos, " + str(
                     gen_type_info["length"]) + " * sizeof(" + gen_type_info["base_type_name"] + "));\n",
-                "pos += " +
+                "futag_pos += " +
                 str(gen_type_info["length"]) + " * sizeof(" +
                 gen_type_info["base_type_name"] + ");\n"
             ],
@@ -439,11 +513,22 @@ class Generator:
             for gen_type_info in field["gen_list"]:
                 this_gen_size = False
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
-                    if field_id > 0 and (struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING]):
+                    if field_id > 0 and (struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING]):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
+                            dyn_size_idx = 0
+                            array_name = ""
+                            if struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
+                                dyn_size_idx = self.dyn_cstring_size_idx
+                                array_name = "dyn_cstring_size"
+                            elif struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
+                                dyn_size_idx = self.dyn_wstring_size_idx
+                                array_name = "dyn_wstring_size"
+                            else:
+                                dyn_size_idx = self.dyn_cxxstring_size_idx
+                                array_name = "dyn_cxxstring_size"
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
-                                curr_name, gen_type_info["type_name"], self.dyn_size_idx)
+                                curr_name, gen_type_info["type_name"], dyn_size_idx, array_name)
                             buffer_size += curr_gen["buffer_size"]
                             gen_lines += curr_gen["gen_lines"]
                             gen_free += curr_gen["gen_free"]
@@ -459,18 +544,27 @@ class Generator:
 
                 if gen_type_info["gen_type"] == GEN_CSTRING:
                     curr_name = "strc_" + curr_name  # string_prefix
-                    self.dyn_size_idx += 1
+                    self.dyn_cstring_size_idx += 1
                     curr_gen = self.__gen_cstring(
-                        curr_name, gen_type_info, self.dyn_size_idx)
+                        curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_WSTRING:
+                    curr_name = "strc_" + curr_name  # string_prefix
+                    self.dyn_wstring_size_idx += 1
+                    curr_gen = self.__gen_wstring(
+                        curr_name, gen_type_info, self.dyn_wstring_size_idx)
                     buffer_size += curr_gen["buffer_size"]
                     gen_lines += curr_gen["gen_lines"]
                     gen_free += curr_gen["gen_free"]
 
                 if gen_type_info["gen_type"] == GEN_CXXSTRING:
                     curr_name = "strcxx_" + curr_name  # string_prefix
-                    self.dyn_size_idx += 1
+                    self.dyn_cxxstring_size_idx += 1
                     curr_gen = self.__gen_cxxstring(
-                        curr_name, gen_type_info, self.dyn_size_idx)
+                        curr_name, gen_type_info, self.dyn_cxxstring_size_idx)
                     buffer_size += curr_gen["buffer_size"]
                     gen_lines += curr_gen["gen_lines"]
                     gen_free += curr_gen["gen_free"]
@@ -558,9 +652,9 @@ class Generator:
             "gen_lines": [
                 "//GEN_UNION\n",
                 gen_type_info["type_name"] + " " + param_name + ";\n",
-                "memcpy(&"+param_name+", pos, sizeof(" +
+                "memcpy(&"+param_name+", futag_pos, sizeof(" +
                 gen_type_info["type_name"] + "));\n",
-                "pos += sizeof(" + gen_type_info["type_name"] + ");\n"
+                "futag_pos += sizeof(" + gen_type_info["type_name"] + ");\n"
             ],
             "gen_free": [],
             "buffer_size": ["sizeof(" + gen_type_info["type_name"] + ")"]
@@ -589,10 +683,19 @@ class Generator:
 
     def __gen_input_file(self, param_name, gen_type_info):
         cur_gen_free = ["    " + x for x in self.gen_free]
+        if gen_type_info["gen_type"] == GEN_CSTRING:
+            line = "const char* " + param_name + " = \"futag_input_file_" + str(self.file_idx - 1) + "\";\n"
+        elif gen_type_info["gen_type"] == GEN_WSTRING:
+            line = "const wchar_t * " + param_name + " = L\"futag_input_file_" + str(self.file_idx - 1) + "\";\n"
+        else:
+            return {
+                "gen_lines": [],
+                "gen_free": [],
+                "buffer_size": []
+            }
         gen_lines = [
             "//GEN_INPUT_FILE\n",
-            "const char* " + param_name + " = \"futag_input_file_" +
-            str(self.file_idx - 1) + "\";\n",
+            line,
             "FILE * fp_" + str(self.file_idx - 1) +
             " = fopen(" + param_name + ",\"w\");\n",
             "if (fp_" + str(self.file_idx - 1) + "  == NULL) {\n",
@@ -601,10 +704,10 @@ class Generator:
         gen_lines += [
             "    return 0;\n",
             "}\n",
-            "fwrite(pos, 1, file_size[" + str(self.file_idx - 1) +
+            "fwrite(futag_pos, 1, file_size[" + str(self.file_idx - 1) +
             "], fp_" + str(self.file_idx - 1) + ");\n",
             "fclose(fp_" + str(self.file_idx - 1) + ");\n",
-            "pos += file_size[" + str(self.file_idx - 1) + "];\n"
+            "futag_pos += file_size[" + str(self.file_idx - 1) + "];\n"
         ]
         return {
             "gen_lines": gen_lines,
@@ -628,10 +731,10 @@ class Generator:
         gen_lines += [
             "    return 0;\n",
             "}\n",
-            "fwrite(pos, 1, file_size[" + str(self.file_idx - 1) +
+            "fwrite(futag_pos, 1, file_size[" + str(self.file_idx - 1) +
             "], fp_" + str(self.file_idx - 1) + ");\n",
             "fclose(fp_" + str(self.file_idx - 1) + ");\n",
-            "pos += file_size[" + str(self.file_idx - 1) + "];\n",
+            "futag_pos += file_size[" + str(self.file_idx - 1) + "];\n",
             gen_type_info["type_name"] + " " + param_name  + "= open(" + param_name + "_tmp" + str(self.file_idx) + ", O_RDWR);\n"
         ]
         gen_free = ["close(" + param_name + ");\n"]
@@ -734,11 +837,22 @@ class Generator:
                         gen_dict["gen_lines"] += curr_gen["gen_lines"]
                         gen_dict["gen_free"] += curr_gen["gen_free"]
                         break
-                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or arg["param_usage"] == "SIZE_FIELD"):
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING] or arg["param_usage"] == "SIZE_FIELD"):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
+                            dyn_size_idx = 0
+                            array_name = ""
+                            if func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
+                                dyn_size_idx = self.dyn_cstring_size_idx
+                                array_name = "dyn_cstring_size"
+                            elif func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
+                                dyn_size_idx = self.dyn_wstring_size_idx
+                                array_name = "dyn_wstring_size"
+                            else:
+                                dyn_size_idx = self.dyn_cxxstring_size_idx
+                                array_name = "dyn_cxxstring_size"
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
-                                curr_name, arg["param_type"], self.dyn_size_idx)
+                                curr_name, arg["param_type"], dyn_size_idx, array_name)
                             gen_dict["buffer_size"] += curr_gen["buffer_size"]
                             gen_dict["gen_lines"] += curr_gen["gen_lines"]
                             gen_dict["gen_free"] += curr_gen["gen_free"]
@@ -754,27 +868,51 @@ class Generator:
                 if gen_type_info["gen_type"] == GEN_CSTRING:
                     # GEN FILE NAME OR # GEN STRING
                     if (arg["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or arg["param_name"] in ["filename", "file", "filepath"] or arg["param_name"].find('file') != -1 or arg["param_name"].find('File') != -1) and len(arg["gen_list"]) == 1:
-                        curr_name = "f_" + curr_name  # string_prefix
+                        curr_name = "f_" + curr_name  + str(self.file_idx) # string_prefix
                         self.file_idx += 1
                         curr_gen = self.__gen_input_file(
                             curr_name, gen_type_info)
                     else:
-                        curr_name = "str_" + curr_name  # string_prefix
-                        self.dyn_size_idx += 1
+                        curr_name = "str_" + curr_name  + str(self.dyn_cstring_size_idx) # string_prefix
+                        self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
-                            curr_name, gen_type_info, self.dyn_size_idx)
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    gen_dict["buffer_size"] += curr_gen["buffer_size"]
+                    gen_dict["gen_lines"] += curr_gen["gen_lines"]
+                    gen_dict["gen_free"] += curr_gen["gen_free"]
+                
+                if gen_type_info["gen_type"] == GEN_WSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (arg["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or arg["param_name"] in ["filename", "file", "filepath"] or arg["param_name"].find('file') != -1 or arg["param_name"].find('File') != -1) and len(arg["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  + str(self.file_idx) # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        curr_name = "str_" + curr_name  + str(self.dyn_wstring_size_idx) # string_prefix
+                        self.dyn_wstring_size_idx += 1
+                        curr_gen = self.__gen_wstring(
+                            curr_name, gen_type_info, self.dyn_wstring_size_idx)
                     gen_dict["buffer_size"] += curr_gen["buffer_size"]
                     gen_dict["gen_lines"] += curr_gen["gen_lines"]
                     gen_dict["gen_free"] += curr_gen["gen_free"]
 
                 if gen_type_info["gen_type"] == GEN_CXXSTRING:
-                    curr_name = "str_" + curr_name  # string_prefix
-                    self.dyn_size_idx += 1
-                    curr_gen = self.__gen_cxxstring(
-                        curr_name, gen_type_info, self.dyn_size_idx)
-                    gen_dict["buffer_size"] += curr_gen["buffer_size"]
-                    gen_dict["gen_lines"] += curr_gen["gen_lines"]
-                    gen_dict["gen_free"] += curr_gen["gen_free"]
+
+                    if (arg["param_name"] in ["filename", "file", "filepath", "path"] or arg["param_name"].find('file') != -1 or arg["param_name"].find('File') != -1 or  arg["param_name"].find('path') != -1) and len(arg["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  + str(self.file_idx) # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+
+                        curr_name = "str_" + curr_name + str(self.dyn_cxxstring_size_idx) # string_prefix
+                        self.dyn_cxxstring_size_idx += 1
+                        curr_gen = self.__gen_cxxstring(
+                            curr_name, gen_type_info, self.dyn_cxxstring_size_idx)
+                        gen_dict["buffer_size"] += curr_gen["buffer_size"]
+                        gen_dict["gen_lines"] += curr_gen["gen_lines"]
+                        gen_dict["gen_free"] += curr_gen["gen_free"]
 
                 if gen_type_info["gen_type"] == GEN_ENUM:  # GEN_ENUM
 
@@ -857,7 +995,7 @@ class Generator:
         #     filename = func["name"]
         #     filepath = self.tmp_output_path / "anonymous"
         # else:
-        filename = func["qname"]
+        filename = func["qname"].replace(":", "_")
         filepath = self.tmp_output_path
 
         self.target_extension = func["location"]["fullpath"].split(".")[-1]
@@ -937,7 +1075,9 @@ class Generator:
             "buffer_size": copy.copy(self.buffer_size),
             "gen_lines": copy.copy(self.gen_lines),
             "gen_free": copy.copy(self.gen_free),
-            "dyn_size_idx": copy.copy(self.dyn_size_idx),
+            "dyn_cstring_size_idx": copy.copy(self.dyn_cstring_size_idx),
+            "dyn_cxxstring_size_idx": copy.copy(self.dyn_cxxstring_size_idx),
+            "dyn_wstring_size_idx": copy.copy(self.dyn_wstring_size_idx),
             "var_function_idx": copy.copy(self.var_function_idx),
             "param_list": copy.copy(self.param_list),
             "curr_func_log": copy.copy(self.curr_func_log),
@@ -950,7 +1090,9 @@ class Generator:
         self.buffer_size = copy.copy(old_values["buffer_size"])
         self.gen_lines = copy.copy(old_values["gen_lines"])
         self.gen_free = copy.copy(old_values["gen_free"])
-        self.dyn_size_idx = copy.copy(old_values["dyn_size_idx"])
+        self.dyn_cstring_size_idx = copy.copy(old_values["dyn_cstring_size_idx"])
+        self.dyn_cxxstring_size_idx = copy.copy(old_values["dyn_cxxstring_size_idx"])
+        self.dyn_wstring_size_idx = copy.copy(old_values["dyn_wstring_size_idx"])
         self.var_function_idx = copy.copy(old_values["var_function_idx"])
         self.param_list = copy.copy(old_values["param_list"])
         self.curr_func_log = copy.copy(old_values["curr_func_log"])
@@ -979,7 +1121,7 @@ class Generator:
                     self.gen_this_function = False
 
             # If there is no buffer - return!
-            if (not len(self.buffer_size) and not self.dyn_size_idx and not self.file_idx) or not self.gen_this_function:
+            if (not len(self.buffer_size) and not self.dyn_cstring_size_idx and not self.dyn_cxxstring_size_idx and not self.dyn_wstring_size_idx and not self.file_idx) or not self.gen_this_function:
                 log = self.__log_file(func, self.gen_anonymous)
                 if not log:
                     print(CANNOT_CREATE_LOG_FILE, func["qname"])
@@ -1009,53 +1151,93 @@ class Generator:
             else:
                 f.write(AFLPLUSPLUS_PREFIX)
 
-            buffer_check = "    if (Fuzz_Size < " + \
-                str(self.dyn_size_idx) + " + " + str(self.file_idx)
-            f.write(buffer_check)
+            # buffer_check = "    if (Fuzz_Size < " + \
+            #     str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) +" + str(self.dyn_cxxstring_size_idx) + "*sizeof(char) + " + str(self.dyn_cstring_size_idx) + " + " + str(self.file_idx)
+            buffer_check = str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) + " + str(self.dyn_cxxstring_size_idx) + "*sizeof(char) + " + str(self.dyn_cstring_size_idx) + " + " + str(self.file_idx)
             if self.buffer_size:
-                f.write(" + " + "+".join(self.buffer_size))
-            f.write(") return 0;\n")
+                buffer_check += " + " + " + ".join(self.buffer_size)
+            f.write("    if (Fuzz_Size < " + buffer_check + ") return 0;\n")
 
-            if self.dyn_size_idx > 0:
-                f.write("    size_t dyn_buffer = (size_t) ((Fuzz_Size - ( " + str(self.file_idx) + " + " +
-                        str(self.dyn_size_idx))
-                if self.buffer_size:
-                    f.write(" + " + "+".join(self.buffer_size))
-                f.write(")));\n")
+            if self.dyn_cstring_size_idx > 0:
+                f.write("    size_t dyn_cstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check +" )));\n")
                 f.write("    //generate random array of dynamic string sizes\n")
-                f.write("    size_t dyn_size[" +
-                        str(self.dyn_size_idx) + "];\n")
-                if self.dyn_size_idx > 1:
+                f.write("    size_t dyn_cstring_size[" +
+                        str(self.dyn_cstring_size_idx) + "];\n")
+                if self.dyn_cstring_size_idx > 1:
                     f.write("    srand(time(NULL));\n")
                     f.write(
-                        "    if(dyn_buffer == 0) dyn_size[0] = dyn_buffer; \n")
-                    f.write("    else dyn_size[0] = rand() % dyn_buffer; \n")
-                    f.write("    size_t remain = dyn_size[0];\n")
+                        "    if(dyn_cstring_buffer == 0) dyn_cstring_size[0] = dyn_cstring_buffer; \n")
+                    f.write("    else dyn_cstring_size[0] = rand() % dyn_cstring_buffer; \n")
+                    f.write("    size_t remain = dyn_cstring_size[0];\n")
                     f.write("    for(size_t i = 1; i< " +
-                            str(self.dyn_size_idx) + " - 1; i++){\n")
+                            str(self.dyn_cstring_size_idx) + " - 1; i++){\n")
                     f.write(
-                        "        if(dyn_buffer - remain == 0) dyn_size[i] = dyn_buffer - remain;\n")
+                        "        if(dyn_cstring_buffer - remain == 0) dyn_cstring_size[i] = dyn_cstring_buffer - remain;\n")
                     f.write(
-                        "        else dyn_size[i] = rand() % (dyn_buffer - remain);\n")
-                    f.write("        remain += dyn_size[i];\n")
+                        "        else dyn_cstring_size[i] = rand() % (dyn_cstring_buffer - remain);\n")
+                    f.write("        remain += dyn_cstring_size[i];\n")
                     f.write("    }\n")
                     f.write(
-                        "    dyn_size[" + str(self.dyn_size_idx) + " - 1] = dyn_buffer - remain;\n")
+                        "    dyn_cstring_size[" + str(self.dyn_cstring_size_idx) + " - 1] = dyn_cstring_buffer - remain;\n")
                 else:
-                    f.write("    dyn_size[0] = dyn_buffer;\n")
+                    f.write("    dyn_cstring_size[0] = dyn_cstring_buffer;\n")
+                f.write(
+                    "    //end of generation random array of dynamic string sizes\n")
+
+            if self.dyn_wstring_size_idx > 0:
+                f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" + buffer_check +" )));\n")
+                f.write("    //generate random array of dynamic string sizes\n")
+                f.write("    size_t dyn_wstring_size[" +
+                        str(self.dyn_wstring_size_idx) + "];\n")
+                if self.dyn_wstring_size_idx > 1:
+                    f.write("    srand(time(NULL));\n")
+                    f.write(
+                        "    if(dyn_wstring_buffer == 0) dyn_wstring_size[0] = dyn_wstring_buffer; \n")
+                    f.write("    else dyn_wstring_size[0] = rand() % dyn_wstring_buffer; \n")
+                    f.write("    size_t remain = dyn_wstring_size[0];\n")
+                    f.write("    for(size_t i = 1; i< " +
+                            str(self.dyn_wstring_size_idx) + " - 1; i++){\n")
+                    f.write(
+                        "        if(dyn_wstring_buffer - remain == 0) dyn_wstring_size[i] = dyn_wstring_buffer - remain;\n")
+                    f.write(
+                        "        else dyn_wstring_size[i] = rand() % (dyn_wstring_buffer - remain);\n")
+                    f.write("        remain += dyn_wstring_size[i];\n")
+                    f.write("    }\n")
+                    f.write(
+                        "    dyn_wstring_size[" + str(self.dyn_wstring_size_idx) + " - 1] = dyn_wstring_buffer - remain;\n")
+                else:
+                    f.write("    dyn_wstring_size[0] = dyn_wstring_buffer;\n")
+                f.write(
+                    "    //end of generation random array of dynamic string sizes\n")
+                
+            if self.dyn_cxxstring_size_idx > 0:
+                f.write("    size_t dyn_cxxstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check +" )));\n")
+                f.write("    //generate random array of dynamic string sizes\n")
+                f.write("    size_t dyn_cxxstring_size[" +
+                        str(self.dyn_cxxstring_size_idx) + "];\n")
+                if self.dyn_cxxstring_size_idx > 1:
+                    f.write("    srand(time(NULL));\n")
+                    f.write(
+                        "    if(dyn_cxxstring_buffer == 0) dyn_cxxstring_size[0] = dyn_cxxstring_buffer; \n")
+                    f.write("    else dyn_cxxstring_size[0] = rand() % dyn_cxxstring_buffer; \n")
+                    f.write("    size_t remain = dyn_cxxstring_size[0];\n")
+                    f.write("    for(size_t i = 1; i< " +
+                            str(self.dyn_cxxstring_size_idx) + " - 1; i++){\n")
+                    f.write(
+                        "        if(dyn_cxxstring_buffer - remain == 0) dyn_cxxstring_size[i] = dyn_cxxstring_buffer - remain;\n")
+                    f.write(
+                        "        else dyn_cxxstring_size[i] = rand() % (dyn_cxxstring_buffer - remain);\n")
+                    f.write("        remain += dyn_cxxstring_size[i];\n")
+                    f.write("    }\n")
+                    f.write(
+                        "    dyn_cxxstring_size[" + str(self.dyn_cxxstring_size_idx) + " - 1] = dyn_cxxstring_buffer - remain;\n")
+                else:
+                    f.write("    dyn_cxxstring_size[0] = dyn_cxxstring_buffer;\n")
                 f.write(
                     "    //end of generation random array of dynamic string sizes\n")
 
             if self.file_idx > 0:
-                if self.dyn_size_idx > 0:
-                    f.write(
-                        "    size_t file_buffer = (size_t) ((Fuzz_Size - dyn_buffer - (" + str(self.dyn_size_idx))
-                else:
-                    f.write(
-                        "    size_t file_buffer = (size_t) ((Fuzz_Size - (" + str(self.dyn_size_idx))
-                if self.buffer_size:
-                    f.write(" + " + "+".join(self.buffer_size))
-                f.write(")));\n")
+                f.write("    size_t file_buffer = (size_t) ((Fuzz_Size + "+  str(self.file_idx) + " - (" + buffer_check +" )));\n")
                 f.write("    //generate random array of dynamic file sizes\n")
                 f.write("    size_t file_size[" +
                         str(self.file_idx) + "];\n")
@@ -1070,7 +1252,7 @@ class Generator:
                     f.write(
                         "        if(file_buffer - remain == 0) file_size[i] = file_buffer - remain;\n")
                     f.write(
-                        "        else file_size[i] = rand() % (file_buffer - remain));\n")
+                        "        else file_size[i] = rand() % (file_buffer - remain);\n")
                     f.write("        remain += file_size[i];\n")
                     f.write("    }\n")
                     f.write(
@@ -1080,7 +1262,7 @@ class Generator:
                 f.write(
                     "    //end of generation random array of dynamic file sizes\n")
 
-            f.write("    uint8_t * pos = Fuzz_Data;\n")
+            f.write("    uint8_t * futag_pos = Fuzz_Data;\n")
             for line in self.gen_lines:
                 f.write("    " + line)
 
@@ -1149,7 +1331,7 @@ class Generator:
         if len(curr_param["gen_list"]) == 0:
             self.gen_this_function = False
             return False
-        if curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_INPUT_FILE, GEN_OUTPUT_FILE]:
+        if curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_INPUT_FILE, GEN_OUTPUT_FILE]:
             for gen_type_info in curr_param["gen_list"]:
                 prev_param_name = curr_name
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
@@ -1163,12 +1345,22 @@ class Generator:
                         break
                     # GEN STRING SIZE
                     
-                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
-                        
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
+                            dyn_size_idx = 0
+                            array_name = ""
+                            if func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
+                                dyn_size_idx = self.dyn_cstring_size_idx
+                                array_name = "dyn_cstring_size"
+                            elif func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
+                                dyn_size_idx = self.dyn_wstring_size_idx
+                                array_name = "dyn_wstring_size"
+                            else:
+                                dyn_size_idx = self.dyn_cxxstring_size_idx
+                                array_name = "dyn_cxxstring_size"
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
-                                curr_name, curr_param["param_type"], self.dyn_size_idx)
+                                curr_name, curr_param["param_type"], dyn_size_idx, array_name)
                             self.__append_gen_dict(curr_gen)
                             this_gen_size = True  
                             break
@@ -1187,17 +1379,31 @@ class Generator:
                     else:
                         # GEN STRING
                         curr_name = "str_" + curr_name  # string_prefix
-                        self.dyn_size_idx += 1
+                        self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
-                            curr_name, gen_type_info, self.dyn_size_idx)
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    self.__append_gen_dict(curr_gen)
 
+                if gen_type_info["gen_type"] == GEN_WSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        # GEN STRING
+                        curr_name = "str_" + curr_name  # string_prefix
+                        self.dyn_wstring_size_idx += 1
+                        curr_gen = self.__gen_wstring(
+                            curr_name, gen_type_info, self.dyn_wstring_size_idx)
                     self.__append_gen_dict(curr_gen)
 
                 if gen_type_info["gen_type"] == GEN_CXXSTRING:
                     curr_name = "str_" + curr_name  # string_prefix
-                    self.dyn_size_idx += 1
+                    self.dyn_cxxstring_size_idx += 1
                     curr_gen = self.__gen_cxxstring(
-                        curr_name, gen_type_info, self.dyn_size_idx)
+                        curr_name, gen_type_info, self.dyn_cxxstring_size_idx)
                     self.__append_gen_dict(curr_gen)
 
                 if gen_type_info["gen_type"] == GEN_ENUM:  # GEN_ENUM
@@ -1297,6 +1503,7 @@ class Generator:
                                 self.param_list += [curr_name]
                                 curr_gen = self.__gen_var_function(
                                     curr_name, curr_return_func["function"])
+                                self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
                                 self.__append_gen_dict(curr_gen)
                                 #!!!call recursive
                                 param_id += 1
@@ -1327,8 +1534,8 @@ class Generator:
                         self.var_function_idx += 1
                         self.gen_lines += ["\n"]
                         self.param_list += [curr_name]
-                        curr_gen = self.__gen_var_function(
-                            curr_name, curr_return_func["function"])
+                        curr_gen = self.__gen_var_function(curr_name, curr_return_func["function"])
+                        self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
                         self.__append_gen_dict(curr_gen)
                         #!!!call recursive
                         param_id += 1
@@ -1377,6 +1584,7 @@ class Generator:
                         self.param_list += [curr_name]
                         curr_gen = self.__gen_var_function(
                             curr_name, curr_return_func["function"])
+                        self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
                         self.__append_gen_dict(curr_gen)
                         #!!!call recursive
                         param_id += 1
@@ -1426,7 +1634,9 @@ class Generator:
                 self.buffer_size = []
                 self.gen_lines = []
                 self.gen_free = []
-                self.dyn_size_idx = 0
+                self.dyn_cstring_size_idx = 0
+                self.dyn_wstring_size_idx = 0
+                self.dyn_cxxstring_size_idx = 0
                 self.file_idx = 0
                 self.var_function_idx = 0
                 self.param_list = []
@@ -1443,7 +1653,9 @@ class Generator:
                 self.buffer_size = []
                 self.gen_lines = []
                 self.gen_free = []
-                self.dyn_size_idx = 0
+                self.dyn_cstring_size_idx = 0
+                self.dyn_wstring_size_idx = 0
+                self.dyn_cxxstring_size_idx = 0
                 self.file_idx = 0
                 self.var_function_idx = 0
                 self.param_list = []
@@ -1582,7 +1794,7 @@ class Generator:
 
             # Extract compiler cwd, to resolve relative includes
             search_curr_func = [
-                f for f in self.target_library['functions'] if f['qname'] == func_dir.name]
+                f for f in self.target_library['functions'] if f['qname'].replace(":", "_") == func_dir.name]
             if not len(search_curr_func):
                 continue
             current_func = search_curr_func[0]
@@ -1776,7 +1988,9 @@ class ContextGenerator:
         self.gen_lines = []
         self.buffer_size = []
         self.gen_free = []
-        self.dyn_size_idx = 0
+        self.dyn_cstring_size_idx = 0
+        self.dyn_cxxstring_size_idx = 0
+        self.dyn_wstring_size_idx = 0
         self.file_idx = 0
         self.curr_function = None
         self.curr_func_log = ""
@@ -1950,6 +2164,43 @@ class ContextGenerator:
                 include_lines.append("#include " + i + "\n")
         return include_lines
 
+    def __get_function_header(self, func_location):
+        """ Generate header for the target function
+
+        Args:
+            func_location (string): function location.
+
+        Returns:
+            list: list of included header.
+        """
+        defaults = ["stdio.h", "stddef.h", "time.h",
+                    "stdlib.h", "string.h", "stdint.h"]
+        compiled_files = self.target_library["compiled_files"]
+        included_headers = []
+        found = False
+        for f in compiled_files:
+            if f["filename"] == func_location:
+                found = True
+                for header in f["headers"]:
+                    if not header[1:-1] in defaults:
+                        included_headers.append(header)
+                break
+        if not found:
+            short_filename = func_location.split('/')[-1]
+            for f in compiled_files:
+                if f["filename"].split('/')[-1] == short_filename:
+                    found = True
+                    for header in f["headers"]:
+                        if not header[1:-1] in defaults:
+                            included_headers.append(header)
+                    break
+        return included_headers
+
+    def __add_header(self, function_headers):
+        for h in function_headers:
+            if h not in self.header:
+                self.header.append(h)
+
     def __gen_builtin(self, param_name, gen_type_info):
         """Declare and assign value for a builtin type
 
@@ -1964,33 +2215,33 @@ class ContextGenerator:
             "gen_lines": [
                 "//GEN_BUILTIN\n",
                 gen_type_info["type_name"] + " " + param_name + ";\n",
-                "memcpy(&"+param_name+", pos, sizeof(" +
+                "memcpy(&"+param_name+", futag_pos, sizeof(" +
                 gen_type_info["type_name"] + "));\n",
-                "pos += sizeof(" + gen_type_info["type_name"] + ");\n"
+                "futag_pos += sizeof(" + gen_type_info["type_name"] + ");\n"
             ],
             "gen_free": [],
             "buffer_size": ["sizeof(" + gen_type_info["type_name"]+")"]
         }
 
-    def __gen_strsize(self, param_name, param_type, dyn_size_idx):
+    def __gen_strsize(self, param_name, param_type, dyn_size_idx, array_name):
         return {
             "gen_lines": [
                 "//GEN_SIZE\n",
                 param_type + " " + param_name +
                 " = (" + param_type +
-                ") dyn_size[" + str(dyn_size_idx - 1) + "];\n",
+                ") " + array_name + "[" + str(dyn_size_idx - 1) + "];\n",
             ],
             "gen_free": [],
             "buffer_size": []
         }
 
-    def __gen_cstring(self, param_name, gen_type_info, dyn_size_idx):
+    def __gen_cstring(self, param_name, gen_type_info, dyn_cstring_size_idx):
         """Declare and assign value for a C string type
 
         Args:
             param_name (str): parameter's name
             gen_type_info (dict): information of parameter's type
-            dyn_size_idx (int): id of dynamic size
+            dyn_cstring_size_idx (int): id of dynamic size
 
         Returns:
             dict: (gen_lines, gen_free, buffer_size)
@@ -2002,20 +2253,20 @@ class ContextGenerator:
 
         malloc = gen_type_info["base_type_name"] + " " + ref_name + \
             " = (" + gen_type_info["base_type_name"] + \
-            ") malloc(dyn_size[" + str(dyn_size_idx - 1) + "] + 1);\n"
+            ") malloc(dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "] + 1);\n"
         if "wchar_t" in gen_type_info["base_type_name"]:
             malloc = gen_type_info["base_type_name"] + " " + ref_name + \
                 " = (" + gen_type_info["base_type_name"] + \
-                ") malloc(sizeof(wchar_t)*dyn_size[" + \
-                str(dyn_size_idx - 1) + "] + 1);\n"
+                ") malloc(sizeof(wchar_t)*dyn_cstring_size[" + \
+                str(dyn_cstring_size_idx - 1) + "] + 1);\n"
         gen_lines = [
             "//GEN_CSTRING\n",
             malloc,
             "memset(" + ref_name +
-            ", 0, dyn_size[" + str(dyn_size_idx - 1) + "] + 1);\n",
+            ", 0, dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "] + 1);\n",
             "memcpy(" + ref_name +
-            ", pos, dyn_size[" + str(dyn_size_idx - 1) + "] );\n",
-            "pos += dyn_size[" + str(dyn_size_idx - 1) + "];\n",
+            ", futag_pos, dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "] );\n",
+            "futag_pos += dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "];\n",
         ]
         if (gen_type_info["local_qualifier"]):
             gen_lines += [gen_type_info["type_name"] +
@@ -2032,7 +2283,49 @@ class ContextGenerator:
             "buffer_size": []
         }
 
-    def __gen_cxxstring(self, param_name, gen_type_info, dyn_size_idx):
+    def __gen_wstring(self, param_name, gen_type_info, dyn_wstring_size_idx):
+        """Declare and assign value for a C string type
+
+        Args:
+            param_name (str): parameter's name
+            gen_type_info (dict): information of parameter's type
+            dyn_wstring_size_idx (int): id of dynamic wstring size
+
+        Returns:
+            dict: (gen_lines, gen_free, buffer_size)
+        """
+        ref_name = param_name
+        if (gen_type_info["local_qualifier"]):
+            ref_name = "r" + ref_name
+
+        gen_lines = [
+            "//GEN_WSTRING\n",
+            gen_type_info["base_type_name"] + " " + ref_name + \
+            " = (" + gen_type_info["base_type_name"] + \
+            ") malloc((dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "] + 1)* sizeof(wchar_t));\n",
+            "memset(" + ref_name +
+            ", 0, (dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "] + 1)* sizeof(wchar_t));\n",
+            "memcpy(" + ref_name +
+            ", futag_pos, dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t)] );\n",
+            "futag_pos += dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t)];\n",
+        ]
+        if (gen_type_info["local_qualifier"]):
+            gen_lines += [gen_type_info["type_name"] +
+                          " " + param_name + " = " + ref_name + ";\n"]
+
+        return {
+            "gen_lines": gen_lines,
+            "gen_free": [
+                "if (" + ref_name + ") {\n",
+                "    free(" + ref_name + ");\n",
+                "    " + ref_name + " = NULL;\n",
+                "}\n"
+            ],
+            "buffer_size": []
+        }
+
+
+    def __gen_cxxstring(self, param_name, gen_type_info, dyn_cxxstring_size_idx):
         """Declare and assign value for a C++ string type
 
         Args:
@@ -2055,8 +2348,8 @@ class ContextGenerator:
         return {
             "gen_lines": [
                 gen_type_info["type_name"] + " " + param_name +
-                "(pos, dyn_size[" + str(dyn_size_idx - 1) + "]); \n",
-                "pos += dyn_size[" + str(dyn_size_idx - 1) + "];\n",
+                "(futag_pos, dyn_cxxstring_size[" + str(dyn_cxxstring_size_idx - 1) + "]); \n",
+                "futag_pos += dyn_cxxstring_size[" + str(dyn_cxxstring_size_idx - 1) + "];\n",
             ],
             "gen_free": [],
             "buffer_size": []
@@ -2077,10 +2370,11 @@ class ContextGenerator:
                     "//GEN_ENUM\n",
                     "unsigned int " + param_name + "_enum_index; \n",
                     "memcpy(&" + param_name +
-                    "_enum_index, pos, sizeof(unsigned int));\n",
+                    "_enum_index, futag_pos, sizeof(unsigned int));\n",
                     enum_name + " " + param_name + " = " +
                     param_name + "_enum_index % " +
-                    str(enum_length) + ";\n"
+                    str(enum_length) + ";\n",
+                    "futag_pos += sizeof(unsigned int);\n"
                 ],
                 "gen_free": [],
                 "buffer_size": ["sizeof(unsigned int)"]
@@ -2091,10 +2385,11 @@ class ContextGenerator:
                     "//GEN_ENUM\n",
                     "unsigned int " + param_name + "_enum_index; \n",
                     "memcpy(&" + param_name +
-                    "_enum_index, pos, sizeof(unsigned int));\n",
+                    "_enum_index, futag_pos, sizeof(unsigned int));\n",
                     # "enum " + enum_name + " " + param_name + " = static_cast<enum " + enum_name +
                     enum_name + " " + param_name + " = static_cast<" + enum_name +
-                    ">(" + param_name + "_enum_index % " + str(enum_length) + ");\n"
+                    ">(" + param_name + "_enum_index % " + str(enum_length) + ");\n",
+                    "futag_pos += sizeof(unsigned int);\n"
                 ],
                 "gen_free": [],
                 "buffer_size": ["sizeof(unsigned int)"]
@@ -2107,9 +2402,9 @@ class ContextGenerator:
                 gen_type_info["type_name"] + " " + param_name + " = (" + gen_type_info["type_name"] + ") " +
                 "malloc(sizeof(" + gen_type_info["base_type_name"] +
                 ") * " + str(gen_type_info["length"]) + ");\n",
-                "memcpy(" + param_name + ", pos, " + str(
+                "memcpy(" + param_name + ", futag_pos, " + str(
                     gen_type_info["length"]) + " * sizeof(" + gen_type_info["base_type_name"] + "));\n",
-                "pos += " +
+                "futag_pos += " +
                 str(gen_type_info["length"]) + " * sizeof(" +
                 gen_type_info["base_type_name"] + ");\n"
             ],
@@ -2165,11 +2460,23 @@ class ContextGenerator:
             for gen_type_info in field["gen_list"]:
                 this_gen_size = False
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
-                    if field_id > 0 and (struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING]):
+                    if field_id > 0 and (struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING]):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
+                            dyn_size_idx = 0
+                            array_name = ""
+                            if struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
+                                dyn_size_idx = self.dyn_cstring_size_idx
+                                array_name = "dyn_cstring_size"
+                            elif struct["fields"][field_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
+                                dyn_size_idx = self.dyn_wstring_size_idx
+                                array_name = "dyn_wstring_size"
+                            else:
+                                dyn_size_idx = self.dyn_cxxstring_size_idx
+                                array_name = "dyn_cxxstring_size"
+
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
-                                curr_name, gen_type_info["type_name"], self.dyn_size_idx)
+                                curr_name, gen_type_info["type_name"], dyn_size_idx, array_name)
                             buffer_size += curr_gen["buffer_size"]
                             gen_lines += curr_gen["gen_lines"]
                             gen_free += curr_gen["gen_free"]
@@ -2185,18 +2492,27 @@ class ContextGenerator:
 
                 if gen_type_info["gen_type"] == GEN_CSTRING:
                     curr_name = "strc_" + curr_name  # string_prefix
-                    self.dyn_size_idx += 1
+                    self.dyn_cstring_size_idx += 1
                     curr_gen = self.__gen_cstring(
-                        curr_name, gen_type_info, self.dyn_size_idx)
+                        curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_WSTRING:
+                    curr_name = "strw_" + curr_name  # string_prefix
+                    self.dyn_wstring_size_idx += 1
+                    curr_gen = self.__gen_wstring(
+                        curr_name, gen_type_info, self.dyn_wstring_size_idx)
                     buffer_size += curr_gen["buffer_size"]
                     gen_lines += curr_gen["gen_lines"]
                     gen_free += curr_gen["gen_free"]
 
                 if gen_type_info["gen_type"] == GEN_CXXSTRING:
                     curr_name = "strcxx_" + curr_name  # string_prefix
-                    self.dyn_size_idx += 1
+                    self.dyn_cxxstring_size_idx += 1
                     curr_gen = self.__gen_cxxstring(
-                        curr_name, gen_type_info, self.dyn_size_idx)
+                        curr_name, gen_type_info, self.dyn_cxxstring_size_idx)
                     buffer_size += curr_gen["buffer_size"]
                     gen_lines += curr_gen["gen_lines"]
                     gen_free += curr_gen["gen_free"]
@@ -2284,9 +2600,9 @@ class ContextGenerator:
             "gen_lines": [
                 "//GEN_UNION\n",
                 gen_type_info["type_name"] + " " + param_name + ";\n",
-                "memcpy(&"+param_name+", pos, sizeof(" +
+                "memcpy(&"+param_name+", futag_pos, sizeof(" +
                 gen_type_info["type_name"] + "));\n",
-                "pos += sizeof(" + gen_type_info["type_name"] + ");\n"
+                "futag_pos += sizeof(" + gen_type_info["type_name"] + ");\n"
             ],
             "gen_free": [],
             "buffer_size": ["sizeof(" + gen_type_info["type_name"] + ")"]
@@ -2327,10 +2643,10 @@ class ContextGenerator:
         gen_lines += [
             "    return 0;\n",
             "}\n",
-            "fwrite(pos, 1, file_size[" + str(self.file_idx - 1) +
+            "fwrite(futag_pos, 1, file_size[" + str(self.file_idx - 1) +
             "], fp_" + str(self.file_idx - 1) + ");\n",
             "fclose(fp_" + str(self.file_idx - 1) + ");\n",
-            "pos += file_size[" + str(self.file_idx - 1) + "];\n"
+            "futag_pos += file_size[" + str(self.file_idx - 1) + "];\n"
         ]
         return {
             "gen_lines": gen_lines,
@@ -2354,10 +2670,10 @@ class ContextGenerator:
         gen_lines += [
             "    return 0;\n",
             "}\n",
-            "fwrite(pos, 1, file_size[" + str(self.file_idx - 1) +
+            "fwrite(futag_pos, 1, file_size[" + str(self.file_idx - 1) +
             "], fp_" + str(self.file_idx - 1) + ");\n",
             "fclose(fp_" + str(self.file_idx - 1) + ");\n",
-            "pos += file_size[" + str(self.file_idx - 1) + "];\n",
+            "futag_pos += file_size[" + str(self.file_idx - 1) + "];\n",
             gen_type_info["type_name"] + " " + param_name  + "= open(" + param_name + "_tmp" + str(self.file_idx) + ", O_RDWR);\n"
         ]
         gen_free = ["close(" + param_name + ");\n"]
@@ -2452,7 +2768,7 @@ class ContextGenerator:
             for gen_type_info in arg["gen_list"]:
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
                     this_gen_size = False
-                    if curr_param["param_usage"] in ["FILE_DESCRIPTOR"]:
+                    if arg["param_usage"] in ["FILE_DESCRIPTOR"]:
                         curr_name = "fd_" + curr_name + str(self.file_idx) # string_prefix
                         self.file_idx += 1
                         curr_gen = self.__gen_file_descriptor(
@@ -2461,11 +2777,23 @@ class ContextGenerator:
                         gen_dict["gen_lines"] += curr_gen["gen_lines"]
                         gen_dict["gen_free"] += curr_gen["gen_free"]
                         break
-                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or arg["param_usage"] == "SIZE_FIELD"):
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING] or arg["param_usage"] == "SIZE_FIELD"):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
+                            dyn_size_idx = 0
+                            array_name = ""
+                            if func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
+                                dyn_size_idx = self.dyn_cstring_size_idx
+                                array_name = "dyn_cstring_size"
+                            elif func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
+                                dyn_size_idx = self.dyn_wstring_size_idx
+                                array_name = "dyn_wstring_size"
+                            else:
+                                dyn_size_idx = self.dyn_cxxstring_size_idx
+                                array_name = "dyn_cxxstring_size"
+
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
-                                curr_name, arg["param_type"], self.dyn_size_idx)
+                                curr_name, arg["param_type"], dyn_size_idx, array_name)
                             gen_dict["buffer_size"] += curr_gen["buffer_size"]
                             gen_dict["gen_lines"] += curr_gen["gen_lines"]
                             gen_dict["gen_free"] += curr_gen["gen_free"]
@@ -2488,18 +2816,34 @@ class ContextGenerator:
                             curr_name, gen_type_info)
                     else:
                         curr_name = "str_" + curr_name  # string_prefix
-                        self.dyn_size_idx += 1
+                        self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
-                            curr_name, gen_type_info, self.dyn_size_idx)
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    gen_dict["buffer_size"] += curr_gen["buffer_size"]
+                    gen_dict["gen_lines"] += curr_gen["gen_lines"]
+                    gen_dict["gen_free"] += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_WSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (arg["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or arg["param_name"] in ["filename", "file", "filepath"] or arg["param_name"].find('file') != -1 or arg["param_name"].find('File') != -1) and len(arg["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        curr_name = "strw_" + curr_name  # string_prefix
+                        self.dyn_wstring_size_idx += 1
+                        curr_gen = self.__gen_wstring(
+                            curr_name, gen_type_info, self.dyn_wstring_size_idx)
                     gen_dict["buffer_size"] += curr_gen["buffer_size"]
                     gen_dict["gen_lines"] += curr_gen["gen_lines"]
                     gen_dict["gen_free"] += curr_gen["gen_free"]
 
                 if gen_type_info["gen_type"] == GEN_CXXSTRING:
                     curr_name = "str_" + curr_name  # string_prefix
-                    self.dyn_size_idx += 1
+                    self.dyn_cxxstring_size_idx += 1
                     curr_gen = self.__gen_cxxstring(
-                        curr_name, gen_type_info, self.dyn_size_idx)
+                        curr_name, gen_type_info, self.dyn_cxxstring_size_idx)
                     gen_dict["buffer_size"] += curr_gen["buffer_size"]
                     gen_dict["gen_lines"] += curr_gen["gen_lines"]
                     gen_dict["gen_free"] += curr_gen["gen_free"]
@@ -2585,7 +2929,7 @@ class ContextGenerator:
         #     filename = func["name"]
         #     filepath = self.tmp_output_path / "anonymous"
         # else:
-        filename = func["qname"]
+        filename = func["qname"].replace(":", "_")
         filepath = self.tmp_output_path
 
         self.target_extension = func["location"]["fullpath"].split(".")[-1]
@@ -2665,7 +3009,9 @@ class ContextGenerator:
             "buffer_size": copy.copy(self.buffer_size),
             "gen_lines": copy.copy(self.gen_lines),
             "gen_free": copy.copy(self.gen_free),
-            "dyn_size_idx": copy.copy(self.dyn_size_idx),
+            "dyn_cstring_size_idx": copy.copy(self.dyn_cstring_size_idx),
+            "dyn_cxxstring_size_idx": copy.copy(self.dyn_cxxstring_size_idx),
+            "dyn_wstring_size_idx": copy.copy(self.dyn_wstring_size_idx),
             "var_function_idx": copy.copy(self.var_function_idx),
             "param_list": copy.copy(self.param_list),
             "curr_func_log": copy.copy(self.curr_func_log),
@@ -2678,7 +3024,9 @@ class ContextGenerator:
         self.buffer_size = copy.copy(old_values["buffer_size"])
         self.gen_lines = copy.copy(old_values["gen_lines"])
         self.gen_free = copy.copy(old_values["gen_free"])
-        self.dyn_size_idx = copy.copy(old_values["dyn_size_idx"])
+        self.dyn_cstring_size_idx = copy.copy(old_values["dyn_cstring_size_idx"])
+        self.dyn_cxxstring_size_idx = copy.copy(old_values["dyn_cxxstring_size_idx"])
+        self.dyn_wstring_size_idx = copy.copy(old_values["dyn_wstring_size_idx"])
         self.var_function_idx = copy.copy(old_values["var_function_idx"])
         self.param_list = copy.copy(old_values["param_list"])
         self.curr_func_log = copy.copy(old_values["curr_func_log"])
@@ -2828,7 +3176,7 @@ class ContextGenerator:
             self.__append_gen_dict(curr_gen)
             param_id += 1
             self.__gen_target_function(call, func, param_id)
-        elif curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_INPUT_FILE, GEN_OUTPUT_FILE]:
+        elif curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_INPUT_FILE, GEN_OUTPUT_FILE]:
             for gen_type_info in curr_param["gen_list"]:
                 # prev_param_name = curr_name + str(self.var_idx)
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
@@ -2842,11 +3190,23 @@ class ContextGenerator:
                             curr_name, gen_type_info)
                         self.__append_gen_dict(curr_gen)
                         break
-                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
                         if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
+                            dyn_size_idx = 0
+                            array_name = ""
+                            if func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
+                                dyn_size_idx = self.dyn_cstring_size_idx
+                                array_name = "dyn_cstring_size"
+                            elif func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
+                                dyn_size_idx = self.dyn_wstring_size_idx
+                                array_name = "dyn_wstring_size"
+                            else:
+                                dyn_size_idx = self.dyn_cxxstring_size_idx
+                                array_name = "dyn_cxxstring_size"
+
                             curr_name = "sz_" + curr_name  # size_prefix
                             curr_gen = self.__gen_strsize(
-                                curr_name, curr_param["param_type"], self.dyn_size_idx)
+                                curr_name, curr_param["param_type"], dyn_size_idx, array_name)
                             self.__append_gen_dict(curr_gen)
                             this_gen_size = True  # with break, we may not need this variable :)
                             break
@@ -2865,17 +3225,31 @@ class ContextGenerator:
                     else:
                         # GEN STRING
                         curr_name = "str_" + curr_name  # string_prefix
-                        self.dyn_size_idx += 1
+                        self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
-                            curr_name, gen_type_info, self.dyn_size_idx)
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    self.__append_gen_dict(curr_gen)
 
+                if gen_type_info["gen_type"] == GEN_WSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        # GEN STRING
+                        curr_name = "strw_" + curr_name  # string_prefix
+                        self.dyn_wstring_size_idx += 1
+                        curr_gen = self.__gen_wstring(
+                            curr_name, gen_type_info, self.dyn_wstring_size_idx)
                     self.__append_gen_dict(curr_gen)
 
                 if gen_type_info["gen_type"] == GEN_CXXSTRING:
                     curr_name = "str_" + curr_name  # string_prefix
-                    self.dyn_size_idx += 1
+                    self.dyn_cxxstring_size_idx += 1
                     curr_gen = self.__gen_cxxstring(
-                        curr_name, gen_type_info, self.dyn_size_idx)
+                        curr_name, gen_type_info, self.dyn_cxxstring_size_idx)
                     self.__append_gen_dict(curr_gen)
 
                 if gen_type_info["gen_type"] == GEN_ENUM:  # GEN_ENUM
@@ -2975,6 +3349,7 @@ class ContextGenerator:
                                 self.param_list += [curr_name]
                                 curr_gen = self.__gen_var_function(
                                     curr_name, curr_return_func["function"])
+                                self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
                                 self.__append_gen_dict(curr_gen)
                                 #!!!call recursive
                                 param_id += 1
@@ -3008,6 +3383,7 @@ class ContextGenerator:
                         self.param_list += [curr_name]
                         curr_gen = self.__gen_var_function(
                             curr_name, curr_return_func["function"])
+                        self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
                         self.__append_gen_dict(curr_gen)
                         #!!!call recursive
                         param_id += 1
@@ -3056,6 +3432,7 @@ class ContextGenerator:
                         self.param_list += [curr_name]
                         curr_gen = self.__gen_var_function(
                             curr_name, curr_return_func["function"])
+                        self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
                         self.__append_gen_dict(curr_gen)
                         #!!!call recursive
                         param_id += 1
@@ -3198,7 +3575,7 @@ class ContextGenerator:
 
             # Extract compiler cwd, to resolve relative includes
             search_curr_func = [
-                f for f in self.target_library['functions'] if f['qname'] == func_dir.name]
+                f for f in self.target_library['functions'] if f['qname'].replace(":", "_") == func_dir.name]
             if not len(search_curr_func):
                 continue
             current_func = search_curr_func[0]
@@ -3419,7 +3796,7 @@ class ContextGenerator:
                 self.gen_this_function = False
 
         # If there is no buffer - return!
-        if (not len(self.buffer_size) and not self.dyn_size_idx and not self.file_idx) or not self.gen_this_function:
+        if (not len(self.buffer_size) and not self.dyn_cstring_size_idx and not self.dyn_cxxstring_size_idx and not self.dyn_wstring_size_idx and not self.file_idx) or not self.gen_this_function:
             log = self.__log_file(func, self.gen_anonymous)
             if not log:
                 print(CANNOT_CREATE_LOG_FILE, func["qname"])
@@ -3449,52 +3826,91 @@ class ContextGenerator:
         else:
             f.write(AFLPLUSPLUS_PREFIX)
 
-        buffer_check = "    if (Fuzz_Size < " + \
-            str(self.dyn_size_idx) + " + " + str(self.file_idx)
-        f.write(buffer_check)
+        buffer_check = str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) + " + str(self.dyn_cxxstring_size_idx) + "*sizeof(char) + " + str(self.dyn_cstring_size_idx) + " + " + str(self.file_idx)
         if self.buffer_size:
-            f.write(" + " + "+".join(self.buffer_size))
-        f.write(") return 0;\n")
+            buffer_check += " + " + " + ".join(self.buffer_size)
+        f.write("    if (Fuzz_Size < " + buffer_check + ") return 0;\n")
 
-        if self.dyn_size_idx > 0:
-            f.write("    size_t dyn_buffer = (size_t) ((Fuzz_Size - ( " + str(self.file_idx) + " + " +
-                    str(self.dyn_size_idx))
-            if self.buffer_size:
-                f.write(" + " + "+".join(self.buffer_size))
-            f.write(")));\n")
+        if self.dyn_cstring_size_idx > 0:
+            f.write("    size_t dyn_cstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check +" )));\n")
             f.write("    //generate random array of dynamic string sizes\n")
-            f.write("    size_t dyn_size[" +
-                    str(self.dyn_size_idx) + "];\n")
-            if self.dyn_size_idx > 1:
+            f.write("    size_t dyn_cstring_size[" +
+                    str(self.dyn_cstring_size_idx) + "];\n")
+            if self.dyn_cstring_size_idx > 1:
                 f.write("    srand(time(NULL));\n")
-                f.write("    if(dyn_buffer == 0) dyn_size[0] = dyn_buffer; \n")
-                f.write("    else dyn_size[0] = rand() % dyn_buffer; \n")
-                f.write("    size_t remain = dyn_size[0];\n")
+                f.write(
+                    "    if(dyn_cstring_buffer == 0) dyn_cstring_size[0] = dyn_cstring_buffer; \n")
+                f.write("    else dyn_cstring_size[0] = rand() % dyn_cstring_buffer; \n")
+                f.write("    size_t remain = dyn_cstring_size[0];\n")
                 f.write("    for(size_t i = 1; i< " +
-                        str(self.dyn_size_idx) + " - 1; i++){\n")
+                        str(self.dyn_cstring_size_idx) + " - 1; i++){\n")
                 f.write(
-                    "        if(dyn_buffer - remain == 0) dyn_size[i] = dyn_buffer - remain;\n")
+                    "        if(dyn_cstring_buffer - remain == 0) dyn_cstring_size[i] = dyn_cstring_buffer - remain;\n")
                 f.write(
-                    "        else dyn_size[i] = rand() % (dyn_buffer - remain);\n")
-                f.write("        remain += dyn_size[i];\n")
+                    "        else dyn_cstring_size[i] = rand() % (dyn_cstring_buffer - remain);\n")
+                f.write("        remain += dyn_cstring_size[i];\n")
                 f.write("    }\n")
                 f.write(
-                    "    dyn_size[" + str(self.dyn_size_idx) + " - 1] = dyn_buffer - remain;\n")
+                    "    dyn_cstring_size[" + str(self.dyn_cstring_size_idx) + " - 1] = dyn_cstring_buffer - remain;\n")
             else:
-                f.write("    dyn_size[0] = dyn_buffer;\n")
+                f.write("    dyn_cstring_size[0] = dyn_cstring_buffer;\n")
             f.write(
                 "    //end of generation random array of dynamic string sizes\n")
 
-        if self.file_idx > 0:
-            if self.dyn_size_idx > 0:
+        if self.dyn_wstring_size_idx > 0:
+            f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" + buffer_check +" )));\n")
+            f.write("    //generate random array of dynamic string sizes\n")
+            f.write("    size_t dyn_wstring_size[" +
+                    str(self.dyn_wstring_size_idx) + "];\n")
+            if self.dyn_wstring_size_idx > 1:
+                f.write("    srand(time(NULL));\n")
                 f.write(
-                    "    size_t file_buffer = (size_t) ((Fuzz_Size - dyn_buffer - (" + str(self.dyn_size_idx))
+                    "    if(dyn_wstring_buffer == 0) dyn_wstring_size[0] = dyn_wstring_buffer; \n")
+                f.write("    else dyn_wstring_size[0] = rand() % dyn_wstring_buffer; \n")
+                f.write("    size_t remain = dyn_wstring_size[0];\n")
+                f.write("    for(size_t i = 1; i< " +
+                        str(self.dyn_wstring_size_idx) + " - 1; i++){\n")
+                f.write(
+                    "        if(dyn_wstring_buffer - remain == 0) dyn_wstring_size[i] = dyn_wstring_buffer - remain;\n")
+                f.write(
+                    "        else dyn_wstring_size[i] = rand() % (dyn_wstring_buffer - remain);\n")
+                f.write("        remain += dyn_wstring_size[i];\n")
+                f.write("    }\n")
+                f.write(
+                    "    dyn_wstring_size[" + str(self.dyn_wstring_size_idx) + " - 1] = dyn_wstring_buffer - remain;\n")
             else:
+                f.write("    dyn_wstring_size[0] = dyn_wstring_buffer;\n")
+            f.write(
+                "    //end of generation random array of dynamic string sizes\n")
+            
+        if self.dyn_cxxstring_size_idx > 0:
+            f.write("    size_t dyn_cxxstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check +" )));\n")
+            f.write("    //generate random array of dynamic string sizes\n")
+            f.write("    size_t dyn_cxxstring_size[" +
+                    str(self.dyn_cxxstring_size_idx) + "];\n")
+            if self.dyn_cxxstring_size_idx > 1:
+                f.write("    srand(time(NULL));\n")
                 f.write(
-                    "    size_t file_buffer = (size_t) ((Fuzz_Size - (" + str(self.dyn_size_idx))
-            if self.buffer_size:
-                f.write(" + " + "+".join(self.buffer_size))
-            f.write(")));\n")
+                    "    if(dyn_cxxstring_buffer == 0) dyn_cxxstring_size[0] = dyn_cxxstring_buffer; \n")
+                f.write("    else dyn_cxxstring_size[0] = rand() % dyn_cxxstring_buffer; \n")
+                f.write("    size_t remain = dyn_cxxstring_size[0];\n")
+                f.write("    for(size_t i = 1; i< " +
+                        str(self.dyn_cxxstring_size_idx) + " - 1; i++){\n")
+                f.write(
+                    "        if(dyn_cxxstring_buffer - remain == 0) dyn_cxxstring_size[i] = dyn_cxxstring_buffer - remain;\n")
+                f.write(
+                    "        else dyn_cxxstring_size[i] = rand() % (dyn_cxxstring_buffer - remain);\n")
+                f.write("        remain += dyn_cxxstring_size[i];\n")
+                f.write("    }\n")
+                f.write(
+                    "    dyn_cxxstring_size[" + str(self.dyn_cxxstring_size_idx) + " - 1] = dyn_cxxstring_buffer - remain;\n")
+            else:
+                f.write("    dyn_cxxstring_size[0] = dyn_cxxstring_buffer;\n")
+            f.write(
+                "    //end of generation random array of dynamic string sizes\n")
+        
+        if self.file_idx > 0:
+            f.write("    size_t file_buffer = (size_t) ((Fuzz_Size + "+  str(self.file_idx) + " - (" + buffer_check +" )));\n")
             f.write("    //generate random array of dynamic file sizes\n")
             f.write("    size_t file_size[" +
                     str(self.file_idx) + "];\n")
@@ -3509,7 +3925,7 @@ class ContextGenerator:
                 f.write(
                     "        if(file_buffer - remain == 0) file_size[i] = file_buffer - remain;\n")
                 f.write(
-                    "        else file_size[i] = rand() % (file_buffer - remain));\n")
+                    "        else file_size[i] = rand() % (file_buffer - remain);\n")
                 f.write("        remain += file_size[i];\n")
                 f.write("    }\n")
                 f.write(
@@ -3519,7 +3935,7 @@ class ContextGenerator:
             f.write(
                 "    //end of generation random array of dynamic file sizes\n")
 
-        f.write("    uint8_t * pos = Fuzz_Data;\n")
+        f.write("    uint8_t * futag_pos = Fuzz_Data;\n")
 
         for line in self.gen_lines:
             f.write("    " + line)
@@ -3539,7 +3955,9 @@ class ContextGenerator:
             self.buffer_size = []
             self.gen_lines = []
             self.gen_free = []
-            self.dyn_size_idx = 0
+            self.dyn_cstring_size_idx = 0
+            self.dyn_wstring_size_idx = 0
+            self.dyn_cxxstring_size_idx = 0
             self.file_idx = 0
             self.var_function_idx = 0
             self.var_idx = 0

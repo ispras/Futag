@@ -33,7 +33,7 @@ FUTAG  использует, в  качестве внешнего интерф�
 Вы можете попробовать собрать Futag с готовыми [Докер-файлами](https://github.com/ispras/Futag/tree/main/product-tests/build-test) для ОС Ubuntu.
 
 ## 2.2. Использование предварительно упакованного пакета
-- Загрузите последнюю версию [futag-llvm.2.0.0.tar.xz](https://github.com/ispras/Futag/releases/tag/2.0.0) и разархивируйте.
+- Загрузите последнюю версию [futag-llvm.2.0.1.tar.xz](https://github.com/ispras/Futag/releases/tag/2.0.0) и разархивируйте.
 
 ## 2.3. Сборка и установка из исходного кода
 
@@ -82,8 +82,9 @@ FUTAG  использует, в  качестве внешнего интерф�
 - Предварительно должен быть установлен пакет futag-<версия>.tar.gz по пути futag-llvm/python-package/:
 ```bash
   ~$ pip install -r futag-llvm/python-package/requirements.txt
-  ~$ pip install futag-llvm/python-package/futag-2.0.0.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-2.0.1.tar.gz
 ```
+- Для того, чтобы Futag генерировал фаззинг-обертки в формате AFLplusplus необходимо запустить скрипт futag-llvm/export.sh
 
 ### 3.1. Автоматическая генерация фаззинг-оберток в условии отсутствия контекстов использования
 - Запуск сборки, проверки и анализа в условии отсутствия контекстов использования
@@ -184,6 +185,7 @@ context_generator.compile_targets( #компиляция сгенерирова�
 ## 5. Статьи и материалы
 
 - C. T. Tran and S. Kurmangaleev, ["Futag: Automated fuzz target generator for testing software libraries"](https://ieeexplore.ieee.org/document/9693749) 2021 Ivannikov Memorial Workshop (IVMEM), 2021, pp. 80-85, doi: 10.1109/IVMEM53963.2021.00021.
+- C. T. Tran, D. Ponomarev and A. Kuznhesov, ["Research on automatic generation of fuzz-target for software library functions"](https://ieeexplore.ieee.org/document/10076871), 2022 Ivannikov Ispras Open Conference (ISPRAS), Moscow, Russian Federation, 2022, pp. 95-99, doi: 10.1109/ISPRAS57371.2022.10076871.
 
 - Исследования по автоматической генерации фаззинг-оберток для функций  библиотек, Открытая конференция ИСП РАН им. В.П. Иванникова 2022
 
