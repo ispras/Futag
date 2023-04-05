@@ -30,7 +30,7 @@ Additionally, Futag provides the ability to test compiled targets.
 You can try to build Futag with pre-built [Docker files](https://github.com/ispras/Futag/tree/main/product-tests/build-test) for Ubuntu OS.
 
 ### 2.2. Using a prepackaged package
-Download the latest [futag-llvm.2.0.0.tar.xz](https://github.com/ispras/Futag/releases/tag/2.0.0) and unzip
+Download the latest [futag-llvm.2.0.1.tar.xz](https://github.com/ispras/Futag/releases/tag/2.0.0) and unzip
 
 ### 2.3. Building and installing from source
 
