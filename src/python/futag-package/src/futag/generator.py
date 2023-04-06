@@ -362,8 +362,8 @@ class Generator:
             "memset(" + ref_name +
             ", 0, (dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "] + 1)* sizeof(wchar_t));\n",
             "memcpy(" + ref_name +
-            ", futag_pos, dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t)]);\n",
-            "futag_pos += dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t)];\n",
+            ", futag_pos, dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t));\n",
+            "futag_pos += dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t);\n",
         ]
         if (gen_type_info["local_qualifier"]):
             gen_lines += [gen_type_info["type_name"] +
@@ -2306,8 +2306,8 @@ class ContextGenerator:
             "memset(" + ref_name +
             ", 0, (dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "] + 1)* sizeof(wchar_t));\n",
             "memcpy(" + ref_name +
-            ", futag_pos, dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t)] );\n",
-            "futag_pos += dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t)];\n",
+            ", futag_pos, dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t));\n",
+            "futag_pos += dyn_wstring_size[" + str(dyn_wstring_size_idx - 1) + "]* sizeof(wchar_t);\n",
         ]
         if (gen_type_info["local_qualifier"]):
             gen_lines += [gen_type_info["type_name"] +
