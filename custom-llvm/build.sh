@@ -88,7 +88,7 @@ cp -r ../LICENSE $futag_install_folder/
 cp $custom_prepare/export.sh $futag_install_folder/
 
 cd ../product-tests
-XZ_OPT='-T$(($(nproc)/2)) -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm
+XZ_OPT='-T'$(($(nproc)/2))' -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm
 
 echo ""
 echo "======== End of build script for FUTAG - a fuzzing target automated generator ========"
