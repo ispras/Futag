@@ -38,11 +38,6 @@ echo
 # https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
 
 echo "========================================================="
-read -p "-- [Futag] Build with AFLplusplus-4.02c? (y/n): " wAFLplusplus
-if [[ ! $wAFLplusplus == [yYnN] ]]; then
-    echo "-- [Futag] Wrong input! Please enter y or n! Exit..."
-    exit
-fi
 
 # # https://github.com/ossf/fuzz-introspector/archive/refs/tags/v1.0.0.tar.gz
 # echo "========================================================="
@@ -72,14 +67,11 @@ then
 fi
 mkdir $futag_install_folder
 
-#write infomation of build to file INFO
-file_info="INFO"
 set -x
 if [ -d "llvm-project" ]; then
     rm -rf llvm-project
 fi
 if [ "$selectedVersion" == "1" ]; then
-    echo "LLVM=14.0.6" > $file_info
     if [ ! -f llvm-project-14.0.6.src.tar.xz ]; then
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/llvm-project-14.0.6.src.tar.xz
     fi
@@ -88,7 +80,6 @@ if [ "$selectedVersion" == "1" ]; then
 fi
 
 if [ "$selectedVersion" == "2" ]; then
-    echo "LLVM=13.0.1" > $file_info
     if [ ! -f llvm-project-13.0.1.src.tar.xz ]; then
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-project-13.0.1.src.tar.xz
     fi
@@ -96,25 +87,17 @@ if [ "$selectedVersion" == "2" ]; then
     mv llvm-project-13.0.1.src llvm-project
 fi
 
+if [ -d AFLplusplus-4.02c ]; then
+    rm -rf AFLplusplus-4.02c
+fi
+if [ ! -f 4.02c.tar.gz ]; then
+    wget https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
+fi
+tar xf 4.02c.tar.gz
+mv AFLplusplus-4.02c $build_folder/
 build_script="build.sh"
 
-if [ $wAFLplusplus == "Y" ] || [ $wAFLplusplus == "y" ]; then
-    echo "AFLplusplus=yes" >> $file_info
-    if [ -d AFLplusplus-4.02c ]; then
-        rm -rf AFLplusplus-4.02c
-    fi
-    if [ ! -f 4.02c.tar.gz ]; then
-        wget https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
-    fi
-    tar xf 4.02c.tar.gz
-    mv AFLplusplus-4.02c $build_folder/
-    build_script="buildwAFLplusplus.sh"
-else
-    echo "AFLplusplus=no" >> $file_info
-fi
-
 # if [ $fuzzintro == "Y" ] || [ $fuzzintro == "y" ]; then
-#     echo "FuzzIntrospector=yes" >> $file_info
 #     if [ -d fuzz-introspector-1.0.0 ]; then
 #         rm -rf fuzz-introspector-1.0.0
 #     fi
@@ -128,7 +111,5 @@ fi
 #     else
 #         build_script="buildwFuzzIntro.sh"
 #     fi
-# else
-#     echo "FuzzIntrospector=no" >> $file_info
 # fi
 cp $build_script  $build_folder/build.sh
