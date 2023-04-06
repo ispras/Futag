@@ -67,11 +67,14 @@ then
 fi
 mkdir $futag_install_folder
 
+#write infomation of build to file INFO
+file_info="INFO"
 set -x
 if [ -d "llvm-project" ]; then
     rm -rf llvm-project
 fi
 if [ "$selectedVersion" == "1" ]; then
+    echo "LLVM=14.0.6" > $file_info
     if [ ! -f llvm-project-14.0.6.src.tar.xz ]; then
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/llvm-project-14.0.6.src.tar.xz
     fi
@@ -80,6 +83,7 @@ if [ "$selectedVersion" == "1" ]; then
 fi
 
 if [ "$selectedVersion" == "2" ]; then
+    echo "LLVM=13.0.1" > $file_info
     if [ ! -f llvm-project-13.0.1.src.tar.xz ]; then
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-project-13.0.1.src.tar.xz
     fi
@@ -98,6 +102,7 @@ mv AFLplusplus-4.02c $build_folder/
 build_script="build.sh"
 
 # if [ $fuzzintro == "Y" ] || [ $fuzzintro == "y" ]; then
+#     echo "FuzzIntrospector=yes" >> $file_info
 #     if [ -d fuzz-introspector-1.0.0 ]; then
 #         rm -rf fuzz-introspector-1.0.0
 #     fi
@@ -111,5 +116,7 @@ build_script="build.sh"
 #     else
 #         build_script="buildwFuzzIntro.sh"
 #     fi
+# else
+#     echo "FuzzIntrospector=no" >> $file_info
 # fi
 cp $build_script  $build_folder/build.sh
