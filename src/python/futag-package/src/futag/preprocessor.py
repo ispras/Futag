@@ -14,6 +14,8 @@
 **************************************************
 """
 import json
+from json.decoder import JSONDecodeError
+
 import pathlib
 import os
 import re
@@ -171,7 +173,6 @@ class Builder:
             "cmake",
             f"-DLLVM_CONFIG_PATH={(self.futag_llvm_package / 'bin/llvm-config').as_posix()}",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
-            # f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
@@ -236,6 +237,7 @@ class Builder:
             f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
             f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
             f"-DCMAKE_C_FLAGS='{self.flags}'",
+            f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
@@ -261,9 +263,7 @@ class Builder:
 
         os.chdir(self.build_path.as_posix())
         # Doing make for building
-        make_command = [
-            (self.futag_llvm_package / "bin/intercept-build").as_posix(),
-            "make",]
+        make_command = ["make"]
         if self.processes > 1:
             make_command = make_command + ["-j" + str(self.processes)]
         make_command = make_command + [
@@ -615,13 +615,19 @@ class Builder:
         print("")
         print(" -- [Futag]: Analysing fuction declarations...")
         for jf in decl_files:
-            functions = json.load(open(jf.as_posix()))
+            if os.stat(jf.as_posix()).st_size == 0:
+                continue
+            try:
+                functions = json.load(open(jf.as_posix()))
+            except JSONDecodeError:
+                continue
+
             if functions is None:
                 print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
             else:
-                print(" -- [Futag]: Analyzing file %s ..." %
+                print(" -- [Futag]: Analyzing fuction declarations in file %s ..." %
                       (jf.as_posix()))
             # get global hash of all functions
             global_hash = [x for x in function_list]
@@ -629,13 +635,25 @@ class Builder:
             for hash in functions:
                 if not hash in global_hash:
                     function_list[hash] = functions[hash]
-
+        
+        print(" -- [Futag]: Analysing contexts...")
         for jf in context_files:
-            contexts = json.load(open(jf.as_posix()))
+            if os.stat(jf.as_posix()).st_size == 0:
+                continue
+            else:
+                print (jf.as_posix(), " > 0000")
+            try:
+                contexts = json.load(open(jf.as_posix()))
+            except JSONDecodeError:
+                continue
+            
             if contexts is None:
                 print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
+            else:
+                print(" -- [Futag]: Analyzing context in file %s ..." %
+                      (jf.as_posix()))
             # get global hash of all functions
             global_hash = [x for x in function_list]
             # iterate function hash for adding to global hash list
@@ -656,13 +674,19 @@ class Builder:
         print(" -- [Futag]: Analysing data types ...")
 
         for jf in typeinfo_files:
-            types = json.load(open(jf.as_posix()))
+            if os.stat(jf.as_posix()).st_size == 0:
+                continue
+            try:
+                types = json.load(open(jf.as_posix()))
+            except JSONDecodeError:
+                continue
+
             if types is None:
                 print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
             else:
-                print(" -- [Futag]: Analyzing file %s ..." % (jf.as_posix()))
+                print(" -- [Futag]: Analyzing data types file %s ..." % (jf.as_posix()))
             # get global hash of all functions
             for enum_it in types["enums"]:
                 exist = False
@@ -698,13 +722,19 @@ class Builder:
 
         match_include = "^\s*#include\s*([<\"][//_\-\w.<>]+[>\"])\s*$"
         for infofile in info_files:
-            compiled_file = json.load(open(infofile.as_posix()))
+            if os.stat(infofile.as_posix()).st_size == 0:
+                continue
+            try:
+                compiled_file = json.load(open(infofile.as_posix()))
+            except JSONDecodeError:
+                continue
+
             if not compiled_file or not compiled_file['file']:
                 print(" -- [Futag]: Warning: loading json from file %s failed!" %
                       (jf.as_posix()))
                 continue
             else:
-                print(" -- [Futag]: Analyzing file %s ..." %
+                print(" -- [Futag]: Analyzing headers in file %s ..." %
                       (infofile.as_posix()))
             code = []
             if os.path.exists(compiled_file['file']):
@@ -1146,7 +1176,13 @@ class ConsumerBuilder:
         ]
         contexts = []
         for jf in context_files:
-            context = json.load(open(jf.as_posix()))
+            if os.stat(jf.as_posix()).st_size == 0:
+                continue
+            try:
+                context = json.load(open(jf.as_posix()))
+            except JSONDecodeError:
+                continue
+            
             if context is None:
                 print(" -- [Futag]: Warning: file %s empty!" %
                       (jf.as_posix()))

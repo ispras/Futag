@@ -108,8 +108,8 @@ class Generator:
             # TODO: set option for deleting
             if (self.library_root / output_path).exists():
                 delete_folder(self.library_root / output_path)
-            if (self.library_root / tmp_output_path).exists():
-                delete_folder(self.library_root / tmp_output_path)
+            # if (self.library_root / tmp_output_path).exists():
+            #     delete_folder(self.library_root / tmp_output_path)
 
             simple_functions = []
             if self.target_library["functions"]:
@@ -277,13 +277,13 @@ class Generator:
         return {
             "gen_lines": [
                 "//GEN_BUILTIN\n",
-                gen_type_info["type_name"] + " " + param_name + ";\n",
+                gen_type_info["type_name"].replace("(anonymous namespace)::","") + " " + param_name + ";\n",
                 "memcpy(&"+param_name+", futag_pos, sizeof(" +
-                gen_type_info["type_name"] + "));\n",
-                "futag_pos += sizeof(" + gen_type_info["type_name"] + ");\n"
+                gen_type_info["type_name"].replace("(anonymous namespace)::","") + "));\n",
+                "futag_pos += sizeof(" + gen_type_info["type_name"].replace("(anonymous namespace)::","") + ");\n"
             ],
             "gen_free": [],
-            "buffer_size": ["sizeof(" + gen_type_info["type_name"]+")"]
+            "buffer_size": ["sizeof(" + gen_type_info["type_name"].replace("(anonymous namespace)::","")+")"]
         }
 
     def __gen_strsize(self, param_name, param_type, dyn_size_idx, array_name):
@@ -314,7 +314,7 @@ class Generator:
             ref_name = "r" + ref_name
 
         gen_lines = [
-            "//GEN_CSTRING\n",
+            "//GEN_CSTRING1\n",
             gen_type_info["base_type_name"] + " " + ref_name + \
             " = (" + gen_type_info["base_type_name"] + \
             ") malloc((dyn_cstring_size[" + str(dyn_cstring_size_idx - 1) + "] + 1)* sizeof(char));\n",
@@ -495,7 +495,7 @@ class Generator:
         return {
             "gen_lines": [
                 "//GEN_POINTER\n",
-                gen_type_info["type_name"] + " " + param_name +
+                gen_type_info["type_name"].replace("(anonymous namespace)::", "") + " " + param_name +
                 " = & " + prev_param_name + ";\n"
             ],
             "gen_free": [],
@@ -1030,6 +1030,55 @@ class Generator:
         if f.closed:
             return None
         return f
+    def __anonymous_wrapper_file(self, func):
+
+        # if anonymous:
+        #     filename = func["name"]
+        #     filepath = self.tmp_output_path / "anonymous"
+        # else:
+        source_path = func["location"]["fullpath"]
+        filename = "anonymous_" + func["name"].replace(":", "_")
+        filepath = self.tmp_output_path
+
+        self.target_extension = func["location"]["fullpath"].split(".")[-1]
+        file_index = 1
+
+        # qname = func["qname"]
+        if len(filename) > 250:
+            return None
+        dir_name = filename + str(file_index)
+
+        if not (filepath / filename).exists():
+            (filepath / filename).mkdir(parents=True, exist_ok=True)
+
+        # Each variant of fuzz-driver will be save in separated directory
+        # inside the directory of function
+
+        while (filepath / filename / dir_name).exists():
+            file_index += 1
+            dir_name = filename + str(file_index)
+            if file_index > 1000:
+                break
+
+        if file_index > 1000:
+            return None
+        (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
+
+        file_name = filename + \
+            str(file_index) + "." + self.target_extension
+
+        full_path_destination = (filepath / filename / dir_name / file_name).as_posix()
+        with open(source_path, 'r') as s:
+            source_file = s.read()
+            d = open(full_path_destination, "w")
+            d.write("//"+func["hash"]+ "\n")
+            d.write(source_file)
+            d.close()
+        f = open(full_path_destination, 'a')
+        if f.closed:
+            return None
+        return f
+
 
     def __log_file(self, func, anonymous: bool = False):
         if anonymous:
@@ -1100,6 +1149,519 @@ class Generator:
         self.gen_this_function = copy.copy(old_values["gen_this_function"])
         self.param_list = copy.copy(old_values["param_list"])
 
+
+    def __gen_anonymous_function(self, func, param_id) -> bool:
+        malloc_free = [
+            "unsigned char *",
+            "char *",
+            "wchar_t *"
+        ]
+        if param_id == len(func['params']):
+            found_parent = None
+            if func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
+                # Find parent class
+                for r in self.target_library["records"]:
+                    if r["hash"] == func["parent_hash"]:
+                        found_parent = r
+                        break
+                if not found_parent:
+                    self.gen_this_function = False
+
+            # If there is no buffer - return!
+            if (not len(self.buffer_size) and not self.dyn_cstring_size_idx and not self.dyn_cxxstring_size_idx and not self.dyn_wstring_size_idx and not self.file_idx) or not self.gen_this_function:
+                log = self.__log_file(func, self.gen_anonymous)
+                if not log:
+                    print(CANNOT_CREATE_LOG_FILE, func["qname"])
+                else:
+                    self.curr_func_log = f"Log for function: {func['qname']}\n{self.curr_func_log}"
+                    log.write(self.curr_func_log)
+                    log.close()
+                return False
+            # generate file name
+            f = self.__anonymous_wrapper_file(func)
+            if not f:
+                self.gen_this_function = False
+                print(CANNOT_CREATE_WRAPPER_FILE, func["qname"])
+                return False
+            print(WRAPPER_FILE_CREATED, f.name)
+            
+            for line in self.__gen_header(func["location"]["fullpath"]):
+                f.write("// " + line)
+            f.write('\n')
+            compiler_info = self.__get_compile_command(
+                func["location"]["fullpath"])
+
+            if self.target_type == LIBFUZZER:
+                if compiler_info["compiler"] == "CC":
+                    f.write(LIBFUZZER_PREFIX_C)
+                else:
+                    f.write(LIBFUZZER_PREFIX_CXX)
+            else:
+                f.write(AFLPLUSPLUS_PREFIX)
+
+            buffer_check = str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) + " + str(self.dyn_cxxstring_size_idx) + "*sizeof(char) + " + str(self.dyn_cstring_size_idx) + " + " + str(self.file_idx)
+            if self.buffer_size:
+                buffer_check += " + " + " + ".join(self.buffer_size)
+            f.write("    if (Fuzz_Size < " + buffer_check + ") return 0;\n")
+
+            if self.dyn_cstring_size_idx > 0:
+                f.write("    size_t dyn_cstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check +" )));\n")
+                f.write("    //generate random array of dynamic string sizes\n")
+                f.write("    size_t dyn_cstring_size[" +
+                        str(self.dyn_cstring_size_idx) + "];\n")
+                if self.dyn_cstring_size_idx > 1:
+                    f.write("    srand(time(NULL));\n")
+                    f.write(
+                        "    if(dyn_cstring_buffer == 0) dyn_cstring_size[0] = dyn_cstring_buffer; \n")
+                    f.write("    else dyn_cstring_size[0] = rand() % dyn_cstring_buffer; \n")
+                    f.write("    size_t remain = dyn_cstring_size[0];\n")
+                    f.write("    for(size_t i = 1; i< " +
+                            str(self.dyn_cstring_size_idx) + " - 1; i++){\n")
+                    f.write(
+                        "        if(dyn_cstring_buffer - remain == 0) dyn_cstring_size[i] = dyn_cstring_buffer - remain;\n")
+                    f.write(
+                        "        else dyn_cstring_size[i] = rand() % (dyn_cstring_buffer - remain);\n")
+                    f.write("        remain += dyn_cstring_size[i];\n")
+                    f.write("    }\n")
+                    f.write(
+                        "    dyn_cstring_size[" + str(self.dyn_cstring_size_idx) + " - 1] = dyn_cstring_buffer - remain;\n")
+                else:
+                    f.write("    dyn_cstring_size[0] = dyn_cstring_buffer;\n")
+                f.write(
+                    "    //end of generation random array of dynamic string sizes\n")
+
+            if self.dyn_wstring_size_idx > 0:
+                f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" + buffer_check +" )))/sizeof(wchar_t);\n")
+                f.write("    //generate random array of dynamic string sizes\n")
+                f.write("    size_t dyn_wstring_size[" +
+                        str(self.dyn_wstring_size_idx) + "];\n")
+                if self.dyn_wstring_size_idx > 1:
+                    f.write("    srand(time(NULL));\n")
+                    f.write(
+                        "    if(dyn_wstring_buffer == 0) dyn_wstring_size[0] = dyn_wstring_buffer; \n")
+                    f.write("    else dyn_wstring_size[0] = rand() % dyn_wstring_buffer; \n")
+                    f.write("    size_t remain = dyn_wstring_size[0];\n")
+                    f.write("    for(size_t i = 1; i< " +
+                            str(self.dyn_wstring_size_idx) + " - 1; i++){\n")
+                    f.write(
+                        "        if(dyn_wstring_buffer - remain == 0) dyn_wstring_size[i] = dyn_wstring_buffer - remain;\n")
+                    f.write(
+                        "        else dyn_wstring_size[i] = rand() % (dyn_wstring_buffer - remain);\n")
+                    f.write("        remain += dyn_wstring_size[i];\n")
+                    f.write("    }\n")
+                    f.write(
+                        "    dyn_wstring_size[" + str(self.dyn_wstring_size_idx) + " - 1] = dyn_wstring_buffer - remain;\n")
+                else:
+                    f.write("    dyn_wstring_size[0] = dyn_wstring_buffer;\n")
+                f.write(
+                    "    //end of generation random array of dynamic string sizes\n")
+                
+            if self.dyn_cxxstring_size_idx > 0:
+                f.write("    size_t dyn_cxxstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check +" )));\n")
+                f.write("    //generate random array of dynamic string sizes\n")
+                f.write("    size_t dyn_cxxstring_size[" +
+                        str(self.dyn_cxxstring_size_idx) + "];\n")
+                if self.dyn_cxxstring_size_idx > 1:
+                    f.write("    srand(time(NULL));\n")
+                    f.write(
+                        "    if(dyn_cxxstring_buffer == 0) dyn_cxxstring_size[0] = dyn_cxxstring_buffer; \n")
+                    f.write("    else dyn_cxxstring_size[0] = rand() % dyn_cxxstring_buffer; \n")
+                    f.write("    size_t remain = dyn_cxxstring_size[0];\n")
+                    f.write("    for(size_t i = 1; i< " +
+                            str(self.dyn_cxxstring_size_idx) + " - 1; i++){\n")
+                    f.write(
+                        "        if(dyn_cxxstring_buffer - remain == 0) dyn_cxxstring_size[i] = dyn_cxxstring_buffer - remain;\n")
+                    f.write(
+                        "        else dyn_cxxstring_size[i] = rand() % (dyn_cxxstring_buffer - remain);\n")
+                    f.write("        remain += dyn_cxxstring_size[i];\n")
+                    f.write("    }\n")
+                    f.write(
+                        "    dyn_cxxstring_size[" + str(self.dyn_cxxstring_size_idx) + " - 1] = dyn_cxxstring_buffer - remain;\n")
+                else:
+                    f.write("    dyn_cxxstring_size[0] = dyn_cxxstring_buffer;\n")
+                f.write(
+                    "    //end of generation random array of dynamic string sizes\n")
+
+            if self.file_idx > 0:
+                f.write("    size_t file_buffer = (size_t) ((Fuzz_Size + "+  str(self.file_idx) + " - (" + buffer_check +" )));\n")
+                f.write("    //generate random array of dynamic file sizes\n")
+                f.write("    size_t file_size[" +
+                        str(self.file_idx) + "];\n")
+                if self.file_idx > 1:
+                    f.write("    srand(time(NULL));\n")
+                    f.write(
+                        "    if(file_buffer == 0) file_size[0] = file_buffer;\n")
+                    f.write("    else file_size[0] = rand() % file_buffer;\n")
+                    f.write("    size_t remain = file_size[0];\n")
+                    f.write("    for(size_t i = 1; i< " +
+                            str(self.file_idx) + " - 1; i++){\n")
+                    f.write(
+                        "        if(file_buffer - remain == 0) file_size[i] = file_buffer - remain;\n")
+                    f.write(
+                        "        else file_size[i] = rand() % (file_buffer - remain);\n")
+                    f.write("        remain += file_size[i];\n")
+                    f.write("    }\n")
+                    f.write(
+                        "    file_size[" + str(self.file_idx) + " - 1] = file_buffer - remain;\n")
+                else:
+                    f.write("    file_size[0] = file_buffer;\n")
+                f.write(
+                    "    //end of generation random array of dynamic file sizes\n")
+
+            f.write("    uint8_t * futag_pos = Fuzz_Data;\n")
+            for line in self.gen_lines:
+                f.write("    " + line)
+
+            f.write("    //" + func["qname"])
+            
+            if func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
+                class_name = found_parent["qname"]
+                if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
+                    f.write("    //declare the RECORD and call constructor\n")
+                    f.write("    " + class_name.replace("::(anonymous namespace)", "") + " futag_target" + "(")
+                else:
+                    # Find default constructor
+                    # TODO: add code for other constructors
+                    found_default_constructor = False
+                    for fu in self.target_library["functions"]:
+                        if fu["parent_hash"] == func["parent_hash"] and fu["func_type"] == FUNC_DEFAULT_CONSTRUCTOR:
+                            found_default_constructor = True
+
+                    # TODO: add code for other constructors!!!
+                    if not found_default_constructor:
+                        self.gen_this_function = False
+                        os.unlink(f.name)
+                        f.close()
+                        return False
+                    f.write("    //declare the RECORD first\n")
+                    f.write("    " + class_name.replace("::(anonymous namespace)", "") + " futag_target;\n")
+                    # call the method
+                    f.write("    //METHOD CALL\n")
+                    f.write("    futag_target." + func["name"]+"(")
+            else:
+                f.write("    //FUNCTION_CALL\n")
+                if func["return_type"] in malloc_free:
+                    f.write("    " + func["return_type"] +
+                            " futag_target = " + func["qname"] + "(")
+                else:
+                    f.write("    " + func["qname"].replace("::(anonymous namespace)", "") + "(")
+
+            param_list = []
+            for arg in self.param_list:
+                param_list.append(arg + " ")
+            f.write(",".join(param_list))
+            f.write(");\n")
+            # !attempting free on address which was not malloc()-ed
+
+            if func["return_type"] in malloc_free:
+                f.write("    if(futag_target){\n")
+                f.write("        free(futag_target);\n")
+                f.write("        futag_target = NULL;\n")
+                f.write("    }\n")
+
+            f.write("    //FREE\n")
+            for line in self.gen_free:
+                f.write("    " + line)
+            if self.target_type == LIBFUZZER:
+                f.write(LIBFUZZER_SUFFIX)
+            else:
+                f.write(AFLPLUSPLUS_SUFFIX)
+            f.close()
+            return True
+
+        curr_param = func["params"][param_id]
+        if len(curr_param["gen_list"]) > 1:
+            curr_name = "_" + curr_param["param_name"]
+        else:
+            curr_name = curr_param["param_name"]
+        prev_param_name = curr_name
+        gen_curr_param = True
+
+        curr_gen = {}
+        if len(curr_param["gen_list"]) == 0:
+            self.gen_this_function = False
+            return False
+        if curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_INPUT_FILE, GEN_OUTPUT_FILE]:
+            for gen_type_info in curr_param["gen_list"]:
+                prev_param_name = curr_name
+                if gen_type_info["gen_type"] == GEN_BUILTIN:
+                    this_gen_size = False
+                    if curr_param["param_usage"] in ["FILE_DESCRIPTOR"]:
+                        curr_name = "fd_" + curr_name + str(self.file_idx) # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_file_descriptor(
+                            curr_name, gen_type_info)
+                        self.__append_gen_dict(curr_gen)
+                        break
+                    # GEN STRING SIZE
+                    
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
+                        if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
+                            dyn_size_idx = 0
+                            array_name = ""
+                            if func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
+                                dyn_size_idx = self.dyn_cstring_size_idx
+                                array_name = "dyn_cstring_size"
+                            elif func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
+                                dyn_size_idx = self.dyn_wstring_size_idx
+                                array_name = "dyn_wstring_size"
+                            else:
+                                dyn_size_idx = self.dyn_cxxstring_size_idx
+                                array_name = "dyn_cxxstring_size"
+                            curr_name = "sz_" + curr_name  # size_prefix
+                            curr_gen = self.__gen_strsize(
+                                curr_name, curr_param["param_type"], dyn_size_idx, array_name)
+                            self.__append_gen_dict(curr_gen)
+                            this_gen_size = True  
+                            break
+                    if not this_gen_size:
+                        curr_name = "b_" + curr_name  # builtin_prefix
+                        curr_gen = self.__gen_builtin(curr_name, gen_type_info)
+                        self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_CSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        # GEN STRING
+                        curr_name = "str_" + curr_name  # string_prefix
+                        self.dyn_cstring_size_idx += 1
+                        curr_gen = self.__gen_cstring(
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_WSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        # GEN STRING
+                        curr_name = "str_" + curr_name  # string_prefix
+                        self.dyn_wstring_size_idx += 1
+                        curr_gen = self.__gen_wstring(
+                            curr_name, gen_type_info, self.dyn_wstring_size_idx)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_CXXSTRING:
+                    curr_name = "str_" + curr_name  # string_prefix
+                    self.dyn_cxxstring_size_idx += 1
+                    curr_gen = self.__gen_cxxstring(
+                        curr_name, gen_type_info, self.dyn_cxxstring_size_idx)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_ENUM:  # GEN_ENUM
+                    curr_name = "e_" + curr_name  # enum_prefix
+                    found_enum = None
+                    # search in enum list of analysis result:
+                    for enum in self.target_library["enums"]:
+                        if len(gen_type_info["type_name"].split(" ")) > 1:
+                            if enum["qname"] == gen_type_info["type_name"].split(" ")[
+                                    1]:
+                                found_enum = enum
+                                break
+                        else:
+                            if enum["qname"] == gen_type_info["type_name"]:
+                                found_enum = enum
+                                break
+                    if not found_enum:
+                        # search in typedef list of analysis result:
+                        for typedef in self.target_library["typedefs"]:
+                            if typedef["name"] == gen_type_info["type_name"]:
+                                enum_hash = typedef["type_source_hash"]
+                                for enum in self.target_library["enums"]:
+                                    if enum["hash"] == enum_hash:
+                                        found_enum = enum
+                                break
+                    if not found_enum:
+                        self.curr_func_log += f"- Can not generate for enum: {str(gen_type_info)}\n"
+                        gen_curr_param = False
+                    else:
+                        compiler_info = self.__get_compile_command(
+                            func["location"]["fullpath"])
+                        curr_gen = self.__gen_enum(
+                            found_enum, curr_name, gen_type_info, compiler_info, self.gen_anonymous)
+                        self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_UNION:
+                    curr_name = "u_" + curr_name  # union_prefix
+                    curr_gen = self.__gen_union(curr_name, gen_type_info)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_ARRAY:  # GEN_ARRAY
+                    curr_name = "a_" + curr_name  # array_prefix
+                    curr_gen = self.__gen_array(curr_name, gen_type_info)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_QUALIFIER:
+                    curr_name = "q_" + curr_name  # qualifier_prefix
+                    curr_gen = self.__gen_qualifier(
+                        curr_name, prev_param_name, gen_type_info)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_POINTER:
+                    curr_name = "p_" + curr_name  # qualifier_prefix
+                    curr_gen = self.__gen_pointer(
+                        curr_name, prev_param_name, gen_type_info)
+                    self.__append_gen_dict(curr_gen)
+                prev_param_name = curr_name
+            if not gen_curr_param:
+                self.gen_this_function = False
+            self.gen_lines += ["\n"]
+            self.param_list += [curr_name]
+            param_id += 1
+            self.__gen_anonymous_function(func, param_id)
+
+        else:
+            if curr_param["gen_list"][0]["gen_type"] == GEN_STRUCT:
+                # 1. Search for function call that generate struct type
+                # 2. If not found, find in typdef the derived type of current struct and then take the action of 1.
+                # 3. If not found, find the struct definition, check if the struct is simple and manual generate
+
+                curr_name = "s_" + curr_name  # struct_prefix
+                # A variable of structure type can be initialized with other functions.
+                result_search_return_type = self.__search_return_types(
+                    curr_param["gen_list"], func, self.target_library['functions'])
+
+                if not result_search_return_type:
+                    # A struct type may be defined with different name through typdef
+                    result_search_typedefs = self.__search_in_typedefs(
+                        curr_param["gen_list"][0]["type_name"], self.target_library['typedefs'])
+                    if result_search_typedefs:
+                        typedef_gen_list = [{
+                            "base_type_name": result_search_typedefs["underlying_type"],
+                            "gen_type": GEN_STRUCT,
+                            "gen_type_name": "_STRUCT",
+                            "length": 0,
+                            "local_qualifier": "",
+                            "type_name": result_search_typedefs["name"]
+                        }]
+                        # Search typedef in return type of functions
+                        result_search_typdef_return_type = self.__search_return_types(
+                            typedef_gen_list, func, self.target_library['functions'])
+                        if result_search_typdef_return_type:
+                            old_values = self.__save_old_values()
+                            for curr_return_func in result_search_typdef_return_type:
+                                self.var_function_idx += 1
+                                self.gen_lines += ["\n"]
+                                self.param_list += [curr_name]
+                                curr_gen = self.__gen_var_function(
+                                    curr_name, curr_return_func["function"])
+                                self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
+                                self.__append_gen_dict(curr_gen)
+                                #!!!call recursive
+                                param_id += 1
+                                self.__gen_anonymous_function(func, param_id)
+                                param_id -= 1
+                                self.__retrieve_old_values(old_values)
+                        else:
+                            found_struct = None
+                            for record in self.target_library["records"]:
+                                if len(curr_param["gen_list"][0]["type_name"].split(" ")) > 1 and record["type"] == STRUCT_RECORD and record["name"] == curr_param["gen_list"][0]["type_name"].split(" ")[1] and record["is_simple"]:
+                                    found_struct = record
+                                    break
+                            if found_struct:
+                                curr_gen = self.__gen_struct(
+                                    curr_name, record, curr_param["gen_list"][0])
+                                self.__append_gen_dict(curr_gen)
+                            else:
+                                _tmp = curr_param["gen_list"][0]
+                                self.curr_func_log += f"- Could not generate for object: {str(_tmp)}. Could not find function call to generate this struct!\n"
+                        gen_curr_param = False
+                    else:
+                        _tmp = curr_param["gen_list"][0]
+                        self.curr_func_log += f"- Could not generate for object: {str(_tmp)}. Could not create function call to generate this struct, and the definition of struct not found!\n"
+                        gen_curr_param = False
+                else:
+                    old_values = self.__save_old_values()
+                    for curr_return_func in result_search_return_type:
+                        self.var_function_idx += 1
+                        self.gen_lines += ["\n"]
+                        self.param_list += [curr_name]
+                        curr_gen = self.__gen_var_function(curr_name, curr_return_func["function"])
+                        self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
+                        self.__append_gen_dict(curr_gen)
+                        #!!!call recursive
+                        param_id += 1
+                        self.__gen_anonymous_function(func, param_id)
+                        param_id -= 1
+                        self.__retrieve_old_values(old_values)
+
+            if curr_param["gen_list"][0]["gen_type"] == GEN_CLASS:
+                # 1. Search for function call that generate class type
+                # 2. If not found, try to generate class through constructor/default constructor
+
+                curr_name = "c_" + curr_name  # struct_prefix
+                # A variable of structure type can be initialized with other functions.
+                result_search_return_type = self.__search_return_types(
+                    curr_param["gen_list"], func, self.target_library['functions'])
+
+                if not result_search_return_type:
+                    found_class = None
+                    for record in self.target_library["records"]:
+                        if record["type"] == CLASS_RECORD and record["name"] == curr_param["gen_list"][0]["type_name"]:
+                            found_class = record
+                            break
+                    if found_class:
+                        curr_gen_list = self.__gen_class(
+                            curr_name, found_class)
+                        old_values = self.__save_old_values()
+                        for curr_gen in curr_gen_list:
+                            self.__append_gen_dict(curr_gen)
+                            #!!!call recursive
+                            self.gen_lines += ["\n"]
+                            self.param_list += [curr_name]
+                            param_id += 1
+                            self.var_function_idx += 1
+                            self.__gen_anonymous_function(func, param_id)
+                            param_id -= 1
+                            self.__retrieve_old_values(old_values)
+                    else:
+                        gen_type_info = curr_param["gen_list"][0]
+                        self.curr_func_log += f"- Could not generate for object: {str(gen_type_info)}. Could not find function call to generate this class!\n"
+                        gen_curr_param = False
+                else:
+                    old_values = self.__save_old_values()
+                    for curr_return_func in result_search_return_type:
+                        self.var_function_idx += 1
+                        self.gen_lines += ["\n"]
+                        self.param_list += [curr_name]
+                        curr_gen = self.__gen_var_function(
+                            curr_name, curr_return_func["function"])
+                        self.__add_header(self.__get_function_header(func["location"]["fullpath"]))
+                        self.__append_gen_dict(curr_gen)
+                        #!!!call recursive
+                        param_id += 1
+                        self.__gen_anonymous_function(func, param_id)
+                        param_id -= 1
+                        self.__retrieve_old_values(old_values)
+
+            if curr_param["gen_list"][0]["gen_type"] in [GEN_INCOMPLETE, GEN_VOID, GEN_FUNCTION, GEN_UNKNOWN]:
+                gen_type_info = curr_param["gen_list"][0]
+                self.curr_func_log += f"- Can not generate for object: {str(gen_type_info)}\n"
+                gen_curr_param = False
+
+            # if gen_type_info["gen_type"] == GEN_VOID:
+            #     curr_name = "a_" + curr_name  # void_prefix
+            #     self.curr_func_log += f"- Can not generate for object: {str(gen_type_info)}\n"
+            #     gen_curr_param = False
+            #     # curr_gen = self.__gen_void(curr_name)
+            #     # self.__append_gen_dict(curr_gen)
+
+            if not gen_curr_param:
+                self.gen_this_function = False
+            self.gen_lines += ["\n"]
+            self.param_list += [curr_name]
+            param_id += 1
+            self.__gen_anonymous_function(func, param_id)
+
+
     def __gen_target_function(self, func, param_id) -> bool:
         malloc_free = [
             "unsigned char *",
@@ -1137,6 +1699,8 @@ class Generator:
                 print(CANNOT_CREATE_WRAPPER_FILE, func["qname"])
                 return False
             print(WRAPPER_FILE_CREATED, f.name)
+            
+            f.write("//"+func["hash"]+ "\n")
             for line in self.__gen_header(func["location"]["fullpath"]):
                 f.write(line)
             f.write('\n')
@@ -1185,7 +1749,7 @@ class Generator:
                     "    //end of generation random array of dynamic string sizes\n")
 
             if self.dyn_wstring_size_idx > 0:
-                f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" + buffer_check +" )));\n")
+                f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" + buffer_check +" )))/sizeof(wchar_t);\n")
                 f.write("    //generate random array of dynamic string sizes\n")
                 f.write("    size_t dyn_wstring_size[" +
                         str(self.dyn_wstring_size_idx) + "];\n")
@@ -1270,7 +1834,7 @@ class Generator:
                 class_name = found_parent["qname"]
                 if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
                     f.write("    //declare the RECORD and call constructor\n")
-                    f.write("    " + class_name + " futag_target" + "(")
+                    f.write("    " + class_name.replace("::(anonymous namespace)", "") + " futag_target" + "(")
                 else:
                     # Find default constructor
                     # TODO: add code for other constructors
@@ -1282,6 +1846,8 @@ class Generator:
                     # TODO: add code for other constructors!!!
                     if not found_default_constructor:
                         self.gen_this_function = False
+                        os.unlink(f.name)
+                        f.close()
                         return False
                     f.write("    //declare the RECORD first\n")
                     f.write("    " + class_name + " futag_target;\n")
@@ -1661,12 +2227,29 @@ class Generator:
                 self.param_list = []
                 self.curr_function = func
                 self.curr_func_log = ""
-                self.__gen_target_function(func, 0)
+                if "(anonymous" in func["qname"]:
+                    self.__gen_anonymous_function(func, 0)
+                else:
+                    self.__gen_target_function(func, 0)
 
             # For C++, Call the static function of class without declaring object
             if func["access_type"] in [AS_NONE, AS_PUBLIC] and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_GLOBAL, FUNC_STATIC] and func["storage_class"] == SC_STATIC:
+                self.gen_this_function = True
+                self.buffer_size = []
+                self.gen_lines = []
+                self.gen_free = []
+                self.dyn_cstring_size_idx = 0
+                self.dyn_wstring_size_idx = 0
+                self.dyn_cxxstring_size_idx = 0
+                self.file_idx = 0
+                self.var_function_idx = 0
+                self.param_list = []
+                self.curr_function = func
+                self.curr_func_log = ""
                 if (not "(anonymous namespace)" in func["qname"]) and (not "::operator" in func["qname"]):
                     Cplusplus_static_class_method.append(func["qname"])
+                if "(anonymous" in func["qname"]:
+                    self.__gen_anonymous_function(func, 0)
 
             # We dont generate for static function of C
             if func["func_type"] == FUNC_UNKNOW_RECORD and func["storage_class"] == 2:
@@ -1791,7 +2374,6 @@ class Generator:
             static_lib.append("-Wl,--end-group")
 
         for func_dir in generated_functions:
-
             # Extract compiler cwd, to resolve relative includes
             search_curr_func = [
                 f for f in self.target_library['functions'] if f['qname'].replace(":", "_") == func_dir.name]
@@ -1861,7 +2443,7 @@ class Generator:
             current_include = []
             if not include_subdir:
                 for i in resolved_include_paths:
-                    current_include.append("-I" + i + "/")
+                    current_include.append("-I" + i.as_posix() + "/")
             else:
                 for i in include_subdir:
                     current_include.append(i)
@@ -1874,11 +2456,9 @@ class Generator:
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
                     if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + [
-                            extra_include] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + extra_include.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + [
-                            extra_include] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + extra_include.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
 
                     compile_cmd_list.append({
                         "compiler_cmd": compiler_cmd,
@@ -1888,6 +2468,203 @@ class Generator:
                         "binary_path": target_path,
                         "compiler_info": compiler_info,
                     })
+        with Pool(workers) as p:
+            p.map(self.compile_driver_worker, compile_cmd_list)
+
+        # Extract the results of compilation
+
+        compiled_targets_list = [
+            x for x in self.tmp_output_path.glob("**/*.out") if x.is_file()]
+        print("-- [Futag] collecting result ...")
+
+        succeeded_tree = set()
+        # for compiled_target in compiled_targets_list:
+        #     if compiled_target.parents[0].as_posix() not in succeeded_tree:
+        #         succeeded_tree.add(compiled_target.parents[0].as_posix())
+        for compiled_target in compiled_targets_list:
+            if compiled_target not in succeeded_tree:
+                succeeded_tree.add(compiled_target)
+        for dir in succeeded_tree:
+            if not (self.succeeded_path / dir.parents[1].name).exists():
+                ((self.succeeded_path /
+                 dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
+            shutil.move(dir.parents[0].as_posix(
+            ), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+
+        if keep_failed:
+            failed_tree = set()
+            not_compiled_targets_list = [
+                x for x in self.tmp_output_path.glob("**/*.cc") if x.is_file()]
+            not_compiled_targets_list = not_compiled_targets_list + [
+                x for x in self.tmp_output_path.glob("**/*.c") if x.is_file()]
+            not_compiled_targets_list = not_compiled_targets_list + [
+                x for x in self.tmp_output_path.glob("**/*.cpp") if x.is_file()]
+            for target in not_compiled_targets_list:
+                if target not in failed_tree:
+                    failed_tree.add(target)
+            for dir in failed_tree:
+                if not (self.failed_path / dir.parents[1].name).exists():
+                    ((self.failed_path /
+                     dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
+                shutil.move(dir.parents[0].as_posix(
+                ), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+        else:
+            delete_folder(self.failed_path)
+        delete_folder(self.tmp_output_path)
+
+        print(
+            "-- [Futag] Result of compiling: "
+            + str(len(compiled_targets_list))
+            + " fuzz-driver(s)\n"
+        )
+    
+    def compile_targets_new(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
+        """_summary_
+
+        Args:
+            workers (int, optional): number of processes for compiling. Defaults to 4.
+            keep_failed (bool, optional): option for saving not compiled fuzz-targets. Defaults to False.
+            extra_include (str, optional): option for add included directories while compiling. Defaults to "".
+            extra_dynamiclink (str, optional): option for add dynamic libraries while compiling. Defaults to "".
+            flags (str, optional): flags for compiling fuzz-drivers. Defaults to "-fsanitize=address -g -O0".
+            coverage (bool, optional): option for add coverage flag. Defaults to False.
+        """
+
+        # include_subdir = self.target_library["header_dirs"]
+        # include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.hpp")] + [self.build_path.as_posix()]
+
+        # if (self.install_path / "include").exists():
+        #     include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.hpp")]
+        # include_subdir = list(set(include_subdir))
+        if not flags:
+            if coverage:
+                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + \
+                    COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
+                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " +\
+                    COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS
+            else:
+                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + DEBUG_FLAGS + " -fPIE "
+                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " + DEBUG_FLAGS
+        else:
+            compiler_flags_aflplusplus = flags
+            compiler_flags_libFuzzer = flags
+            if coverage:
+                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + \
+                    " " + compiler_flags_aflplusplus
+                compiler_flags_libFuzzer = COMPILER_COVERAGE_FLAGS + " " + compiler_flags_libFuzzer
+
+        generated_targets = 0
+
+        compile_cmd_list = []
+        static_lib = []
+        target_lib = [u for u in (self.library_root).glob(
+            "**/*.a") if u.is_file()]
+        if target_lib:
+            static_lib = ["-Wl,--start-group"]
+            for t in target_lib:
+                static_lib.append(t.as_posix())
+            static_lib.append("-Wl,--end-group")
+        fuzz_drivers = [t for t in self.tmp_output_path.rglob("*") if t.is_file() and t.suffix in [".c", ".cc", ".cpp"]]
+        for fd in fuzz_drivers:
+            hash = None
+            with open(fd.as_posix(), 'r') as source_file:
+                hash = source_file.readline().replace("//", "")
+                hash = hash.replace("\n", "")
+            if not hash:
+                continue
+            found_func = None
+            for func in self.target_library['functions']:
+                if func["hash"] == hash:
+                    found_func = func
+            if not found_func:
+                continue
+
+            func_file_location = found_func["location"]["fullpath"]
+            compiler_info = self.__get_compile_command(func_file_location)
+            include_subdir = []
+
+            if not os.path.exists(compiler_info["location"]):
+                continue
+            current_location = os.getcwd()
+            os.chdir(compiler_info["location"])
+            for iter in compiler_info["command"].split(" "):
+                if iter[0:2] == "-I":
+                    if pathlib.Path(iter[2:]).exists():
+                        include_subdir.append(
+                            "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
+            os.chdir(current_location)
+
+            if not "-fPIE" in compiler_flags_aflplusplus:
+                compiler_flags_aflplusplus += " -fPIE"
+
+            if not "-ferror-limit=1" in compiler_flags_libFuzzer:
+                compiler_flags_libFuzzer += " -ferror-limit=1"
+
+            compiler_path = ""
+            if self.target_type == LIBFUZZER:
+                if compiler_info["compiler"] == "CC":
+                    compiler_path = self.futag_llvm_package / "bin/clang"
+                else:
+                    compiler_path = self.futag_llvm_package / "bin/clang++"
+            else:
+                if compiler_info["compiler"] == "CC":
+                    compiler_path = self.futag_llvm_package / \
+                        "AFLplusplus/usr/local/bin/afl-clang-fast"
+                else:
+                    compiler_path = self.futag_llvm_package / \
+                        "AFLplusplus/usr/local/bin/afl-clang-fast++"
+
+            current_func_compilation_opts = ""
+            compilation_opts = ""
+
+            for compiled_file in self.target_library["compiled_files"]:
+                if func_file_location == compiled_file["filename"]:
+                    compilation_opts = compiled_file["compiler_opts"]
+            current_func_compilation_opts = compilation_opts.split(' ')
+            # Extract all include locations from compilation options
+            include_paths: List[pathlib.Path] = map(
+                pathlib.Path,
+                map(
+                    current_func_compilation_opts.__getitem__,
+                    [i + 1 for i,
+                        x in enumerate(current_func_compilation_opts) if x == '-I']
+                ))
+
+            resolved_include_paths: List[pathlib.Path] = []
+            for include_path in include_paths:
+                if include_path.is_absolute():
+                    resolved_include_paths.append(include_path)
+                else:
+                    # Resolve relative include paths (e.g. in this case: -I.. -I.)
+                    resolved_include_paths.append(
+                        pathlib.Path(include_path).absolute())
+
+            current_include = []
+            if not include_subdir:
+                for i in resolved_include_paths:
+                    current_include.append("-I" + i.as_posix() + "/")
+            else:
+                for i in include_subdir:
+                    current_include.append(i)
+
+            target_path = fd.parent.resolve().as_posix() + "/" + fd.stem + ".out"
+            error_path = fd.parent.resolve().as_posix() + "/" + fd.stem + ".err"
+            generated_targets += 1
+            if self.target_type == LIBFUZZER:
+                compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + extra_include.split(" ") + [fd.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+            else:
+                compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + extra_include.split(" ") + [fd.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+
+            compile_cmd_list.append({
+                "compiler_cmd": compiler_cmd,
+                "target_name": fd.stem,
+                "error_path": error_path,
+                "source_path": fd.as_posix(),
+                "binary_path": target_path,
+                "compiler_info": compiler_info,
+            })
+        
+        
         with Pool(workers) as p:
             p.map(self.compile_driver_worker, compile_cmd_list)
 
@@ -3077,7 +3854,7 @@ class ContextGenerator:
                 if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
                     gen_lines.append(
                         "    //declare the RECORD and call constructor\n")
-                    func_call += "    " + class_name + " futag_target" + "("
+                    func_call += "    " + class_name.replace("::(anonymous namespace)", "") + " futag_target" + "("
                     func_call += ",".join(param_list)
                     func_call += ");\n"
                     gen_lines.append(func_call)
@@ -3858,7 +4635,7 @@ class ContextGenerator:
                 "    //end of generation random array of dynamic string sizes\n")
 
         if self.dyn_wstring_size_idx > 0:
-            f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" + buffer_check +" )));\n")
+            f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" + buffer_check +" )))/sizeof(wchar_t);\n")
             f.write("    //generate random array of dynamic string sizes\n")
             f.write("    size_t dyn_wstring_size[" +
                     str(self.dyn_wstring_size_idx) + "];\n")

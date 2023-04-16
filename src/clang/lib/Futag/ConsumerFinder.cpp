@@ -2,8 +2,8 @@
  * @file ConsumerFinder.cpp
  * @author Tran Chi Thien
  * @brief This file contains functions for analyzing consumer program
- * @version 0.1
- * @date 2023-03-20
+ * @version 2.0.2
+ * @date 2023-04-17
  * 
  * @copyright Copyright (c) 2023
  * 

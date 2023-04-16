@@ -13,8 +13,8 @@
  *             a tool of ISP RAS                *
  ************************************************
  *
- * @version 2.0.1
- * @date 2023-04-05
+ * @version 2.0.2
+ * @date 2023-04-17
  *
  * @copyright This file is distributed under the GPL v3 license
  *
@@ -244,6 +244,9 @@ vector<GenTypeInfo> getGenField(QualType type) {
                       type.getCanonicalType().getAsString()) !=
             str_types.end()) {
             gen_list.base_type_name = "char *";
+            if (type.getCanonicalType().getAsString() == "unsigned char *" || type.getCanonicalType().getAsString() == "const unsigned char *" ){
+                gen_list.base_type_name = "unsigned char *";
+            }
             if (std::find(wchar_str_types.begin(), wchar_str_types.end(),
                           type.getCanonicalType().getAsString()) !=
                 wchar_str_types.end()) {
@@ -402,6 +405,9 @@ vector<GenTypeInfo> getGenType(QualType type) {
             str_types.end()) {
             gen_list.gen_type = FutagGenType::F_CSTRING;
             gen_list.base_type_name = "char *";
+            if (type.getCanonicalType().getAsString() == "unsigned char *" || type.getCanonicalType().getAsString() == "const unsigned char *" ){
+                gen_list.base_type_name = "unsigned char *";
+            }
             if (std::find(wchar_str_types.begin(), wchar_str_types.end(),
                           type.getCanonicalType().getAsString()) !=
                 wchar_str_types.end()) {

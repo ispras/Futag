@@ -2,8 +2,8 @@
  * @file FutagConsumerAnalyzer.cpp
  * @author Tran Chi Thien
  * @brief 
- * @version 0.1
- * @date 2023-03-20
+ * @version 2.0.2
+ * @date 2023-04-17
  * 
  * @copyright Copyright (c) 2023
  * 

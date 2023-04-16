@@ -73,3 +73,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## 20230305
 - Fix error python in Builder
 - Fix error python in Generator for wchar_t string
+
+## 20230417
+- Add generation for anonymous function
+- Fix error in Builder
