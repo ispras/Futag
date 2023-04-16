@@ -982,9 +982,40 @@ class Generator:
             param_id += 1
             param_list.append(curr_name)
 
-        function_call = "//GEN_VAR_FUNCTION\n    " + func["return_type"] + " " + func_param_name + \
-            " = " + func["qname"] + \
-            "(" + ",".join(param_list)+");\n"
+        found_parent = None
+        if func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
+            # Find parent class
+            for r in self.target_library["records"]:
+                if r["hash"] == func["parent_hash"]:
+                    found_parent = r
+                    break
+            if not found_parent:
+                self.gen_this_function = False
+            class_name = found_parent["qname"]
+            if func["func_type"] in [FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR]:
+                function_call = "    //declare the RECORD and call constructor\n"
+                function_call +="    " + class_name.replace("::(anonymous namespace)", "") + func_param_name + "("+ ",".join(param_list)+");\n"
+            else:
+                # Find default constructor
+                # TODO: add code for other constructors
+                found_default_constructor = False
+                for fu in self.target_library["functions"]:
+                    if fu["parent_hash"] == func["parent_hash"] and fu["func_type"] == FUNC_DEFAULT_CONSTRUCTOR:
+                        found_default_constructor = True
+
+                # TODO: add code for other constructors!!!
+                if not found_default_constructor:
+                    self.gen_this_function = False
+                function_call = "    //declare the RECORD first\n"
+                function_call += "    " + class_name.replace("::(anonymous namespace)", "") + " " + func_param_name + ";\n"
+                # call the method
+                function_call += "    //METHOD CALL\n"
+                function_call += "    " + func_param_name + "." + func["name"]+"("+ ",".join(param_list)+");\n"
+
+        else:
+            function_call = "//GEN_VAR_FUNCTION\n    " + func["return_type"] + " " + func_param_name + \
+                " = " + func["qname"] + \
+                "(" + ",".join(param_list)+");\n"
 
         gen_dict["gen_lines"] += [function_call]
         return gen_dict
@@ -2208,7 +2239,11 @@ class Generator:
                 self.param_list = []
                 self.curr_function = func
                 self.curr_func_log = ""
-                self.__gen_target_function(func, 0)
+                if "(anonymous" in func["qname"]:
+                    self.__gen_anonymous_function(func, 0)
+                else:
+                    self.__gen_target_function(func, 0)
+                # self.__gen_target_function(func, 0)
 
             # For C++, Declare object of class and then call the method
             if func["access_type"] == AS_PUBLIC and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR, FUNC_GLOBAL, FUNC_STATIC] and (not "::operator" in func["qname"]):
@@ -2518,7 +2553,7 @@ class Generator:
             + " fuzz-driver(s)\n"
         )
     
-    def compile_targets_new(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
+    def compile_all_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
         """_summary_
 
         Args:
