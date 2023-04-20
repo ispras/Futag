@@ -14,13 +14,10 @@ RUN apt install -y libncurses5 gcc-multilib g++ make gdb binutils python3 git op
 WORKDIR /home/futag/
 RUN git clone --depth 1 https://github.com/ispras/Futag.git
 WORKDIR /home/futag/Futag/custom-llvm
-RUN ./prepare.sh
+RUN ./prepare.sh 1
 WORKDIR /home/futag/Futag/build
 RUN ./build.sh
 
 USER root
 WORKDIR /home/futag/Futag/
 RUN pip install futag-llvm/python-package/futag-2.0.1.tar.gz
-
-USER futag 
-WORKDIR /home/futag/Futag/

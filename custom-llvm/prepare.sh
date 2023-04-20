@@ -21,23 +21,31 @@ echo "* This script helps to download source code of *"
 echo "*            clang, llvm, compiler-rt          *"
 echo "************************************************"
 echo 
-
-echo 
-echo "Futag will collect information for preparing build system."
-echo "========================================================="
-echo "-- [Futag] Select version of llvm for building:"
-echo "-- 1. LLVM 14.0.6"
-echo "-- 2. LLVM 13.0.1"
 llvmVersion=(1 2 )
-read -p "-- Your choice (1/2 - default to 1): " selectedVersion 
-if [[ ! " ${llvmVersion[*]} " =~ " ${selectedVersion} " ]]; then
-echo "-- [Futag] Wrong input! Please enter 1 or 2! Exit..."
-exit
-fi
-echo
-# https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
+if [ $# -eq 0 ]; then
+    echo "Futag will collect information for preparing build system."
+    echo "========================================================="
+    echo "-- [Futag] Select version of llvm for building:"
+    echo "-- 1. LLVM 14.0.6"
+    echo "-- 2. LLVM 13.0.1"
+    
+    read -p "-- Your choice (1/2 - default to 1): " selectedVersion 
+    if [[ ! " ${llvmVersion[*]} " =~ " ${selectedVersion} " ]]; then
+        echo "-- [Futag] Wrong input! Please enter 1 or 2! Exit..."
+        exit
+    fi
+    echo "========================================================="
 
-echo "========================================================="
+else
+    selectedVersion=$1
+    if [[ ! " ${llvmVersion[*]} " =~ " ${selectedVersion} " ]]; then
+        echo
+        echo "-- [Futag] Wrong input! Please enter 1 or 2! Exit..."
+        echo
+        exit
+    fi
+fi
+# https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
 
 # # https://github.com/ossf/fuzz-introspector/archive/refs/tags/v1.0.0.tar.gz
 # echo "========================================================="
