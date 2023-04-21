@@ -8,10 +8,11 @@ RUN apt update --fix-missing
 RUN apt install -y apt-utils
 RUN useradd -ms /bin/bash futag
 #Установка необходимых библиотек для futag
-RUN apt install -y libncurses5 gcc-multilib g++ make gdb binutils python3 git openssh-client cmake wget xz-utils python3-pip texinfo binutils-gold binutils-dev python-is-python3
+RUN apt install -y libncurses5 gcc-multilib g++ make gdb binutils python3 git openssh-client cmake wget xz-utils python3-pip texinfo binutils-gold binutils-dev python-is-python3 gcc-10-plugin-dev automake autoconf
  
 #USER futag
 WORKDIR /home/futag/
+RUN pwd
 RUN git clone --depth 1 https://github.com/ispras/Futag.git
 WORKDIR /home/futag/Futag/custom-llvm
 RUN ./prepare.sh 1
