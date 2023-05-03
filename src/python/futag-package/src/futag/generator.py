@@ -157,7 +157,8 @@ class Generator:
             commands = json.load(open(compile_commands.as_posix()))
             for command in commands:
                 if pathlib.Path(command["file"]) == pathlib.Path(file):
-                    if command["command"].split(" ")[0] == "cc":
+                    compiler = command["command"].split(" ")[0].split("/")[-1]
+                    if compiler == "cc" or compiler == "clang" or compiler == "gcc":
                         return {
                             "compiler": "CC",
                             "command": command["command"],
@@ -2491,9 +2492,9 @@ class Generator:
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
                     if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + extra_include.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + extra_include.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ]  + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
 
                     compile_cmd_list.append({
                         "compiler_cmd": compiler_cmd,
@@ -2686,9 +2687,9 @@ class Generator:
             error_path = fd.parent.resolve().as_posix() + "/" + fd.stem + ".err"
             generated_targets += 1
             if self.target_type == LIBFUZZER:
-                compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + extra_include.split(" ") + [fd.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ]   + [fd.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
             else:
-                compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + extra_include.split(" ") + [fd.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ]  + [fd.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
 
             compile_cmd_list.append({
                 "compiler_cmd": compiler_cmd,
@@ -2907,7 +2908,8 @@ class ContextGenerator:
             commands = json.load(open(compile_commands.as_posix()))
             for command in commands:
                 if pathlib.Path(command["file"]) == pathlib.Path(file):
-                    if command["command"].split(" ")[0] == "cc":
+                    compiler = command["command"].split(" ")[0].split("/")[-1]
+                    if compiler == "cc":
                         return {
                             "compiler": "CC",
                             "command": command["command"],
@@ -4467,11 +4469,9 @@ class ContextGenerator:
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
                     if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + [
-                            extra_include] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ]  + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + [
-                            extra_include] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
 
                     compile_cmd_list.append({
                         "compiler_cmd": compiler_cmd,

@@ -21,3 +21,6 @@
 - Syntax Macros: [a Case-Study in Extending Clang](https://llvm.org/devmtg/2016-09/slides/Rink-SyntaxMacros.pdf)
 https://stackoverflow.com/questions/49877836/how-can-i-get-macro-name-from-cstylecastexpr-matcher-in-clang-tidy
 https://stackoverflow.com/questions/58620022/how-to-get-the-macro-and-its-expansion-with-clang-libtooling
+
+- [LLVM Loop Terminology](https://llvm.org/docs/LoopTerminology.html)
+- [CFGBlock](https://clang.llvm.org/doxygen/classclang_1_1CFGBlock.html)
