@@ -64,8 +64,8 @@ if [ $llvmVersion == "LLVM=13.0.1" ]; then
 fi
 make -j$(($(nproc)/2)) && make -j$(($(nproc)/2)) install
 
-export PATH="$(pwd)/bin:$PATH"
-export LLVM_CONFIG="$(pwd)/bin/llvm-config"
+export PATH="$futag_install_folder/bin:$PATH"
+export LLVM_CONFIG="$futag_install_folder/bin/llvm-config"
 export LD_LIBRARY_PATH="$(llvm-config --libdir)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 #build AFLplusplus

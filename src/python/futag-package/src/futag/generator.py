@@ -60,6 +60,7 @@ class Generator:
         self.header = []
 
         self.gen_anonymous = False
+        self.max_wrappers = 10
         self.gen_this_function = True
         self.gen_lines = []
         self.buffer_size = []
@@ -1047,10 +1048,10 @@ class Generator:
         while (filepath / filename / dir_name).exists():
             file_index += 1
             dir_name = filename + str(file_index)
-            if file_index > 1000:
+            if file_index > self.max_wrappers:
                 break
 
-        if file_index > 1000:
+        if file_index > self.max_wrappers:
             return None
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -1089,10 +1090,10 @@ class Generator:
         while (filepath / filename / dir_name).exists():
             file_index += 1
             dir_name = filename + str(file_index)
-            if file_index > 1000:
+            if file_index > self.max_wrappers:
                 break
 
-        if file_index > 1000:
+        if file_index > self.max_wrappers:
             return None
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -1136,10 +1137,10 @@ class Generator:
         while (filepath / filename / dir_name).exists():
             file_index += 1
             dir_name = filename + str(file_index)
-            if file_index > 1000:
+            if file_index > self.max_wrappers:
                 break
 
-        if file_index > 1000:
+        if file_index > self.max_wrappers:
             return None
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -2209,7 +2210,7 @@ class Generator:
             param_id += 1
             self.__gen_target_function(func, param_id)
 
-    def gen_targets(self, anonymous: bool = False):
+    def gen_targets(self, anonymous: bool = False, max_wrappers: int = 10):
         """
         Parameters
         ----------
@@ -2217,6 +2218,7 @@ class Generator:
             option for generating fuzz-targets of non-public functions, default to False.
         """
         self.gen_anonymous = anonymous
+        self.max_wrappers = max_wrappers
         C_generated_function = []
         C_unknown_function = []
         Cplusplus_usual_class_method = []
@@ -2797,6 +2799,7 @@ class ContextGenerator:
         self.header = []
         
         self.gen_anonymous = False
+        self.max_wrappers = 10 
         self.gen_this_function = True
         self.gen_lines = []
         self.buffer_size = []
@@ -3763,10 +3766,10 @@ class ContextGenerator:
         while (filepath / filename / dir_name).exists():
             file_index += 1
             dir_name = filename + str(file_index)
-            if file_index > 1000:
+            if file_index > self.max_wrappers:
                 break
 
-        if file_index > 1000:
+        if file_index > self.max_wrappers:
             return None
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -3803,10 +3806,10 @@ class ContextGenerator:
         while (filepath / filename / dir_name).exists():
             file_index += 1
             dir_name = filename + str(file_index)
-            if file_index > 1000:
+            if file_index > self.max_wrappers:
                 break
 
-        if file_index > 1000:
+        if file_index > self.max_wrappers:
             return None
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -4757,7 +4760,8 @@ class ContextGenerator:
             f.write(AFLPLUSPLUS_SUFFIX)
         f.close()
 
-    def gen_context(self):
+    def gen_context(self, max_wrappers: int = 10):
+        self.max_wrappers = max_wrappers
         self.sort_callexprs()
         if not self.total_context:
             sys.exit("-- [Futag] empty context, exited!")
