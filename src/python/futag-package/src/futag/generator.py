@@ -1022,7 +1022,7 @@ class Generator:
         gen_dict["gen_lines"] += [function_call]
         return gen_dict
 
-    def __wrapper_file(self, func, anonymous: bool = False):
+    def __wrapper_file(self, func):
 
         # if anonymous:
         #     filename = func["name"]
@@ -1036,7 +1036,10 @@ class Generator:
 
         # qname = func["qname"]
         if len(filename) > 250:
-            return None
+            return {
+                "file": None,
+                "msg": "Error: File name is too long (>250 characters)!"
+            }
         dir_name = filename + str(file_index)
 
         if not (filepath / filename).exists():
@@ -1052,7 +1055,10 @@ class Generator:
                 break
 
         if file_index > self.max_wrappers:
-            return None
+            return {
+                "file": None,
+                "msg": "Warning: exeeded maximum number of generated fuzzing-wrappers for each function!"
+            }
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
         file_name = filename + \
@@ -1061,8 +1067,14 @@ class Generator:
         full_path = (filepath / filename / dir_name / file_name).as_posix()
         f = open(full_path, 'w')
         if f.closed:
-            return None
-        return f
+            return {
+                "file": None,
+                "msg": "Error: File closed!"
+            }
+        return {
+                "file": f,
+                "msg": "Successed: " + full_path + " created!"
+            }
     def __anonymous_wrapper_file(self, func):
 
         # if anonymous:
@@ -1726,12 +1738,13 @@ class Generator:
                     log.close()
                 return False
             # generate file name
-            f = self.__wrapper_file(func, self.gen_anonymous)
-            if not f:
+            wrapper_result = self.__wrapper_file(func)
+            print("Generating fuzzing-wapper for function ", func["qname"], ": ")
+            print("-- ", wrapper_result["msg"])
+            if not wrapper_result["file"]:
                 self.gen_this_function = False
-                print(CANNOT_CREATE_WRAPPER_FILE, func["qname"])
                 return False
-            print(WRAPPER_FILE_CREATED, f.name)
+            f = wrapper_result["file"]
             
             f.write("//"+func["hash"]+ "\n")
             for line in self.__gen_header(func["location"]["fullpath"]):
@@ -2231,6 +2244,7 @@ class Generator:
                     "-- [Futag] Try to generate fuzz-driver for function: ", func["name"], "...")
                 C_generated_function.append(func["name"])
                 self.gen_this_function = True
+                self.header = []
                 self.buffer_size = []
                 self.gen_lines = []
                 self.gen_free = []
@@ -2254,6 +2268,7 @@ class Generator:
                 print(
                     "-- [Futag] Try to generate fuzz-driver for class method: ", func["name"], "...")
                 self.gen_this_function = True
+                self.header = []
                 self.buffer_size = []
                 self.gen_lines = []
                 self.gen_free = []
@@ -2273,6 +2288,7 @@ class Generator:
             # For C++, Call the static function of class without declaring object
             if func["access_type"] in [AS_NONE, AS_PUBLIC] and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_GLOBAL, FUNC_STATIC] and func["storage_class"] == SC_STATIC:
                 self.gen_this_function = True
+                self.header = []
                 self.buffer_size = []
                 self.gen_lines = []
                 self.gen_free = []
@@ -2361,16 +2377,17 @@ class Generator:
             target_file.write("\n */\n")
         target_file.close()
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
         """_summary_
 
         Args:
             workers (int, optional): number of processes for compiling. Defaults to 4.
             keep_failed (bool, optional): option for saving not compiled fuzz-targets. Defaults to False.
-            extra_include (str, optional): option for add included directories while compiling. Defaults to "".
-            extra_dynamiclink (str, optional): option for add dynamic libraries while compiling. Defaults to "".
+            extra_params (str, optional): option for adding parameters while compiling. Defaults to "".
+            extra_include (str, optional): option for adding included directories while compiling. Defaults to "".
+            extra_dynamiclink (str, optional): option for adding dynamic libraries while compiling. Defaults to "".
             flags (str, optional): flags for compiling fuzz-drivers. Defaults to "-fsanitize=address -g -O0".
-            coverage (bool, optional): option for add coverage flag. Defaults to False.
+            coverage (bool, optional): option for adding coverage flag. Defaults to False.
         """
 
         # include_subdir = self.target_library["header_dirs"]
@@ -2422,22 +2439,21 @@ class Generator:
             compiler_info = self.__get_compile_command(func_file_location)
             include_subdir = []
 
-            if not os.path.exists(compiler_info["location"]):
-                continue
-            current_location = os.getcwd()
-            os.chdir(compiler_info["location"])
-            for iter in compiler_info["command"].split(" "):
-                if iter[0:2] == "-I":
-                    if pathlib.Path(iter[2:]).exists():
-                        include_subdir.append(
-                            "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
-            os.chdir(current_location)
+            if os.path.exists(compiler_info["location"]):
+                current_location = os.getcwd()
+                os.chdir(compiler_info["location"])
+                for iter in compiler_info["command"].split(" "):
+                    if iter[0:2] == "-I":
+                        if pathlib.Path(iter[2:]).exists():
+                            include_subdir.append(
+                                "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
+                os.chdir(current_location)
 
-            if not "-fPIE" in compiler_flags_aflplusplus:
-                compiler_flags_aflplusplus += " -fPIE"
+                if not "-fPIE" in compiler_flags_aflplusplus:
+                    compiler_flags_aflplusplus += " -fPIE"
 
-            if not "-ferror-limit=1" in compiler_flags_libFuzzer:
-                compiler_flags_libFuzzer += " -ferror-limit=1"
+                if not "-ferror-limit=1" in compiler_flags_libFuzzer:
+                    compiler_flags_libFuzzer += " -ferror-limit=1"
 
             compiler_path = ""
             if self.target_type == LIBFUZZER:
@@ -2494,9 +2510,9 @@ class Generator:
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
                     if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ]  + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ]  + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
 
                     compile_cmd_list.append({
                         "compiler_cmd": compiler_cmd,
@@ -2621,16 +2637,15 @@ class Generator:
             compiler_info = self.__get_compile_command(func_file_location)
             include_subdir = []
 
-            if not os.path.exists(compiler_info["location"]):
-                continue
-            current_location = os.getcwd()
-            os.chdir(compiler_info["location"])
-            for iter in compiler_info["command"].split(" "):
-                if iter[0:2] == "-I":
-                    if pathlib.Path(iter[2:]).exists():
-                        include_subdir.append(
-                            "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
-            os.chdir(current_location)
+            if os.path.exists(compiler_info["location"]):
+                current_location = os.getcwd()
+                os.chdir(compiler_info["location"])
+                for iter in compiler_info["command"].split(" "):
+                    if iter[0:2] == "-I":
+                        if pathlib.Path(iter[2:]).exists():
+                            include_subdir.append(
+                                "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
+                os.chdir(current_location)
 
             if not "-fPIE" in compiler_flags_aflplusplus:
                 compiler_flags_aflplusplus += " -fPIE"
@@ -3740,7 +3755,7 @@ class ContextGenerator:
         gen_dict["gen_lines"] += [function_call]
         return gen_dict
 
-    def __wrapper_file(self, func, anonymous: bool = False):
+    def __wrapper_file(self, func):
 
         # if anonymous:
         #     filename = func["name"]
@@ -3754,7 +3769,10 @@ class ContextGenerator:
 
         # qname = func["qname"]
         if len(filename) > 250:
-            return None
+            return {
+                "file": None,
+                "msg": "Error: File name is too long (>250 characters)!"
+            }
         dir_name = filename + str(file_index)
 
         if not (filepath / filename).exists():
@@ -3770,7 +3788,10 @@ class ContextGenerator:
                 break
 
         if file_index > self.max_wrappers:
-            return None
+            return {
+                "file": None,
+                "msg": "Warning: exeeded maximum number of generated fuzzing-wrappers for each function!"
+            }
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
         file_name = filename + \
@@ -3779,8 +3800,14 @@ class ContextGenerator:
         full_path = (filepath / filename / dir_name / file_name).as_posix()
         f = open(full_path, 'w')
         if f.closed:
-            return None
-        return f
+            return {
+                "file": None,
+                "msg": "Error: File closed!"
+            }
+        return {
+                "file": f,
+                "msg": "Successed: " + full_path + " created!"
+            }
 
     def __log_file(self, func, anonymous: bool = False):
         if anonymous:
@@ -4400,16 +4427,15 @@ class ContextGenerator:
             compiler_info = self.__get_compile_command(func_file_location)
             include_subdir = []
 
-            if not os.path.exists(compiler_info["location"]):
-                continue
-            current_location = os.getcwd()
-            os.chdir(compiler_info["location"])
-            for iter in compiler_info["command"].split(" "):
-                if iter[0:2] == "-I":
-                    if pathlib.Path(iter[2:]).exists():
-                        include_subdir.append(
-                            "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
-            os.chdir(current_location)
+            if os.path.exists(compiler_info["location"]):
+                current_location = os.getcwd()
+                os.chdir(compiler_info["location"])
+                for iter in compiler_info["command"].split(" "):
+                    if iter[0:2] == "-I":
+                        if pathlib.Path(iter[2:]).exists():
+                            include_subdir.append(
+                                "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
+                os.chdir(current_location)
 
             if not "-fPIE" in compiler_flags_aflplusplus:
                 compiler_flags_aflplusplus += " -fPIE"
@@ -4621,12 +4647,13 @@ class ContextGenerator:
                 log.close()
             return False
         # generate file name
-        f = self.__wrapper_file(func, self.gen_anonymous)
-        if not f:
+        wrapper_result = self.__wrapper_file(func)
+        print("Generating fuzzing-wapper for function ", func["qname"], ": ")
+        print("-- ", wrapper_result["msg"])
+        if not wrapper_result["file"]:
             self.gen_this_function = False
-            print(CANNOT_CREATE_WRAPPER_FILE, func["qname"])
             return False
-        print(WRAPPER_FILE_CREATED, f.name)
+        f = wrapper_result["file"]
         for line in self.__gen_header(func["location"]["fullpath"]):
             f.write(line)
         f.write('\n')
@@ -4768,6 +4795,7 @@ class ContextGenerator:
 
         for curr_context in self.total_context:
             self.gen_this_function = True
+            self.header = []
             self.buffer_size = []
             self.gen_lines = []
             self.gen_free = []

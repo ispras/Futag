@@ -44,7 +44,7 @@ def delete_folder(pth):
 class Builder:
     """Futag Builder Class"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = "", clean: bool = False, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS):
+    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = "", clean: bool = False, intercept: bool = True, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS):
         """Constructor of class Builder
 
         Args:
@@ -107,6 +107,7 @@ class Builder:
             flags = DEBUG_FLAGS + " " + COMPILER_FLAGS
         self.flags = flags
         self.build_ex_params = build_ex_params
+        self.intercept = intercept
 
     def auto_build(self) -> bool:
         """ This function tries to automatically build your library. It finds in your library source code whether Makefile, file configure, or CMakeList.txt file exists.
@@ -374,97 +375,103 @@ class Builder:
 
         p = Popen(analysis_command, stdout=PIPE,
                   stderr=PIPE, universal_newlines=True)
-
         print(LIB_ANALYZING_COMMAND, " ".join(p.args))
+        output, errors = p.communicate()
+        
+        analysis_command = analysis_command + ["install"]
+        p = Popen(analysis_command, stdout=PIPE,
+                  stderr=PIPE, universal_newlines=True)
+
         output, errors = p.communicate()
         if p.returncode:
             print(errors)
             sys.exit(LIB_ANALYZING_FAILED)
         else:
             print(LIB_ANALYZING_SUCCEEDED)
+        if self.intercept:
+            p = Popen([
+                "make",
+                "clean",
+            ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
 
-        p = Popen([
-            "make",
-            "clean",
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+            output, errors = p.communicate()
 
-        output, errors = p.communicate()
+            p = Popen([
+                "make",
+                "distclean",
+            ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
 
-        p = Popen([
-            "make",
-            "distclean",
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+            output, errors = p.communicate()
+            # Doing make for building
 
-        output, errors = p.communicate()
-        # Doing make for building
+            my_env = os.environ.copy()
+            my_env["CFLAGS"] = self.flags
+            my_env["CPPFLAGS"] = self.flags
+            my_env["LDFLAGS"] = self.flags
+            my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
+            my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
+            # my_env["ASAN_OPTIONS="] = "handle_segv=0;detect_leaks=0"
+            
+            my_env["LLVM_CONFIG"] = (
+                self.futag_llvm_package / 'bin/llvm-config').as_posix()
+            config_cmd = [
+                (self.library_root / "configure").as_posix(),
+                f"--prefix=" + self.install_path.as_posix(),
+            ]
+            if self.build_ex_params:
+                config_cmd += self.build_ex_params.split(" ")
+            p = Popen(config_cmd, stdout=PIPE, stderr=PIPE,
+                      universal_newlines=True, env=my_env)
 
-        my_env = os.environ.copy()
-        my_env["CFLAGS"] = self.flags
-        my_env["CPPFLAGS"] = self.flags
-        my_env["LDFLAGS"] = self.flags
-        my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
-        my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
-        
-        my_env["LLVM_CONFIG"] = (
-            self.futag_llvm_package / 'bin/llvm-config').as_posix()
-        config_cmd = [
-            (self.library_root / "configure").as_posix(),
-            f"--prefix=" + self.install_path.as_posix(),
-        ]
-        if self.build_ex_params:
-            config_cmd += self.build_ex_params.split(" ")
-        p = Popen(config_cmd, stdout=PIPE, stderr=PIPE,
-                  universal_newlines=True, env=my_env)
+            output, errors = p.communicate()
+            print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
+            if p.returncode:
+                print(errors)
+                sys.exit(LIB_CONFIGURE_FAILED)
+            else:
+                print(output)
+                print(LIB_CONFIGURE_SUCCEEDED)
 
-        output, errors = p.communicate()
-        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
-        if p.returncode:
-            print(errors)
-            sys.exit(LIB_CONFIGURE_FAILED)
-        else:
-            print(output)
-            print(LIB_CONFIGURE_SUCCEEDED)
+            make_command = [
+                (self.futag_llvm_package / "bin/intercept-build").as_posix(),
+                "make",
+            ]
+            if self.processes > 1:
+                make_command = make_command + ["-j" + str(self.processes)]
+            make_command = make_command + [
+                f"CC={(self.futag_llvm_package / 'bin/clang').as_posix()}",
+                f"CXX={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
+                f"CFLAGS={self.flags}",
+                f"CPPFLAGS={self.flags}",
+                f"CXXFLAGS={self.flags}",
+                f"LDFLAGS={self.flags}",
+            ]
+            p = Popen(make_command, stdout=PIPE,
+                      stderr=PIPE, universal_newlines=True, env=my_env)
 
-        make_command = [
-            (self.futag_llvm_package / "bin/intercept-build").as_posix(),
-            "make",
-        ]
-        if self.processes > 1:
-            make_command = make_command + ["-j" + str(self.processes)]
-        make_command = make_command + [
-            f"CC={(self.futag_llvm_package / 'bin/clang').as_posix()}",
-            f"CXX={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
-            f"CFLAGS={self.flags}",
-            f"CPPFLAGS={self.flags}",
-            f"CXXFLAGS={self.flags}",
-            f"LDFLAGS={self.flags}",
-        ]
-        p = Popen(make_command, stdout=PIPE,
-                  stderr=PIPE, universal_newlines=True, env=my_env)
+            print(LIB_BUILD_COMMAND, " ".join(p.args))
+            output, errors = p.communicate()
+            if p.returncode:
+                print(errors)
+                sys.exit(LIB_BUILD_FAILED)
+            else:
+                print(output)
+                print(LIB_BUILD_SUCCEEDED)
 
-        print(LIB_BUILD_COMMAND, " ".join(p.args))
-        output, errors = p.communicate()
-        if p.returncode:
-            print(errors)
-            sys.exit(LIB_BUILD_FAILED)
-        else:
-            print(output)
-            print(LIB_BUILD_SUCCEEDED)
+            # Doing make install
+            p = Popen([
+                "make",
+                "install",
+            ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
 
-        # Doing make install
-        p = Popen([
-            "make",
-            "install",
-        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
-
-        output, errors = p.communicate()
-        if p.returncode:
-            print(LIB_INSTALL_COMMAND, " ".join(p.args))
-            print(errors)
-            sys.exit(LIB_INSTALL_FAILED)
-        else:
-            print(output)
-            print(LIB_INSTALL_SUCCEEDED)
+            output, errors = p.communicate()
+            if p.returncode:
+                print(LIB_INSTALL_COMMAND, " ".join(p.args))
+                print(errors)
+                sys.exit(LIB_INSTALL_FAILED)
+            else:
+                print(output)
+                print(LIB_INSTALL_SUCCEEDED)
 
         os.chdir(curr_dir)
         return True

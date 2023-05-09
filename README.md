@@ -98,6 +98,7 @@ build_test = Builder(
     FUTAG_PATH,
     lib_path,
     clean=True, # удалить все папки сгенерированные Futag-ом перед сборкой
+    # intercept=True, # запуск компиляции с инструментом "intercept" для анализа compile_command.json
     # processes=4, # количество задач при сборке
     # build_ex_params="--with-openssl --with-mhash" # дополнительные параметры при сборке библиотеки
 )
