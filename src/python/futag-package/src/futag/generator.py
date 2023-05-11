@@ -83,12 +83,20 @@ class Generator:
             sys.exit(INVALID_TARGET_TYPE)
 
         self.target_type = target_type
+        
 
         if pathlib.Path(self.futag_llvm_package).exists():
             self.futag_llvm_package = pathlib.Path(
                 self.futag_llvm_package).absolute()
         else:
             sys.exit(INVALID_FUTAG_PATH)
+
+        if self.target_type == LIBFUZZER:
+            if not pathlib.Path(self.futag_llvm_package/ "bin/clang").exists():
+                sys.exit(INVALID_FUTAG_PATH)
+        else:
+            if not pathlib.Path(self.futag_llvm_package/ "AFLplusplus/usr/local/bin/afl-clang-fast").exists():
+                sys.exit(INVALID_FUTAG_PATH)
 
         if pathlib.Path(self.library_root).exists():
             self.library_root = pathlib.Path(self.library_root).absolute()

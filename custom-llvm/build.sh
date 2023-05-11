@@ -55,7 +55,7 @@ cp $futag_src/Checkers/lib/*.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
 cp -r $futag_src/Checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
 
 if [ $llvmVersion == "LLVM=14.0.6" ]; then
-    cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release  -DLLVM_BINUTILS_INCDIR=/usr/include/  -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt;lld"  $custom_llvm/llvm
+    cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release  -DLLVM_BINUTILS_INCDIR=/usr/include/  -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;lld'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt"  $custom_llvm/llvm
 
 fi
 if [ $llvmVersion == "LLVM=13.0.1" ]; then
@@ -63,16 +63,6 @@ if [ $llvmVersion == "LLVM=13.0.1" ]; then
 
 fi
 make -j$(($(nproc)/2)) && make -j$(($(nproc)/2)) install
-
-export PATH="$futag_install_folder/bin:$PATH"
-export LLVM_CONFIG="$futag_install_folder/bin/llvm-config"
-export LD_LIBRARY_PATH="$(llvm-config --libdir)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-
-#build AFLplusplus
-cd AFLplusplus-4.02c
-make -j$(($(nproc)/2)) distrib
-make -j$(($(nproc)/2)) DESTDIR=$futag_install_folder/AFLplusplus install
-cd ..
 
 if [ -d $futag_install_folder/python-package ]
 then
@@ -85,9 +75,13 @@ cp -r $futag_src/python/*.py $futag_install_folder/python-package
 cp -r $futag_src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
-cp $custom_prepare/export.sh $futag_install_folder/
-
+cp $custom_prepare/buildAFLplusplus.sh $futag_install_folder/
+if [ ! -f 4.02c.tar.gz ]; then
+    wget https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
+fi
+mv 4.02c.tar.gz $futag_install_folder/
 cd ../product-tests
+
 XZ_OPT='-T'$(($(nproc)/2))' -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm
 
 echo ""

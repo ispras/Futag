@@ -441,10 +441,10 @@ class Builder:
             make_command = make_command + [
                 f"CC={(self.futag_llvm_package / 'bin/clang').as_posix()}",
                 f"CXX={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
-                f"CFLAGS={self.flags}",
-                f"CPPFLAGS={self.flags}",
-                f"CXXFLAGS={self.flags}",
-                f"LDFLAGS={self.flags}",
+                f"CFLAGS='{self.flags}'",
+                f"CPPFLAGS='{self.flags}'",
+                f"CXXFLAGS='{self.flags}'",
+                f"LDFLAGS='{self.flags}'",
             ]
             p = Popen(make_command, stdout=PIPE,
                       stderr=PIPE, universal_newlines=True, env=my_env)
@@ -589,26 +589,26 @@ class Builder:
         # Find all declaration files in given location
         decl_files = [
             x
-            for x in self.analysis_path.glob("**/declaration-*.futag-analyzer.json")
+            for x in self.analysis_path.glob("**/.declaration-*.futag-analyzer.json")
             if x.is_file()
         ]
 
         # Find all context files in given location
         context_files = [
-            x for x in self.analysis_path.glob("**/context-*.futag-analyzer.json") if x.is_file()
+            x for x in self.analysis_path.glob("**/.context-*.futag-analyzer.json") if x.is_file()
         ]
 
         # Find all type_info files in given location
         typeinfo_files = [
             x
-            for x in self.analysis_path.glob("**/types-info-*.futag-analyzer.json")
+            for x in self.analysis_path.glob("**/.types-info-*.futag-analyzer.json")
             if x.is_file()
         ]
 
         # Find all includes info files in given location
         info_files = [
             x
-            for x in self.analysis_path.glob("**/file-info-*.futag-analyzer.json")
+            for x in self.analysis_path.glob("**/.file-info-*.futag-analyzer.json")
             if x.is_file()
         ]
 

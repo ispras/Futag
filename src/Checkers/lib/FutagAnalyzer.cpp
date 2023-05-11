@@ -735,25 +735,25 @@ void ento::registerFutagAnalyzer(CheckerManager &Mgr) {
     Chk->context_report_path = "";
     sys::path::append(
         Chk->context_report_path, Chk->report_dir,
-        "context-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
+        ".context-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
             ".futag-analyzer.json");
 
     Chk->func_decl_report_path = "";
     sys::path::append(
         Chk->func_decl_report_path, Chk->report_dir,
-        "declaration-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
+        ".declaration-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
             ".futag-analyzer.json");
 
     Chk->types_info_report_path = "";
     sys::path::append(
         Chk->types_info_report_path, Chk->report_dir,
-        "types-info-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
+        ".types-info-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
             ".futag-analyzer.json");
 
     Chk->includesInfoReportPath = "";
     sys::path::append(
         Chk->includesInfoReportPath, Chk->report_dir,
-        "file-info-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
+        ".file-info-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
             ".futag-analyzer.json");
 }
 

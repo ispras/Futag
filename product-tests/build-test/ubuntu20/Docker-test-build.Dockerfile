@@ -21,11 +21,9 @@ WORKDIR /home/futag/Futag/custom-llvm
 RUN ./prepare.sh 1
 WORKDIR /home/futag/Futag/build
 RUN ./build.sh
+WORKDIR /home/futag/Futag/futag-llvm
+RUN ./buildAFLplusplus.sh
 
 USER root
 WORKDIR /home/futag/Futag/
-RUN pip install futag-llvm/python-package/futag-2.0.1.tar.gz
-RUN pip install -r futag-llvm/python-package/requirements.txt
-
-USER futag 
-WORKDIR /home/futag/Futag/
+RUN pip install futag-llvm/python-package/futag-2.0.3.tar.gz
