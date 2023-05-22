@@ -143,6 +143,7 @@ typedef enum {
   F_CXXFILE,        // 16
   F_CFILE,          // 17
   F_UNKNOWN,        // 18
+  F_REFSTRING,        // 19
 } FutagGenType;
 
 typedef struct {

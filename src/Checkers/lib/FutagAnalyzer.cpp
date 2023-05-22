@@ -1,12 +1,12 @@
 /**
  * @file FutagAnalyzer.cpp
  * @author Tran Chi Thien (thientcgithub@gmail.com)
- * @brief 
- * @version 2.0.3
+ * @brief
+ * @version 2.0.4
  * @date 2023-04-17
- * 
+ *
  * @copyright Copyright (c) 2023
- * 
+ *
  */
 
 #include <algorithm>
@@ -62,7 +62,7 @@ namespace {
 
 class FutagAnalyzer : public Checker<check::ASTDecl<TranslationUnitDecl>> {
   private:
-    bool m_log_debug_message{false};
+    bool m_log_debug_message{true};
 
     mutable json m_call_context_info{};
     mutable json m_func_decl_info{};
@@ -262,7 +262,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
              //  {"generator_type", datatypeDetail.generator_type},
              //  {"array_size", datatypeDetail.array_size},
              //  {"parent_type", datatypeDetail.parent_type},
-             //  {"parent_gen", datatypeDetail.parent_gen},
+              {"canonical_type", param_qual_type.getCanonicalType().getAsString()},
              {"gen_list", gen_list_json},
              {"param_usage", "UNKNOWN"}});
 
@@ -286,10 +286,12 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
     }
     // We may have already collected information about xrefs, but other fields
     // should not exist
-    assert(!curr_json_context[curr_func_hash].contains("fuzz_it"));
+    if(!curr_json_context[curr_func_hash].contains("fuzz_it")){
+        curr_json_context[curr_func_hash].update(basic_function_info);
+    }
 
-    // Write info about function
-    curr_json_context[curr_func_hash].update(basic_function_info);
+    // // Write info about function
+    // curr_json_context[curr_func_hash].update(basic_function_info);
 }
 /**
  * @brief This function search for all Call Expressions of target function in
@@ -326,6 +328,8 @@ void FutagAnalyzer::DetermineArgUsageInAST(
                                                       func_body, func};
 
     // Match all callExprs, where one of the arguments have the same name
+    if (param->getName().empty())
+        return;
     auto MatchFuncCall =
         callExpr(hasAnyArgument(hasDescendant(
                      declRefExpr(to(varDecl(hasName(param->getName()))))
@@ -733,28 +737,28 @@ void ento::registerFutagAnalyzer(CheckerManager &Mgr) {
     }
 
     Chk->context_report_path = "";
-    sys::path::append(
-        Chk->context_report_path, Chk->report_dir,
-        ".context-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-            ".futag-analyzer.json");
+    sys::path::append(Chk->context_report_path, Chk->report_dir,
+                      ".context-" +
+                          Chk->rand.GenerateRandomString(consts::cAlphabet, 8) +
+                          ".futag-analyzer.json");
 
     Chk->func_decl_report_path = "";
-    sys::path::append(
-        Chk->func_decl_report_path, Chk->report_dir,
-        ".declaration-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-            ".futag-analyzer.json");
+    sys::path::append(Chk->func_decl_report_path, Chk->report_dir,
+                      ".declaration-" +
+                          Chk->rand.GenerateRandomString(consts::cAlphabet, 8) +
+                          ".futag-analyzer.json");
 
     Chk->types_info_report_path = "";
-    sys::path::append(
-        Chk->types_info_report_path, Chk->report_dir,
-        ".types-info-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-            ".futag-analyzer.json");
+    sys::path::append(Chk->types_info_report_path, Chk->report_dir,
+                      ".types-info-" +
+                          Chk->rand.GenerateRandomString(consts::cAlphabet, 8) +
+                          ".futag-analyzer.json");
 
     Chk->includesInfoReportPath = "";
-    sys::path::append(
-        Chk->includesInfoReportPath, Chk->report_dir,
-        ".file-info-" + Chk->rand.GenerateRandomString(consts::cAlphabet, 16) +
-            ".futag-analyzer.json");
+    sys::path::append(Chk->includesInfoReportPath, Chk->report_dir,
+                      ".file-info-" +
+                          Chk->rand.GenerateRandomString(consts::cAlphabet, 8) +
+                          ".futag-analyzer.json");
 }
 
 bool ento::shouldRegisterFutagAnalyzer(const CheckerManager &mgr) {

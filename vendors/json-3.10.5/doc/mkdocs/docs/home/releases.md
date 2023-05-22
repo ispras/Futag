@@ -1049,12 +1049,12 @@ This release fixes a bug in the stream parser (function `parse()` and the `<<`/`
 - **Bug fix**: The end of a file stream was not detected properly which led to parse errors.
 - Fixed a compiler warning about an unused variable.
 
-## v2.0.3
+## v2.0.4
 
 !!! summary "Files"
 
-    - [json.hpp](https://github.com/nlohmann/json/releases/download/v2.0.3/json.hpp) (347 KB)
-    - [json.hpp.asc](https://github.com/nlohmann/json/releases/download/v2.0.3/json.hpp.asc) (1 KB)
+    - [json.hpp](https://github.com/nlohmann/json/releases/download/v2.0.4/json.hpp) (347 KB)
+    - [json.hpp.asc](https://github.com/nlohmann/json/releases/download/v2.0.4/json.hpp.asc) (1 KB)
 
 - Release date: 2016-08-31
 - SHA-256: 535b73efe5546fde9e763c14aeadfc7b58183c0b3cd43c29741025aba6cf6bd3

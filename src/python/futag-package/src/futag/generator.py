@@ -24,8 +24,8 @@ from futag.preprocessor import *
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
 from typing import List
-import shutil
-
+# import shutil
+from distutils.dir_util import copy_tree
 
 class Generator:
     """Futag Generator"""
@@ -188,12 +188,26 @@ class Generator:
                 "location": command["directory"]
             }
         else:
-            return {
-                "compiler": "CXX",
-                "command": "",
-                "file": "",
-                "location": ""
-            }
+            if file.split(".")[-1] == "c": 
+                return {
+                    "compiler": "CC",
+                    "command": "",
+                    "file": file,
+                    "location": ""
+                }
+            else:
+                return {
+                    "compiler": "CXX",
+                    "command": "",
+                    "file": file,
+                    "location": ""
+                }
+        return {
+            "compiler": "CC",
+            "command": "",
+            "file": file,
+            "location": ""
+        }
 
     def __gen_header(self, target_function_name):
         """ Generate header for the target function
@@ -561,6 +575,17 @@ class Generator:
                     gen_lines += curr_gen["gen_lines"]
                     gen_free += curr_gen["gen_free"]
 
+                if gen_type_info["gen_type"] == GEN_REFSTRING:
+                    curr_name = "strc_" + curr_name  # string_prefix
+                    self.dyn_cstring_size_idx += 1
+                    curr_gen = self.__gen_cstring(
+                        curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    #reinit value of curr_name to send reference of string
+                    # curr_name = "&" + curr_name  # string_prefix
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
                 if gen_type_info["gen_type"] == GEN_WSTRING:
                     curr_name = "strc_" + curr_name  # string_prefix
                     self.dyn_wstring_size_idx += 1
@@ -788,7 +813,7 @@ class Generator:
                     while iter < f_gen_list_length:
                         curr_gen_field = f["gen_return_type"][iter]
                         if curr_gen_field["gen_type"] == GEN_POINTER:
-                            curr_gen_field["gen_type"] = GEN_VARADDR
+                            # curr_gen_field["gen_type"] = GEN_VARADDR
                             curr_gen_field["gen_type_name"] = "_VAR_ADDRESS"
                         else:
                             curr_gen_field["gen_type"] == GEN_UNKNOWN
@@ -887,6 +912,23 @@ class Generator:
                         self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
                             curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    gen_dict["buffer_size"] += curr_gen["buffer_size"]
+                    gen_dict["gen_lines"] += curr_gen["gen_lines"]
+                    gen_dict["gen_free"] += curr_gen["gen_free"]
+                
+                if gen_type_info["gen_type"] == GEN_REFSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (arg["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or arg["param_name"] in ["filename", "file", "filepath"] or arg["param_name"].find('file') != -1 or arg["param_name"].find('File') != -1) and len(arg["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  + str(self.file_idx) # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        curr_name = "str_" + curr_name  + str(self.dyn_cstring_size_idx) # string_prefix
+                        self.dyn_cstring_size_idx += 1
+                        curr_gen = self.__gen_cstring(
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                        # curr_name = "&" + curr_name
                     gen_dict["buffer_size"] += curr_gen["buffer_size"]
                     gen_dict["gen_lines"] += curr_gen["gen_lines"]
                     gen_dict["gen_free"] += curr_gen["gen_free"]
@@ -1434,7 +1476,7 @@ class Generator:
         if len(curr_param["gen_list"]) == 0:
             self.gen_this_function = False
             return False
-        if curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_INPUT_FILE, GEN_OUTPUT_FILE]:
+        if curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_REFSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_UNION, GEN_INPUT_FILE, GEN_OUTPUT_FILE, GEN_QUALIFIER, GEN_POINTER]:
             for gen_type_info in curr_param["gen_list"]:
                 prev_param_name = curr_name
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
@@ -1485,6 +1527,23 @@ class Generator:
                         self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
                             curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_REFSTRING:
+                    print ("!!!GEN_REFSTRING\n\n\n")
+                    # GEN FILE NAME OR # GEN STRING
+                    if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        # GEN_REFSTRING
+                        curr_name = "str_" + curr_name  # string_prefix
+                        self.dyn_cstring_size_idx += 1
+                        curr_gen = self.__gen_cstring(
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                        # curr_name = "&" + curr_name
                     self.__append_gen_dict(curr_gen)
 
                 if gen_type_info["gen_type"] == GEN_WSTRING:
@@ -1951,7 +2010,7 @@ class Generator:
         if len(curr_param["gen_list"]) == 0:
             self.gen_this_function = False
             return False
-        if curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_INPUT_FILE, GEN_OUTPUT_FILE]:
+        if curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_REFSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_UNION, GEN_INPUT_FILE, GEN_OUTPUT_FILE, GEN_QUALIFIER, GEN_POINTER]:
             for gen_type_info in curr_param["gen_list"]:
                 prev_param_name = curr_name
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
@@ -2002,6 +2061,22 @@ class Generator:
                         self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
                             curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_REFSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        # GEN STRING
+                        curr_name = "str_" + curr_name  # string_prefix
+                        self.dyn_cstring_size_idx += 1
+                        curr_gen = self.__gen_cstring(
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                        # curr_name = "&" + curr_name
                     self.__append_gen_dict(curr_gen)
 
                 if gen_type_info["gen_type"] == GEN_WSTRING:
@@ -2385,7 +2460,7 @@ class Generator:
             target_file.write("\n */\n")
         target_file.close()
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = False):
         """_summary_
 
         Args:
@@ -2396,6 +2471,7 @@ class Generator:
             extra_dynamiclink (str, optional): option for adding dynamic libraries while compiling. Defaults to "".
             flags (str, optional): flags for compiling fuzz-drivers. Defaults to "-fsanitize=address -g -O0".
             coverage (bool, optional): option for adding coverage flag. Defaults to False.
+            keep_original (bool, optional): option for keeping .futag-fuzz-drivers. Defaults to False.
         """
 
         # include_subdir = self.target_library["header_dirs"]
@@ -2441,7 +2517,10 @@ class Generator:
             search_curr_func = [
                 f for f in self.target_library['functions'] if f['qname'].replace(":", "_") == func_dir.name]
             if not len(search_curr_func):
-                continue
+                search_curr_func = [
+                f for f in self.target_library['functions'] if 'anonymous_' + f['name'].replace(":", "_") == func_dir.name]
+                if not len(search_curr_func):
+                    continue
             current_func = search_curr_func[0]
             func_file_location = current_func["location"]["fullpath"]
             compiler_info = self.__get_compile_command(func_file_location)
@@ -2505,7 +2584,7 @@ class Generator:
             current_include = []
             if not include_subdir:
                 for i in resolved_include_paths:
-                    current_include.append("-I" + i.as_posix() + "/")
+                    current_include.append("-I" + i + "/")
             else:
                 for i in include_subdir:
                     current_include.append(i)
@@ -2550,8 +2629,8 @@ class Generator:
             if not (self.succeeded_path / dir.parents[1].name).exists():
                 ((self.succeeded_path /
                  dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-            shutil.move(dir.parents[0].as_posix(
-            ), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+            # shutil.move(dir.parents[0].as_posix(), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+            copy_tree(dir.parents[0].as_posix(), (self.succeeded_path / dir.parents[1].name).as_posix())
 
         if keep_failed:
             failed_tree = set()
@@ -2568,11 +2647,12 @@ class Generator:
                 if not (self.failed_path / dir.parents[1].name).exists():
                     ((self.failed_path /
                      dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-                shutil.move(dir.parents[0].as_posix(
-                ), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+                # shutil.move(dir.parents[0].as_posix(), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+                copy_tree(dir.parents[0].as_posix(),(self.failed_path / dir.parents[1].name).as_posix())
         else:
             delete_folder(self.failed_path)
-        delete_folder(self.tmp_output_path)
+        if not keep_original:
+            delete_folder(self.tmp_output_path)
 
         print(
             "-- [Futag] Result of compiling: "
@@ -2580,202 +2660,6 @@ class Generator:
             + " fuzz-driver(s)\n"
         )
     
-    def compile_all_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
-        """_summary_
-
-        Args:
-            workers (int, optional): number of processes for compiling. Defaults to 4.
-            keep_failed (bool, optional): option for saving not compiled fuzz-targets. Defaults to False.
-            extra_include (str, optional): option for add included directories while compiling. Defaults to "".
-            extra_dynamiclink (str, optional): option for add dynamic libraries while compiling. Defaults to "".
-            flags (str, optional): flags for compiling fuzz-drivers. Defaults to "-fsanitize=address -g -O0".
-            coverage (bool, optional): option for add coverage flag. Defaults to False.
-        """
-
-        # include_subdir = self.target_library["header_dirs"]
-        # include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.build_path).glob("**/*.hpp")] + [self.build_path.as_posix()]
-
-        # if (self.install_path / "include").exists():
-        #     include_subdir = include_subdir + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.h")] + [x.parents[0].as_posix() for x in (self.install_path / "include").glob("**/*.hpp")]
-        # include_subdir = list(set(include_subdir))
-        if not flags:
-            if coverage:
-                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + \
-                    COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS + " -fPIE"
-                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " +\
-                    COMPILER_COVERAGE_FLAGS + " " + DEBUG_FLAGS
-            else:
-                compiler_flags_aflplusplus = COMPILER_FLAGS + " " + DEBUG_FLAGS + " -fPIE "
-                compiler_flags_libFuzzer = FUZZ_COMPILER_FLAGS + " " + DEBUG_FLAGS
-        else:
-            compiler_flags_aflplusplus = flags
-            compiler_flags_libFuzzer = flags
-            if coverage:
-                compiler_flags_aflplusplus = COMPILER_COVERAGE_FLAGS + \
-                    " " + compiler_flags_aflplusplus
-                compiler_flags_libFuzzer = COMPILER_COVERAGE_FLAGS + " " + compiler_flags_libFuzzer
-
-        generated_targets = 0
-
-        compile_cmd_list = []
-        static_lib = []
-        target_lib = [u for u in (self.library_root).glob(
-            "**/*.a") if u.is_file()]
-        if target_lib:
-            static_lib = ["-Wl,--start-group"]
-            for t in target_lib:
-                static_lib.append(t.as_posix())
-            static_lib.append("-Wl,--end-group")
-        fuzz_drivers = [t for t in self.tmp_output_path.rglob("*") if t.is_file() and t.suffix in [".c", ".cc", ".cpp"]]
-        for fd in fuzz_drivers:
-            hash = None
-            with open(fd.as_posix(), 'r') as source_file:
-                hash = source_file.readline().replace("//", "")
-                hash = hash.replace("\n", "")
-            if not hash:
-                continue
-            found_func = None
-            for func in self.target_library['functions']:
-                if func["hash"] == hash:
-                    found_func = func
-            if not found_func:
-                continue
-
-            func_file_location = found_func["location"]["fullpath"]
-            compiler_info = self.__get_compile_command(func_file_location)
-            include_subdir = []
-
-            if os.path.exists(compiler_info["location"]):
-                current_location = os.getcwd()
-                os.chdir(compiler_info["location"])
-                for iter in compiler_info["command"].split(" "):
-                    if iter[0:2] == "-I":
-                        if pathlib.Path(iter[2:]).exists():
-                            include_subdir.append(
-                                "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
-                os.chdir(current_location)
-
-            if not "-fPIE" in compiler_flags_aflplusplus:
-                compiler_flags_aflplusplus += " -fPIE"
-
-            if not "-ferror-limit=1" in compiler_flags_libFuzzer:
-                compiler_flags_libFuzzer += " -ferror-limit=1"
-
-            compiler_path = ""
-            if self.target_type == LIBFUZZER:
-                if compiler_info["compiler"] == "CC":
-                    compiler_path = self.futag_llvm_package / "bin/clang"
-                else:
-                    compiler_path = self.futag_llvm_package / "bin/clang++"
-            else:
-                if compiler_info["compiler"] == "CC":
-                    compiler_path = self.futag_llvm_package / \
-                        "AFLplusplus/usr/local/bin/afl-clang-fast"
-                else:
-                    compiler_path = self.futag_llvm_package / \
-                        "AFLplusplus/usr/local/bin/afl-clang-fast++"
-
-            current_func_compilation_opts = ""
-            compilation_opts = ""
-
-            for compiled_file in self.target_library["compiled_files"]:
-                if func_file_location == compiled_file["filename"]:
-                    compilation_opts = compiled_file["compiler_opts"]
-            current_func_compilation_opts = compilation_opts.split(' ')
-            # Extract all include locations from compilation options
-            include_paths: List[pathlib.Path] = map(
-                pathlib.Path,
-                map(
-                    current_func_compilation_opts.__getitem__,
-                    [i + 1 for i,
-                        x in enumerate(current_func_compilation_opts) if x == '-I']
-                ))
-
-            resolved_include_paths: List[pathlib.Path] = []
-            for include_path in include_paths:
-                if include_path.is_absolute():
-                    resolved_include_paths.append(include_path)
-                else:
-                    # Resolve relative include paths (e.g. in this case: -I.. -I.)
-                    resolved_include_paths.append(
-                        pathlib.Path(include_path).absolute())
-
-            current_include = []
-            if not include_subdir:
-                for i in resolved_include_paths:
-                    current_include.append("-I" + i.as_posix() + "/")
-            else:
-                for i in include_subdir:
-                    current_include.append(i)
-
-            target_path = fd.parent.resolve().as_posix() + "/" + fd.stem + ".out"
-            error_path = fd.parent.resolve().as_posix() + "/" + fd.stem + ".err"
-            generated_targets += 1
-            if self.target_type == LIBFUZZER:
-                compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ]   + [fd.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
-            else:
-                compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(" ") if x.strip() ]  + [fd.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
-
-            compile_cmd_list.append({
-                "compiler_cmd": compiler_cmd,
-                "target_name": fd.stem,
-                "error_path": error_path,
-                "source_path": fd.as_posix(),
-                "binary_path": target_path,
-                "compiler_info": compiler_info,
-            })
-        
-        
-        with Pool(workers) as p:
-            p.map(self.compile_driver_worker, compile_cmd_list)
-
-        # Extract the results of compilation
-
-        compiled_targets_list = [
-            x for x in self.tmp_output_path.glob("**/*.out") if x.is_file()]
-        print("-- [Futag] collecting result ...")
-
-        succeeded_tree = set()
-        # for compiled_target in compiled_targets_list:
-        #     if compiled_target.parents[0].as_posix() not in succeeded_tree:
-        #         succeeded_tree.add(compiled_target.parents[0].as_posix())
-        for compiled_target in compiled_targets_list:
-            if compiled_target not in succeeded_tree:
-                succeeded_tree.add(compiled_target)
-        for dir in succeeded_tree:
-            if not (self.succeeded_path / dir.parents[1].name).exists():
-                ((self.succeeded_path /
-                 dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-            shutil.move(dir.parents[0].as_posix(
-            ), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-
-        if keep_failed:
-            failed_tree = set()
-            not_compiled_targets_list = [
-                x for x in self.tmp_output_path.glob("**/*.cc") if x.is_file()]
-            not_compiled_targets_list = not_compiled_targets_list + [
-                x for x in self.tmp_output_path.glob("**/*.c") if x.is_file()]
-            not_compiled_targets_list = not_compiled_targets_list + [
-                x for x in self.tmp_output_path.glob("**/*.cpp") if x.is_file()]
-            for target in not_compiled_targets_list:
-                if target not in failed_tree:
-                    failed_tree.add(target)
-            for dir in failed_tree:
-                if not (self.failed_path / dir.parents[1].name).exists():
-                    ((self.failed_path /
-                     dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-                shutil.move(dir.parents[0].as_posix(
-                ), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-        else:
-            delete_folder(self.failed_path)
-        delete_folder(self.tmp_output_path)
-
-        print(
-            "-- [Futag] Result of compiling: "
-            + str(len(compiled_targets_list))
-            + " fuzz-driver(s)\n"
-        )
-
     def gen_targets_from_callstack(self, target):
         found_function = None
         for func in self.target_library["functions"]:
@@ -2956,12 +2840,26 @@ class ContextGenerator:
                 "location": command["directory"]
             }
         else:
-            return {
-                "compiler": "CXX",
-                "command": "",
-                "file": "",
-                "location": ""
-            }
+            if file.split(".")[-1] == "c": 
+                return {
+                    "compiler": "CC",
+                    "command": "",
+                    "file": file,
+                    "location": ""
+                }
+            else:
+                return {
+                    "compiler": "CXX",
+                    "command": "",
+                    "file": file,
+                    "location": ""
+                }
+        return {
+            "compiler": "CC",
+            "command": "",
+            "file": file,
+            "location": ""
+        }
 
     def __gen_header(self, target_function_name):
         """ Generate header for the target function
@@ -3339,6 +3237,16 @@ class ContextGenerator:
                     gen_lines += curr_gen["gen_lines"]
                     gen_free += curr_gen["gen_free"]
 
+                if gen_type_info["gen_type"] == GEN_REFSTRING:
+                    curr_name = "strc_" + curr_name  # string_prefix
+                    self.dyn_cstring_size_idx += 1
+                    curr_gen = self.__gen_cstring(
+                        curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    # curr_name = "&" + curr_name  # string_prefix
+                    buffer_size += curr_gen["buffer_size"]
+                    gen_lines += curr_gen["gen_lines"]
+                    gen_free += curr_gen["gen_free"]
+
                 if gen_type_info["gen_type"] == GEN_WSTRING:
                     curr_name = "strw_" + curr_name  # string_prefix
                     self.dyn_wstring_size_idx += 1
@@ -3558,7 +3466,7 @@ class ContextGenerator:
                     while iter < f_gen_list_length:
                         curr_gen_field = f["gen_return_type"][iter]
                         if curr_gen_field["gen_type"] == GEN_POINTER:
-                            curr_gen_field["gen_type"] = GEN_VARADDR
+                            # curr_gen_field["gen_type"] = GEN_VARADDR
                             curr_gen_field["gen_type_name"] = "_VAR_ADDRESS"
                         else:
                             curr_gen_field["gen_type"] == GEN_UNKNOWN
@@ -3659,6 +3567,23 @@ class ContextGenerator:
                         self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
                             curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    gen_dict["buffer_size"] += curr_gen["buffer_size"]
+                    gen_dict["gen_lines"] += curr_gen["gen_lines"]
+                    gen_dict["gen_free"] += curr_gen["gen_free"]
+
+                if gen_type_info["gen_type"] == GEN_REFSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (arg["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or arg["param_name"] in ["filename", "file", "filepath"] or arg["param_name"].find('file') != -1 or arg["param_name"].find('File') != -1) and len(arg["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        curr_name = "str_" + curr_name  # string_prefix
+                        self.dyn_cstring_size_idx += 1
+                        curr_gen = self.__gen_cstring(
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                        # curr_name = "&" + curr_name
                     gen_dict["buffer_size"] += curr_gen["buffer_size"]
                     gen_dict["gen_lines"] += curr_gen["gen_lines"]
                     gen_dict["gen_free"] += curr_gen["gen_free"]
@@ -4028,7 +3953,7 @@ class ContextGenerator:
             self.__append_gen_dict(curr_gen)
             param_id += 1
             self.__gen_target_function(call, func, param_id)
-        elif curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_INPUT_FILE, GEN_OUTPUT_FILE]:
+        elif curr_param["gen_list"][0]["gen_type"] in [GEN_BUILTIN, GEN_CSTRING, GEN_WSTRING, GEN_REFSTRING, GEN_CXXSTRING, GEN_ENUM, GEN_ARRAY, GEN_UNION, GEN_INPUT_FILE, GEN_OUTPUT_FILE, GEN_QUALIFIER, GEN_POINTER]:
             for gen_type_info in curr_param["gen_list"]:
                 # prev_param_name = curr_name + str(self.var_idx)
                 if gen_type_info["gen_type"] == GEN_BUILTIN:
@@ -4080,6 +4005,22 @@ class ContextGenerator:
                         self.dyn_cstring_size_idx += 1
                         curr_gen = self.__gen_cstring(
                             curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                    self.__append_gen_dict(curr_gen)
+
+                if gen_type_info["gen_type"] == GEN_REFSTRING:
+                    # GEN FILE NAME OR # GEN STRING
+                    if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
+                        curr_name = "f_" + curr_name  # string_prefix
+                        self.file_idx += 1
+                        curr_gen = self.__gen_input_file(
+                            curr_name, gen_type_info)
+                    else:
+                        # GEN STRING
+                        curr_name = "str_" + curr_name  # string_prefix
+                        self.dyn_cstring_size_idx += 1
+                        curr_gen = self.__gen_cstring(
+                            curr_name, gen_type_info, self.dyn_cstring_size_idx)
+                        # curr_name = "&" + curr_name
                     self.__append_gen_dict(curr_gen)
 
                 if gen_type_info["gen_type"] == GEN_WSTRING:
@@ -4369,20 +4310,18 @@ class ContextGenerator:
             target_file.write("\n */\n")
         target_file.close()
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False):
-        """
-        Parameters
-        ----------
-        workers: int
-            number of processes for compiling, default to 4.
-        keep_failed: bool
-            option for saving not compiled fuzz-targets, default to False.
-        extra_include: str
-            option for add included directories while compiling, default to empty string.
-        extra_dynamiclink: str
-            option for add dynamic libraries while compiling, default to empty string.
-        flags: str
-            flags for compiling fuzz-drivers, default to "-fsanitize=address,fuzzer -g -O0".
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = False):
+        """_summary_
+
+        Args:
+            workers (int, optional): number of processes for compiling. Defaults to 4.
+            keep_failed (bool, optional): option for saving not compiled fuzz-targets. Defaults to False.
+            extra_params (str, optional): option for adding parameters while compiling. Defaults to "".
+            extra_include (str, optional): option for adding included directories while compiling. Defaults to "".
+            extra_dynamiclink (str, optional): option for adding dynamic libraries while compiling. Defaults to "".
+            flags (str, optional): flags for compiling fuzz-drivers. Defaults to "-fsanitize=address -g -O0".
+            coverage (bool, optional): option for adding coverage flag. Defaults to False.
+            keep_original (bool, optional): option for keeping .futag-fuzz-drivers. Defaults to False.
         """
 
         # include_subdir = self.target_library["header_dirs"]
@@ -4493,7 +4432,7 @@ class ContextGenerator:
             current_include = []
             if not include_subdir:
                 for i in resolved_include_paths:
-                    current_include.append("-I" + i + "/")
+                    current_include.append("-I" + i.as_posix()  + "/")
             else:
                 for i in include_subdir:
                     current_include.append(i)
@@ -4538,8 +4477,10 @@ class ContextGenerator:
             if not (self.succeeded_path / dir.parents[1].name).exists():
                 ((self.succeeded_path /
                  dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-            shutil.move(dir.parents[0].as_posix(
-            ), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+            # shutil.move(dir.parents[0].as_posix(
+            # ), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+            copy_tree(dir.parents[0].as_posix(
+            ), (self.succeeded_path / dir.parents[1].name).as_posix())
 
         if keep_failed:
             failed_tree = set()
@@ -4556,11 +4497,15 @@ class ContextGenerator:
                 if not (self.failed_path / dir.parents[1].name).exists():
                     ((self.failed_path /
                      dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-                shutil.move(dir.parents[0].as_posix(
-                ), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+                # shutil.move(dir.parents[0].as_posix(
+                # ), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+                copy_tree(dir.parents[0].as_posix(
+                ), (self.failed_path / dir.parents[1].name).as_posix())
         else:
             delete_folder(self.failed_path)
-        delete_folder(self.tmp_output_path)
+
+        if not keep_original:
+            delete_folder(self.tmp_output_path)
 
         print(
             "-- [Futag] Result of compiling: "

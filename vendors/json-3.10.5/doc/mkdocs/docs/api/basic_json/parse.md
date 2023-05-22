@@ -188,7 +188,7 @@ super-linear complexity.
 ## Version history
 
 - Added in version 1.0.0.
-- Overload for contiguous containers (1) added in version 2.0.3.
+- Overload for contiguous containers (1) added in version 2.0.4.
 - Ignoring comments via `ignore_comments` added in version 3.9.0.
 
 !!! warning "Deprecation"

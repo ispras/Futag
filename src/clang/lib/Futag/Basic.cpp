@@ -13,7 +13,7 @@
  *             a tool of ISP RAS                *
  ************************************************
  *
- * @version 2.0.3
+ * @version 2.0.4
  * @date 2023-04-17
  *
  * @copyright This file is distributed under the GPL v3 license
@@ -70,151 +70,6 @@ vector<string> explode(string line, char delimiter) {
     }
     result.insert(result.end(), trim(copy_line));
     return result;
-}
-
-/**
- * @brief This function checks if a type is simple: Built-in type, string, enum,
- * or input, output stream/file
- *
- * @param type
- * @return true
- * @return false
- */
-bool isSimpleType(QualType type) {
-    // dereference pointer
-    while (type->isPointerType()) {
-        type = type->getPointeeType();
-    }
-    if (type.getAsString() == "string" || type.getAsString() == "std::string" ||
-        type.getAsString() == "wstring" ||
-        type.getAsString() == "std::wstring") {
-        return true;
-    }
-    if (type->isBuiltinType()) {
-        //  " type: " << type.getAsString() << " is built-in type\n";
-        // if type of a variable after dereference is void - it's somehow a
-        // pointer to a function, so it's not simple!
-        if (type.getAsString() == "void" ||
-            type.getAsString() == "const void") {
-            return false;
-        }
-        return true;
-    }
-
-    // if the type is a enum or its size is known by compiler -> it's simple
-    if (type->isEnumeralType()) {
-        return true;
-    }
-
-    if (type->isFunctionType()) {
-        return false;
-        // return true;
-    }
-
-    if (type->isIncompleteType()) {
-        return false;
-    }
-
-    if (type.getAsString() == "ofstream" || type.getAsString() == "ifstream" ||
-        type.getAsString() == "fstream" ||
-        type.getAsString() == "std::ofstream" ||
-        type.getAsString() == "std::ifstream" ||
-        type.getAsString() == "std::fstream" || type.getAsString() == "FILE") {
-        return true;
-    }
-
-    // If a type is a record type (union, struct, class) - it's not simple!
-    if (type->isRecordType()) {
-        return false;
-    }
-
-    if (const auto *DT = dyn_cast<DecayedType>(type)) {
-        if (const auto *AT = dyn_cast<ArrayType>(
-                DT->getOriginalType()->getCanonicalTypeInternal())) {
-            if (AT->getElementType()->isBuiltinType()) {
-                return true;
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
-
-    return false;
-}
-
-/**
- * @brief
- *
- * @param rd
- * @return true
- * @return false
- */
-bool isSimpleRecord(const RecordDecl *rd) {
-    bool simple = true;
-    for (auto it = rd->field_begin(); it != rd->field_end(); it++) {
-        if (!isSimpleType(it->getType())) {
-            simple = false;
-            break;
-        }
-    }
-    return simple;
-}
-
-/**
- * @brief
- *
- * @param fd
- * @return true
- * @return false
- */
-bool isSimpleFunction(const FunctionDecl *fd) {
-    bool simple = true;
-    for (size_t i = 0; i < fd->getNumParams(); ++i) {
-        auto param_type = fd->parameters()[i]->getType();
-        if (param_type->isRecordType()) {
-            auto rd = param_type->getAsRecordDecl();
-            if (rd && !isSimpleRecord(rd)) {
-                simple = false;
-                break;
-            }
-        } else {
-            if (!isSimpleType(param_type)) {
-                simple = false;
-                break;
-            }
-        }
-    }
-    return simple;
-}
-
-/**
- * @brief
- *
- * @param path
- * @return true
- * @return false
- */
-bool dir_exists(const char *path) {
-    struct stat info;
-
-    if (stat(path, &info) != 0)
-        return false;
-    else if (info.st_mode & S_IFDIR)
-        return true;
-    else
-        return false;
-}
-
-// Create directory for fuzz-targets
-const char *create_target_dir(string dir_name) {
-    char *cdir_name = new char[dir_name.length() + 1];
-    strcpy(cdir_name, dir_name.c_str());
-    if (!dir_exists(cdir_name)) {
-        mkdir(cdir_name, 0755);
-    }
-    return cdir_name;
 }
 
 /**
@@ -276,6 +131,20 @@ vector<GenTypeInfo> getGenField(QualType type) {
             result.insert(result.begin(), gen_list);
             return result;
         }
+
+        if (type.getAsString() == "const char *&" || type.getCanonicalType().getAsString() == "const char *&") {
+            gen_list.base_type_name = "const char *";
+            gen_list.gen_type = FutagGenType::F_REFSTRING;
+            result.insert(result.begin(), gen_list);
+            return result;
+        }
+        if (type.getAsString() == "char *&" || type.getCanonicalType().getAsString() == "char *&") {
+            gen_list.base_type_name = "char *";
+            gen_list.gen_type = FutagGenType::F_REFSTRING;
+            result.insert(result.begin(), gen_list);
+            return result;
+        }
+        
         // Check for file type of C
         if (type.getAsString() == "FILE *") {
             gen_list.gen_type = FutagGenType::F_CFILE; // Read
@@ -440,6 +309,20 @@ vector<GenTypeInfo> getGenType(QualType type) {
             result.insert(result.begin(), gen_list);
             return result;
         }
+
+        if (type.getAsString() == "const char *&" || type.getCanonicalType().getAsString() == "const char *&") {
+            gen_list.base_type_name = "const char *";
+            gen_list.gen_type = FutagGenType::F_REFSTRING;
+            result.insert(result.begin(), gen_list);
+            return result;
+        }
+        if (type.getAsString() == "char *&" || type.getCanonicalType().getAsString() == "char *&") {
+            gen_list.base_type_name = "char *";
+            gen_list.gen_type = FutagGenType::F_REFSTRING;
+            result.insert(result.begin(), gen_list);
+            return result;
+        }
+
         // Check for file type of C
         if (type.getAsString() == "FILE *") {
             gen_list.gen_type = FutagGenType::F_CFILE; // Read
@@ -563,6 +446,160 @@ vector<GenTypeInfo> getGenType(QualType type) {
     } while (type->isPointerType());
 
     return result;
+}
+
+/**
+ * @brief This function checks if a type is simple: Built-in type, string, enum,
+ * or input, output stream/file
+ *
+ * @param type
+ * @return true
+ * @return false
+ */
+bool isSimpleType(QualType type) {
+    vector<FutagGenType> SimpleList{F_BUILTIN, F_CSTRING, F_WSTRING, F_CXXSTRING, F_ENUM, F_ARRAY, F_REFSTRING, F_CFILE, F_CXXFILE, F_INPUT_CXXFILE, F_OUTPUT_CXXFILE};
+
+    auto gen_type_list = getGenType(type);
+    if (!gen_type_list.size()) return false;
+    FutagGenType gen_type = gen_type_list.front().gen_type;
+    if(std::find(SimpleList.begin(), SimpleList.end(), gen_type) != SimpleList.end()){
+        return true;
+    }
+    return false;
+    // dereference pointer
+    while (type->isPointerType()) {
+        type = type->getPointeeType();
+    }
+    if (type.getAsString() == "string" || type.getAsString() == "std::string" ||
+        type.getAsString() == "wstring" ||
+        type.getAsString() == "std::wstring") {
+        return true;
+    }
+    if (type->isBuiltinType()) {
+        //  " type: " << type.getAsString() << " is built-in type\n";
+        // if type of a variable after dereference is void - it's somehow a
+        // pointer to a function, so it's not simple!
+        if (type.getAsString() == "void" ||
+            type.getAsString() == "const void") {
+            return false;
+        }
+        return true;
+    }
+
+    // if the type is a enum or its size is known by compiler -> it's simple
+    if (type->isEnumeralType()) {
+        return true;
+    }
+
+    if (type->isFunctionType()) {
+        return false;
+        // return true;
+    }
+
+    if (type->isIncompleteType()) {
+        return false;
+    }
+
+    if (type.getAsString() == "ofstream" || type.getAsString() == "ifstream" ||
+        type.getAsString() == "fstream" ||
+        type.getAsString() == "std::ofstream" ||
+        type.getAsString() == "std::ifstream" ||
+        type.getAsString() == "std::fstream" || type.getAsString() == "FILE") {
+        return true;
+    }
+
+    // If a type is a record type (union, struct, class) - it's not simple!
+    if (type->isRecordType()) {
+        return false;
+    }
+
+    if (const auto *DT = dyn_cast<DecayedType>(type)) {
+        if (const auto *AT = dyn_cast<ArrayType>(
+                DT->getOriginalType()->getCanonicalTypeInternal())) {
+            if (AT->getElementType()->isBuiltinType()) {
+                return true;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @brief
+ *
+ * @param rd
+ * @return true
+ * @return false
+ */
+bool isSimpleRecord(const RecordDecl *rd) {
+    bool simple = true;
+    for (auto it = rd->field_begin(); it != rd->field_end(); it++) {
+        if (!isSimpleType(it->getType())) {
+            simple = false;
+            break;
+        }
+    }
+    return simple;
+}
+
+/**
+ * @brief
+ *
+ * @param fd
+ * @return true
+ * @return false
+ */
+bool isSimpleFunction(const FunctionDecl *fd) {
+    bool simple = true;
+    for (size_t i = 0; i < fd->getNumParams(); ++i) {
+        auto param_type = fd->parameters()[i]->getType();
+        if (param_type->isRecordType()) {
+            auto rd = param_type->getAsRecordDecl();
+            if (rd && !isSimpleRecord(rd)) {
+                simple = false;
+                break;
+            }
+        } else {
+            if (!isSimpleType(param_type)) {
+                simple = false;
+                break;
+            }
+        }
+    }
+    return simple;
+}
+
+/**
+ * @brief
+ *
+ * @param path
+ * @return true
+ * @return false
+ */
+bool dir_exists(const char *path) {
+    struct stat info;
+
+    if (stat(path, &info) != 0)
+        return false;
+    else if (info.st_mode & S_IFDIR)
+        return true;
+    else
+        return false;
+}
+
+// Create directory for fuzz-targets
+const char *create_target_dir(string dir_name) {
+    char *cdir_name = new char[dir_name.length() + 1];
+    strcpy(cdir_name, dir_name.c_str());
+    if (!dir_exists(cdir_name)) {
+        mkdir(cdir_name, 0755);
+    }
+    return cdir_name;
 }
 
 const std::map<FutagType::Type, std::string> FutagType::c_typesToNames = {

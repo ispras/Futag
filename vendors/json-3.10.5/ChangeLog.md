@@ -2404,15 +2404,15 @@ All notable changes to this project will be documented in this file. This projec
 
 ## [v2.0.4](https://github.com/nlohmann/json/releases/tag/v2.0.4) (2016-09-11)
 
-[Full Changelog](https://github.com/nlohmann/json/compare/v2.0.3...v2.0.4)
+[Full Changelog](https://github.com/nlohmann/json/compare/v2.0.4...v2.0.4)
 
 - Parsing fails without space at end of file [\#306](https://github.com/nlohmann/json/issues/306)
 - json schema validator [\#305](https://github.com/nlohmann/json/issues/305)
 - Unused variable warning [\#304](https://github.com/nlohmann/json/issues/304)
 
-## [v2.0.3](https://github.com/nlohmann/json/releases/tag/v2.0.3) (2016-08-31)
+## [v2.0.4](https://github.com/nlohmann/json/releases/tag/v2.0.4) (2016-08-31)
 
-[Full Changelog](https://github.com/nlohmann/json/compare/v2.0.2...v2.0.3)
+[Full Changelog](https://github.com/nlohmann/json/compare/v2.0.2...v2.0.4)
 
 - warning C4706: assignment within conditional expression [\#295](https://github.com/nlohmann/json/issues/295)
 - Q: Is it possible to build json tree from already UTF8 encoded values? [\#293](https://github.com/nlohmann/json/issues/293)

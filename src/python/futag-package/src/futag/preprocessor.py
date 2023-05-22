@@ -174,6 +174,7 @@ class Builder:
             "cmake",
             f"-DLLVM_CONFIG_PATH={(self.futag_llvm_package / 'bin/llvm-config').as_posix()}",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
+            # f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
@@ -238,7 +239,6 @@ class Builder:
             f"-DCMAKE_CXX_COMPILER={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
             f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
             f"-DCMAKE_C_FLAGS='{self.flags}'",
-            f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
@@ -375,10 +375,10 @@ class Builder:
 
         p = Popen(analysis_command, stdout=PIPE,
                   stderr=PIPE, universal_newlines=True)
+
         print(LIB_ANALYZING_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         
-        analysis_command = analysis_command + ["install"]
         p = Popen(analysis_command, stdout=PIPE,
                   stderr=PIPE, universal_newlines=True)
 
@@ -458,20 +458,20 @@ class Builder:
                 print(output)
                 print(LIB_BUILD_SUCCEEDED)
 
-            # Doing make install
-            p = Popen([
-                "make",
-                "install",
-            ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        # Doing make install
+        p = Popen([
+            "make",
+            "install",
+        ], stdout=PIPE, stderr=PIPE, universal_newlines=True)
 
-            output, errors = p.communicate()
-            if p.returncode:
-                print(LIB_INSTALL_COMMAND, " ".join(p.args))
-                print(errors)
-                sys.exit(LIB_INSTALL_FAILED)
-            else:
-                print(output)
-                print(LIB_INSTALL_SUCCEEDED)
+        output, errors = p.communicate()
+        if p.returncode:
+            print(LIB_INSTALL_COMMAND, " ".join(p.args))
+            print(errors)
+            sys.exit(LIB_INSTALL_FAILED)
+        else:
+            print(output)
+            print(LIB_INSTALL_SUCCEEDED)
 
         os.chdir(curr_dir)
         return True
@@ -538,10 +538,13 @@ class Builder:
         my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
         my_env["LLVM_CONFIG"] = (
             self.futag_llvm_package / 'bin/llvm-config').as_posix()
-        make_command = [
-            (self.futag_llvm_package / "bin/intercept-build").as_posix(),
-            "make",
-        ]
+        if self.intercept:
+            make_command = [
+                (self.futag_llvm_package / "bin/intercept-build").as_posix(),
+                "make",
+            ]
+        else:
+            make_command = ["make"]
         if self.processes > 1:
             make_command = make_command + ["-j" + str(self.processes)]
         make_command = make_command + [
@@ -647,8 +650,6 @@ class Builder:
         for jf in context_files:
             if os.stat(jf.as_posix()).st_size == 0:
                 continue
-            else:
-                print (jf.as_posix(), " > 0000")
             try:
                 contexts = json.load(open(jf.as_posix()))
             except JSONDecodeError:

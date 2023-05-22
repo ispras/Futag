@@ -99,14 +99,6 @@ if [ "$selectedVersion" == "2" ]; then
     mv llvm-project-13.0.1.src llvm-project
 fi
 
-if [ -d AFLplusplus-4.02c ]; then
-    rm -rf AFLplusplus-4.02c
-fi
-if [ ! -f 4.02c.tar.gz ]; then
-    wget https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
-fi
-tar xf 4.02c.tar.gz
-mv AFLplusplus-4.02c $build_folder/
 build_script="build.sh"
 
 # if [ $fuzzintro == "Y" ] || [ $fuzzintro == "y" ]; then
