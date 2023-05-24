@@ -117,8 +117,8 @@ class Generator:
             # TODO: set option for deleting
             if (self.library_root / output_path).exists():
                 delete_folder(self.library_root / output_path)
-            # if (self.library_root / tmp_output_path).exists():
-            #     delete_folder(self.library_root / tmp_output_path)
+            if (self.library_root / tmp_output_path).exists():
+                delete_folder(self.library_root / tmp_output_path)
 
             simple_functions = []
             if self.target_library["functions"]:
@@ -2524,7 +2524,8 @@ class Generator:
             current_func = search_curr_func[0]
             func_file_location = current_func["location"]["fullpath"]
             compiler_info = self.__get_compile_command(func_file_location)
-            include_subdir = []
+            
+            include_subdir = [] # List of Pathlib (-I parameters) in compile command. 
 
             if os.path.exists(compiler_info["location"]):
                 current_location = os.getcwd()
@@ -2583,11 +2584,12 @@ class Generator:
 
             current_include = []
             if not include_subdir:
-                for i in resolved_include_paths:
-                    current_include.append("-I" + i + "/")
+                if resolved_include_paths:
+                    for i in resolved_include_paths:
+                        current_include.append("-I" + i.as_posix() + "/")
             else:
                 for i in include_subdir:
-                    current_include.append(i)
+                    current_include.append(i.as_posix())
 
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
@@ -2619,12 +2621,14 @@ class Generator:
         print("-- [Futag] collecting result ...")
 
         succeeded_tree = set()
+        succeeded_dir = set()
         # for compiled_target in compiled_targets_list:
         #     if compiled_target.parents[0].as_posix() not in succeeded_tree:
         #         succeeded_tree.add(compiled_target.parents[0].as_posix())
         for compiled_target in compiled_targets_list:
             if compiled_target not in succeeded_tree:
                 succeeded_tree.add(compiled_target)
+                succeeded_dir.add(compiled_target.parents[0])
         for dir in succeeded_tree:
             if not (self.succeeded_path / dir.parents[1].name).exists():
                 ((self.succeeded_path /
@@ -2644,11 +2648,12 @@ class Generator:
                 if target not in failed_tree:
                     failed_tree.add(target)
             for dir in failed_tree:
-                if not (self.failed_path / dir.parents[1].name).exists():
-                    ((self.failed_path /
-                     dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-                # shutil.move(dir.parents[0].as_posix(), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-                copy_tree(dir.parents[0].as_posix(),(self.failed_path / dir.parents[1].name).as_posix())
+                if dir.parents[0] not in succeeded_dir :
+                    if not (self.failed_path / dir.parents[1].name).exists():
+                        ((self.failed_path /
+                        dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
+                    # shutil.move(dir.parents[0].as_posix(), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+                    copy_tree(dir.parents[0].as_posix(),(self.failed_path / dir.parents[1].name).as_posix())
         else:
             delete_folder(self.failed_path)
         if not keep_original:
@@ -4431,11 +4436,12 @@ class ContextGenerator:
 
             current_include = []
             if not include_subdir:
-                for i in resolved_include_paths:
-                    current_include.append("-I" + i.as_posix()  + "/")
+                if resolved_include_paths:
+                    for i in resolved_include_paths:
+                        current_include.append("-I" + i.as_posix() + "/")
             else:
                 for i in include_subdir:
-                    current_include.append(i)
+                    current_include.append(i.as_posix())
 
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
@@ -4467,12 +4473,14 @@ class ContextGenerator:
         print("-- [Futag] collecting result ...")
 
         succeeded_tree = set()
+        succeeded_dir = set()
         # for compiled_target in compiled_targets_list:
         #     if compiled_target.parents[0].as_posix() not in succeeded_tree:
         #         succeeded_tree.add(compiled_target.parents[0].as_posix())
         for compiled_target in compiled_targets_list:
             if compiled_target not in succeeded_tree:
                 succeeded_tree.add(compiled_target)
+                succeeded_dir.add(compiled_target.parents[0])
         for dir in succeeded_tree:
             if not (self.succeeded_path / dir.parents[1].name).exists():
                 ((self.succeeded_path /
@@ -4494,13 +4502,14 @@ class ContextGenerator:
                 if target not in failed_tree:
                     failed_tree.add(target)
             for dir in failed_tree:
-                if not (self.failed_path / dir.parents[1].name).exists():
-                    ((self.failed_path /
-                     dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
-                # shutil.move(dir.parents[0].as_posix(
-                # ), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-                copy_tree(dir.parents[0].as_posix(
-                ), (self.failed_path / dir.parents[1].name).as_posix())
+                if dir.parents[0] not in succeeded_dir :
+                    if not (self.failed_path / dir.parents[1].name).exists():
+                        ((self.failed_path /
+                        dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
+                    # shutil.move(dir.parents[0].as_posix(
+                    # ), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
+                    copy_tree(dir.parents[0].as_posix(
+                    ), (self.failed_path / dir.parents[1].name).as_posix())
         else:
             delete_folder(self.failed_path)
 
