@@ -2589,7 +2589,7 @@ class Generator:
                         current_include.append("-I" + i.as_posix() + "/")
             else:
                 for i in include_subdir:
-                    current_include.append(i.as_posix())
+                    current_include.append(i)
 
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
@@ -4441,7 +4441,7 @@ class ContextGenerator:
                         current_include.append("-I" + i.as_posix() + "/")
             else:
                 for i in include_subdir:
-                    current_include.append(i.as_posix())
+                    current_include.append(i)
 
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
