@@ -93,7 +93,7 @@ FUTAG  использует, в  качестве внешнего интерф�
 - Предварительно должен быть установлен пакет futag-<версия>.tar.gz по пути futag-llvm/python-package/:
 ```bash
   ~$ pip install -r futag-llvm/python-package/requirements.txt
-  ~$ pip install futag-llvm/python-package/futag-2.0.1.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-2.0.4.tar.gz
 ```
 - Для того, чтобы Futag генерировал фаззинг-обертки в формате AFLplusplus необходимо запустить скрипт futag-llvm/export.sh
 

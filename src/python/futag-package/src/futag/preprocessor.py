@@ -405,9 +405,9 @@ class Builder:
             # Doing make for building
 
             my_env = os.environ.copy()
-            my_env["CFLAGS"] = self.flags
-            my_env["CPPFLAGS"] = self.flags
-            my_env["LDFLAGS"] = self.flags
+            my_env["CFLAGS"] ="'" + self.flags + "'"
+            my_env["CPPFLAGS"] ="'" + self.flags + "'"
+            my_env["LDFLAGS"] ="'" + self.flags + "'"
             my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
             my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
             # my_env["ASAN_OPTIONS="] = "handle_segv=0;detect_leaks=0"
@@ -439,12 +439,12 @@ class Builder:
             if self.processes > 1:
                 make_command = make_command + ["-j" + str(self.processes)]
             make_command = make_command + [
-                f"CC={(self.futag_llvm_package / 'bin/clang').as_posix()}",
-                f"CXX={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
-                f"CFLAGS='{self.flags}'",
-                f"CPPFLAGS='{self.flags}'",
-                f"CXXFLAGS='{self.flags}'",
-                f"LDFLAGS='{self.flags}'",
+                # f"CC={(self.futag_llvm_package / 'bin/clang').as_posix()}",
+                # f"CXX={(self.futag_llvm_package / 'bin/clang++').as_posix()}",
+                # f"CFLAGS='{self.flags}'",
+                # f"CPPFLAGS='{self.flags}'",
+                # f"CXXFLAGS='{self.flags}'",
+                # f"LDFLAGS='{self.flags}'",
             ]
             p = Popen(make_command, stdout=PIPE,
                       stderr=PIPE, universal_newlines=True, env=my_env)

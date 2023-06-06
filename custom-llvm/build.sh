@@ -75,11 +75,9 @@ cp -r $futag_src/python/*.py $futag_install_folder/python-package
 cp -r $futag_src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
+
 cp $custom_prepare/buildAFLplusplus.sh $futag_install_folder/
-if [ ! -f 4.02c.tar.gz ]; then
-    wget https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
-fi
-mv 4.02c.tar.gz $futag_install_folder/
+
 cd ../product-tests
 
 XZ_OPT='-T'$(($(nproc)/2))' -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm

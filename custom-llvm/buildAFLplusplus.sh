@@ -18,7 +18,6 @@ echo "*             a tool of ISP RAS                *"
 echo "************************************************"
 echo ""
 
-
 SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 echo "Exporting Futag path for AFLplusplus: "$SCRIPTPATH
 echo ""
@@ -28,6 +27,11 @@ export LLVM_CONFIG="$SCRIPTPATH/bin/llvm-config"
 export LD_LIBRARY_PATH="$(llvm-config --libdir)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
 futag_install_folder="$SCRIPTPATH"
+
+if [ ! -f 4.02c.tar.gz ]; then
+    wget https://github.com/AFLplusplus/AFLplusplus/archive/refs/tags/4.02c.tar.gz
+fi
+mv 4.02c.tar.gz $futag_install_folder/
 
 cd $SCRIPTPATH
 tar xf 4.02c.tar.gz
