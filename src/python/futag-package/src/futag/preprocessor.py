@@ -379,10 +379,6 @@ class Builder:
         print(LIB_ANALYZING_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
         
-        p = Popen(analysis_command, stdout=PIPE,
-                  stderr=PIPE, universal_newlines=True)
-
-        output, errors = p.communicate()
         if p.returncode:
             print(errors)
             sys.exit(LIB_ANALYZING_FAILED)
@@ -405,9 +401,9 @@ class Builder:
             # Doing make for building
 
             my_env = os.environ.copy()
-            my_env["CFLAGS"] ="'" + self.flags + "'"
-            my_env["CPPFLAGS"] ="'" + self.flags + "'"
-            my_env["LDFLAGS"] ="'" + self.flags + "'"
+            my_env["CFLAGS"] =self.flags
+            my_env["CPPFLAGS"] =self.flags
+            my_env["LDFLAGS"] =self.flags
             my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
             my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
             # my_env["ASAN_OPTIONS="] = "handle_segv=0;detect_leaks=0"
