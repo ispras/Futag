@@ -174,7 +174,7 @@ class Builder:
             "cmake",
             f"-DLLVM_CONFIG_PATH={(self.futag_llvm_package / 'bin/llvm-config').as_posix()}",
             f"-DCMAKE_INSTALL_PREFIX={self.install_path.as_posix()}",
-            # f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
+            f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.library_root.as_posix()}"
         ]
@@ -240,7 +240,7 @@ class Builder:
             f"-DCMAKE_C_COMPILER={(self.futag_llvm_package / 'bin/clang').as_posix()}",
             f"-DCMAKE_C_FLAGS='{self.flags}'",
             f"-B{(self.build_path).as_posix()}",
-            f"-S{self.library_root.as_posix()}"
+            f"-S{self.library_root.as_posix()}",f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
         ]
 
         # my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
@@ -980,7 +980,7 @@ class ConsumerBuilder:
             "cplusplus",
             "cmake",
             f"-DLLVM_CONFIG_PATH={(self.futag_llvm_package / 'bin/llvm-config').as_posix()}",
-            # f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
+            f"-DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             f"-B{(self.build_path).as_posix()}",
             f"-S{self.consumer_root.as_posix()}"
         ]
