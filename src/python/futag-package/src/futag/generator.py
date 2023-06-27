@@ -673,7 +673,7 @@ class Generator:
             "buffer_size": buffer_size
         }
 
-    def __gen_union(self, param_name, class_record, gen_type_info):
+    def __gen_union(self, param_name, gen_type_info):
         """Declare and assign value for a union type
 
         Args:
@@ -3339,7 +3339,7 @@ class ContextGenerator:
             "buffer_size": buffer_size
         }
 
-    def __gen_union(self, param_name, class_record, gen_type_info):
+    def __gen_union(self, param_name, gen_type_info):
         """Declare and assign value for a union type
 
         Args:
