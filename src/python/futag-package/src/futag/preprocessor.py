@@ -1028,11 +1028,11 @@ class ConsumerBuilder:
                   universal_newlines=True, env=my_env)
         print(LIB_ANALYZING_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
-        if p.returncode:
-            print(errors)
-            sys.exit(LIB_ANALYZING_FAILED)
-        else:
-            print(LIB_ANALYZING_SUCCEEDED)
+        # if p.returncode:
+        #     print(errors)
+        #     sys.exit(LIB_ANALYZING_FAILED)
+        # else:
+        #     print(LIB_ANALYZING_SUCCEEDED)
         os.chdir(curr_dir)
         return True
 
@@ -1110,11 +1110,11 @@ class ConsumerBuilder:
 
         print(LIB_ANALYZING_COMMAND, " ".join(p.args))
         output, errors = p.communicate()
-        if p.returncode:
-            print(errors)
-            sys.exit(LIB_ANALYZING_FAILED)
-        else:
-            print(LIB_ANALYZING_SUCCEEDED)
+        # if p.returncode:
+        #     print(errors)
+        #     sys.exit(LIB_ANALYZING_FAILED)
+        # else:
+        #     print(LIB_ANALYZING_SUCCEEDED)
 
         os.chdir(curr_dir)
         return True

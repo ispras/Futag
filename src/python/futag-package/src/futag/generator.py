@@ -1880,18 +1880,37 @@ class Generator:
             else:
                 f.write(AFLPLUSPLUS_PREFIX)
 
-            # buffer_check = "    if (Fuzz_Size < " + \
-            #     str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) +" + str(self.dyn_cxxstring_size_idx) + "*sizeof(char) + " + str(self.dyn_cstring_size_idx) + " + " + str(self.file_idx)
-            buffer_check = str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) + " + str(self.dyn_cxxstring_size_idx) + \
-                "*sizeof(char) + " + str(self.dyn_cstring_size_idx) + \
-                " + " + str(self.file_idx)
+            # buffer_check = str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) + " + str(self.dyn_cxxstring_size_idx) + \
+            #     "*sizeof(char) + " + str(self.dyn_cstring_size_idx) + \
+            #     " + " + str(self.file_idx)
+            buffer_check_list =[]
+            wchar_t_check = ""
+            if self.dyn_wstring_size_idx > 0:
+                wchar_t_check = str(self.dyn_wstring_size_idx) + " * sizeof(wchar_t)"
+                buffer_check_list.append(wchar_t_check)
+            dyn_cstring_check = ""
+            if self.dyn_cstring_size_idx > 0:
+                dyn_cstring_check = str(self.dyn_cstring_size_idx) + " * sizeof(char)"
+                buffer_check_list.append(dyn_cstring_check)
+            file_idx_check = ""
+            if self.file_idx > 0:
+                file_idx_check = str(self.file_idx)
+                buffer_check_list.append(file_idx_check)
+
+            buffer_check = ""
             if self.buffer_size:
-                buffer_check += " + " + " + ".join(self.buffer_size)
+                if buffer_check_list:
+                   buffer_check = "+".join(buffer_check_list) + " + " + " + ".join(self.buffer_size)
+                else:
+                    buffer_check = " + ".join(self.buffer_size)
+            else:
+                buffer_check = "+".join(buffer_check_list)
+
             f.write("    if (Fuzz_Size < " + buffer_check + ") return 0;\n")
 
             if self.dyn_cstring_size_idx > 0:
                 f.write(
-                    "    size_t dyn_cstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check + " )));\n")
+                    "    size_t dyn_cstring_buffer = (size_t) (Fuzz_Size + "+ str(self.dyn_cstring_size_idx) +"*sizeof(char) - (" + buffer_check + " ));\n")
                 f.write("    //generate random array of dynamic string sizes\n")
                 f.write("    size_t dyn_cstring_size[" +
                         str(self.dyn_cstring_size_idx) + "];\n")
@@ -1918,8 +1937,8 @@ class Generator:
                     "    //end of generation random array of dynamic string sizes\n")
 
             if self.dyn_wstring_size_idx > 0:
-                f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" +
-                        buffer_check + " )))/sizeof(wchar_t);\n")
+                f.write("    size_t dyn_wstring_buffer = (size_t) (Fuzz_Size + " + str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) - (" +
+                        buffer_check + " ))/sizeof(wchar_t);\n")
                 f.write("    //generate random array of dynamic string sizes\n")
                 f.write("    size_t dyn_wstring_size[" +
                         str(self.dyn_wstring_size_idx) + "];\n")
@@ -1947,7 +1966,7 @@ class Generator:
 
             if self.dyn_cxxstring_size_idx > 0:
                 f.write(
-                    "    size_t dyn_cxxstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check + " )));\n")
+                    "    size_t dyn_cxxstring_buffer = (size_t) (Fuzz_Size  - (" + buffer_check + " ));\n")
                 f.write("    //generate random array of dynamic string sizes\n")
                 f.write("    size_t dyn_cxxstring_size[" +
                         str(self.dyn_cxxstring_size_idx) + "];\n")
@@ -1975,8 +1994,8 @@ class Generator:
                     "    //end of generation random array of dynamic string sizes\n")
 
             if self.file_idx > 0:
-                f.write("    size_t file_buffer = (size_t) ((Fuzz_Size + " +
-                        str(self.file_idx) + " - (" + buffer_check + " )));\n")
+                f.write("    size_t file_buffer = (size_t) (Fuzz_Size + " +
+                        str(self.file_idx) + " - (" + buffer_check + " ));\n")
                 f.write("    //generate random array of dynamic file sizes\n")
                 f.write("    size_t file_size[" +
                         str(self.file_idx) + "];\n")
