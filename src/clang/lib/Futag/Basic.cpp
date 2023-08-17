@@ -13,7 +13,7 @@
  *             a tool of ISP RAS                *
  ************************************************
  *
- * @version 2.0.4
+ * @version 2.0.5
  * @date 2023-04-17
  *
  * @copyright This file is distributed under the GPL v3 license

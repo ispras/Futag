@@ -38,6 +38,7 @@ INVALID_ANALYSIS_PATH = "-- [Futag]: Incorrect path to analysis folder"
 INVALID_ANALYSIS_FILE = "-- [Futag]: Incorrect path to analysis result file"
 INVALID_CONTEXT_FILE_PATH = "-- [Futag]: Incorrect path to consumer context file"
 INVALID_LIBPATH = "-- [Futag]: Incorrect path to the library root"
+INVALID_NATCH_JSON = "-- [Futag]: Incorrect path to JSON file from Natch."
 INVALID_CONSUMER_PATH = "-- [Futag]: Incorrect path to the consumer program"
 INVALID_DB_FILEPATH = "-- [Futag]: analysis result of testing library not found"
 INVALID_BUILPATH = "-- [Futag]: Incorrect path to the library build path"
@@ -69,7 +70,7 @@ MAKEFILE_FOUND = "-- [Futag]: File Makefile found, trying to build library with 
 INVALID_TARGET_TYPE = "-- [Futag] Error: Unknown type of fuzz-driver for generating!"
 
 # message for Natch
-COULD_NOT_PARSE_NATCH_CALLSTACK = "-- [Futag] Error: Could not parse file!"
+COULD_NOT_PARSE_NATCH_CALLSTACK = "-- [Futag] Error: Could not parse JSON file!"
 
 
 # messages for GENERATOR

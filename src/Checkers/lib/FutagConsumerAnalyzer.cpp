@@ -2,7 +2,7 @@
  * @file FutagConsumerAnalyzer.cpp
  * @author Tran Chi Thien
  * @brief 
- * @version 2.0.4
+ * @version 2.0.5
  * @date 2023-04-17
  * 
  * @copyright Copyright (c) 2023
@@ -516,6 +516,10 @@ void FutagConsumerAnalyzer::AnalyzeVisitedFunctionDecl(
         llvm::outs() << "[Futag]: Print contexts\n";
         // Build the CFG of current function
         CFG *cfg = Mgr.getCFG(func);
+        //To speed up the analyzer for normal computer, we analyze only simple functions with number of block in CFG <= 30
+        if(cfg->size() > 30) {
+            return ;
+        }
         if (!cfg) {
             llvm::outs() << "-- Empty CFG for function: "
                          << func->getNameAsString() << "\n";

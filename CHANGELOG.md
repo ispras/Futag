@@ -81,3 +81,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## 20230522
 - Fix error in generator
 - Add generation for pugi::char_t *&
+
+## 20230711
+- Support generation fuzz driver for Natch data: https://github.com/thientc/Futag-tests/tree/main/Natch
+
+## 20230807
+- Optimize ConsumerBuilder
+- Add example for context-generation https://github.com/thientc/Futag-tests/tree/main/json-c-contexts
