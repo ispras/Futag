@@ -1562,6 +1562,13 @@ class Generator:
                         curr_gen = self.__gen_builtin(curr_name, gen_type_info)
                         self.__append_gen_dict(curr_gen)
 
+                if gen_type_info["gen_type"] == GEN_CFILE:
+                    # GEN FILE NAME OR # GEN STRING
+                    curr_name = "fc_" + curr_name  # string_prefix
+                    self.file_idx += 1
+                    curr_gen = self.__gen_input_file(curr_name, gen_type_info)
+                    self.__append_gen_dict(curr_gen)
+
                 if gen_type_info["gen_type"] == GEN_CSTRING:
                     # GEN FILE NAME OR # GEN STRING
                     if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
@@ -2682,7 +2689,7 @@ class Generator:
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
                 # for target_src in [t for t in dir.glob("*"+self.target_extension) if t.is_file()]:
-                for target_src in [t for t in dir.glob("*") if t.is_file() and t.suffix in [".c", ".cc", ".cpp"]]:
+                for target_src in [t for t in dir.glob("*") if t.is_file() and t.suffix in [".c", ".cc", ".cpp", ".log"]]:
                     target_path = dir.as_posix() + "/" + target_src.stem + ".out"
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
