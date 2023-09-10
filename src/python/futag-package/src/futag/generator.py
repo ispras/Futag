@@ -31,7 +31,7 @@ from distutils.dir_util import copy_tree
 class Generator:
     """Futag Generator"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH):
+    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str="."):
         """ Constructor of Generator class.
 
         Args:
@@ -75,6 +75,7 @@ class Generator:
         self.curr_gen_string = -1
         self.param_list = []
         self.var_function_idx = 0
+        self.delimiter = delimiter
 
         # save the list of generated function for debugging
         self.target_extension = ""
@@ -1121,7 +1122,7 @@ class Generator:
                 "file": None,
                 "msg": "Error: File name is too long (>250 characters)!"
             }
-        dir_name = filename + str(file_index)
+        dir_name = filename + self.delimiter + str(file_index)
 
         if not (filepath / filename).exists():
             (filepath / filename).mkdir(parents=True, exist_ok=True)
@@ -1131,7 +1132,7 @@ class Generator:
 
         while (filepath / filename / dir_name).exists():
             file_index += 1
-            dir_name = filename + str(file_index)
+            dir_name = filename + self.delimiter + str(file_index)
             if file_index > self.max_wrappers:
                 break
 
@@ -1142,7 +1143,7 @@ class Generator:
             }
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
-        file_name = filename + \
+        file_name = filename + self.delimiter + \
             str(file_index) + "." + self.target_extension
 
         full_path = (filepath / filename / dir_name / file_name).as_posix()
@@ -2620,16 +2621,15 @@ class Generator:
             compiler_info = self.__get_compile_command(func_file_location)
 
             # List of Pathlib (-I parameters) in compile command.
-            include_subdir = []
-
+            # include_subdir = []
+            include_paths = []
             if os.path.exists(compiler_info["location"]):
                 current_location = os.getcwd()
                 os.chdir(compiler_info["location"])
                 for iter in compiler_info["command"].split(" "):
                     if iter[0:2] == "-I":
                         if pathlib.Path(iter[2:]).exists():
-                            include_subdir.append(
-                                "-I" + pathlib.Path(iter[2:]).absolute().as_posix() + "/")
+                            include_paths.append(pathlib.Path(iter[2:]).absolute().as_posix())
                 os.chdir(current_location)
 
                 if not "-fPIE" in compiler_flags_aflplusplus:
@@ -2658,9 +2658,12 @@ class Generator:
             for compiled_file in self.target_library["compiled_files"]:
                 if func_file_location == compiled_file["filename"]:
                     compilation_opts = compiled_file["compiler_opts"]
+                    for i in compiled_file["include_paths"]:
+                        include_paths.append(i)
+
             current_func_compilation_opts = compilation_opts.split(' ')
             # Extract all include locations from compilation options
-            include_paths: List[pathlib.Path] = map(
+            compilation_opts_include_paths: List[pathlib.Path] = map(
                 pathlib.Path,
                 map(
                     current_func_compilation_opts.__getitem__,
@@ -2668,28 +2671,15 @@ class Generator:
                         x in enumerate(current_func_compilation_opts) if x == '-I']
                 ))
 
-            resolved_include_paths: List[pathlib.Path] = []
-            for include_path in include_paths:
-                if include_path.is_absolute():
-                    resolved_include_paths.append(include_path)
-                else:
-                    # Resolve relative include paths (e.g. in this case: -I.. -I.)
-                    resolved_include_paths.append(
-                        pathlib.Path(include_path).absolute())
-
-            current_include = []
-            if not include_subdir:
-                if resolved_include_paths:
-                    for i in resolved_include_paths:
-                        current_include.append("-I" + i.as_posix() + "/")
-            else:
-                for i in include_subdir:
-                    current_include.append(i)
-
+            for include_path in compilation_opts_include_paths:
+                include_paths.append(
+                        pathlib.Path(include_path).absolute().as_posix())
+            current_include = ["-I" + x for x in include_paths]
+            current_include = list(set(current_include))
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
-                # for target_src in [t for t in dir.glob("*"+self.target_extension) if t.is_file()]:
-                for target_src in [t for t in dir.glob("*") if t.is_file() and t.suffix in [".c", ".cc", ".cpp", ".log"]]:
+                # for target_src in [t for t in dir.glob("*") if t.is_file() and t.suffix in [".c", ".cc", ".cpp", ".log"]]:
+                for target_src in [t for t in dir.glob("*") if t.is_file() and t.suffix in [".c", ".cc", ".cpp"]]:
                     target_path = dir.as_posix() + "/" + target_src.stem + ".out"
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
@@ -3823,7 +3813,7 @@ class ContextGenerator:
                 "file": None,
                 "msg": "Error: File name is too long (>250 characters)!"
             }
-        dir_name = filename + str(file_index)
+        dir_name = filename + self.delimiter + str(file_index)
 
         if not (filepath / filename).exists():
             (filepath / filename).mkdir(parents=True, exist_ok=True)
@@ -3833,7 +3823,7 @@ class ContextGenerator:
 
         while (filepath / filename / dir_name).exists():
             file_index += 1
-            dir_name = filename + str(file_index)
+            dir_name = filename + self.delimiter + str(file_index)
             if file_index > self.max_wrappers:
                 break
 
@@ -3844,7 +3834,7 @@ class ContextGenerator:
             }
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
-        file_name = filename + \
+        file_name = filename + self.delimiter + \
             str(file_index) + "." + self.target_extension
 
         full_path = (filepath / filename / dir_name / file_name).as_posix()
@@ -6079,7 +6069,7 @@ class NatchGenerator:
                 "file": None,
                 "msg": "Error: File name is too long (>250 characters)!"
             }
-        dir_name = filename + str(file_index)
+        dir_name = filename + self.delimiter + str(file_index)
 
         if not (filepath / filename).exists():
             (filepath / filename).mkdir(parents=True, exist_ok=True)
@@ -6089,7 +6079,7 @@ class NatchGenerator:
 
         while (filepath / filename / dir_name).exists():
             file_index += 1
-            dir_name = filename + str(file_index)
+            dir_name = filename + self.delimiter + str(file_index)
             if file_index > self.max_wrappers:
                 break
 
@@ -6100,7 +6090,7 @@ class NatchGenerator:
             }
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
-        file_name = filename + \
+        file_name = filename + self.delimiter + \
             str(file_index) + "." + self.target_extension
 
         full_path = (filepath / filename / dir_name / file_name).as_posix()

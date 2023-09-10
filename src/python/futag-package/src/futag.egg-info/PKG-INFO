@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: futag
-Version: 2.0.5
+Version: 2.1.0
 Summary: Futag tools for creating fuzz targets of software library
 Home-page: https://github.com/ispras/Futag/tree/main/src/python/futag-package
 Author: Futag-team of ISP RAS
@@ -13,6 +13,8 @@ Classifier: Operating System :: OS Independent
 Requires-Python: >=3.6
 Description-Content-Type: text/markdown
 License-File: LICENSE
+Requires-Dist: pathlib
+Requires-Dist: argparse
 
 # Python package of Futag
 ```bash
@@ -36,7 +38,7 @@ This python package is for building library, generating and compiling fuzz-drive
 ## 1. Install
 
 ```bash 
-pip install dist/futag-2.0.5.tar.gz
+pip install dist/futag-2.1.0.tar.gz
 ```
 
 ## 2. Preprocessor
