@@ -237,6 +237,10 @@ def NonnullGlobalConstantsChecker: Checker<"NonnilStringConstants">,
 //===----------------------------------------------------------------------===//
 let ParentPackage = Futag in {
 
+    def SimpleChecker : Checker<"FutagSimpleChecker">,
+    HelpText<"Futag Simple Checker for traversing nodes in AST.">,
+    Documentation<NotDocumented>;
+
     def FutagAnalyzer : Checker<"FutagAnalyzer">,
     HelpText<"Futag Checker for finding potential fuzzing functions. Use scan-build for viewing result and generating list of needed function">,
     CheckerOptions<[

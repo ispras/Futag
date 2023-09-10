@@ -746,6 +746,7 @@ class Builder:
                 with open(compiled_file['file'], "r", errors="ignore") as f:
                     code = f.readlines()
             headers = []
+            include_paths = []
             for line in code:
                 include = re.match(match_include, line)
                 if include:
@@ -753,10 +754,14 @@ class Builder:
                     for i in compiled_file['includes']:
                         if header[1:-1].split("/")[-1] == i.split('/')[-1] and header[1:-1] in i:
                             headers.append(header)
+                            p = pathlib.Path(header[1:-1])
+                            if p and header[0] != '<' and p.absolute().parents[0].as_posix() not in include_paths:
+                                include_paths.append(p.absolute().parents[0].as_posix())
 
             compiled_files.append({
                 "filename": compiled_file['file'],
                 "headers": headers,
+                "include_paths": include_paths,
                 "compiler_opts": compiled_file['compiler_opts'],
             })
 

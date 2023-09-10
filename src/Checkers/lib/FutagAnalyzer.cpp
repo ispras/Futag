@@ -2,8 +2,8 @@
  * @file FutagAnalyzer.cpp
  * @author Tran Chi Thien (thientcgithub@gmail.com)
  * @brief
- * @version 2.0.5
- * @date 2023-04-17
+ * @version 2.1.0
+ * @date 2023-08-30
  *
  * @copyright Copyright (c) 2023
  *
@@ -286,7 +286,7 @@ void FutagAnalyzer::CollectBasicFunctionInfo(
     }
     // We may have already collected information about xrefs, but other fields
     // should not exist
-    if(!curr_json_context[curr_func_hash].contains("fuzz_it")){
+if(!curr_json_context[curr_func_hash].contains("fuzz_it")){
         curr_json_context[curr_func_hash].update(basic_function_info);
     }
 
@@ -371,7 +371,7 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
     // Save all relevant includes
     const SourceManager &sm = Mgr.getASTContext().getSourceManager();
     if (!sm.getMainFileID().isValid()) {
-        return;
+    return;
     }
     for (auto it = sm.fileinfo_begin(); it != sm.fileinfo_end(); it++) {
 
@@ -380,8 +380,6 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
         string include_path =
             utils::PathProcessor::RemoveUnnecessaryPathComponents(
                 it->first->getName().str());
-        // include_path[0] != '/' - is probably an awfully bad check to avoid
-        // system headers, but I couldn't find any way around
         if (includeLoc.isValid() && sm.isInMainFile(includeLoc)) {
             mIncludesInfo["includes"].push_back(include_path);
         }
@@ -448,13 +446,13 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     if (!func->hasBody() || !func->isThisDeclarationADefinition()) {
         return;
     }
-
+    
     FullSourceLoc func_begin_loc =
         Mgr.getASTContext().getFullLoc(func->getBeginLoc());
     FullSourceLoc func_end_loc =
         Mgr.getASTContext().getFullLoc(func->getEndLoc());
     if (!func_begin_loc.getFileEntry()) {
-        return;
+    return;
     }
     int32_t curr_func_begin_loc = func_begin_loc.getSpellingLineNumber();
     auto fe = func_begin_loc.getFileEntry();
@@ -470,7 +468,7 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     } else {
         file_name = fe->tryGetRealPathName().str();
     }
-    futag::FunctionType function_type = futag::_FUNC_UNKNOW_RECORD;
+        futag::FunctionType function_type = futag::_FUNC_UNKNOW_RECORD;
     if (isa<CXXMethodDecl>(func)) {
         auto method_decl = dyn_cast<CXXMethodDecl>(func);
         function_type = futag::_FUNC_CXXMETHOD;
@@ -503,7 +501,7 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     // Collect basic information about current function
     CollectBasicFunctionInfo(m_func_decl_info, func, Mgr, curr_func_begin_loc,
                              file_name, function_type, parent_hash);
-    CollectAdvancedFunctionInfo(m_call_context_info, func, Mgr, file_name);
+        CollectAdvancedFunctionInfo(m_call_context_info, func, Mgr, file_name);
     return;
 }
 
