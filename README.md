@@ -34,7 +34,7 @@ FUTAG  использует, в  качестве внешнего интерф�
 Вы можете попробовать собрать Futag с готовыми [Докер-файлами](https://github.com/ispras/Futag/tree/main/product-tests/build-test) для ОС Ubuntu.
 
 ## 2.2. Использование предварительно упакованного пакета
-- Загрузите последнюю версию [futag-llvm.2.0.4.tar.xz](https://github.com/ispras/Futag/releases/tag/2.0.4) и разархивируйте. В результате инструмент будет установлен в директорию futag-llvm.
+- Загрузите последнюю версию [futag-llvm.2.1.0.tar.xz](https://github.com/ispras/Futag/releases/tag/2.1.0) и разархивируйте. В результате инструмент будет установлен в директорию futag-llvm.
 - Для сборки AFLplusplus запустите скрипт buildAFLplusplus.sh в futag-llvm
 
 ```bash
@@ -51,7 +51,7 @@ FUTAG  использует, в  качестве внешнего интерф�
 - [CMake](https://cmake.org/) >=3.13.4 [cmake-3.19.3-Linux-x86_64.sh](https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) - Makefile/workspace generator
 - [GCC](https://gcc.gnu.org/)>=7.1.0 C/C++ compiler
 - [Python](https://www.python.org/) >=3.8 Automated test suite.
-- [pip](https://pypi.org/project/pip/) >=22.0.4
+- [pip](https://pypi.org/project/pip/) >=22.1.0
 - [zlib](http://zlib.net/) >=1.2.3.4 Compression library
 - [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1 Makefile/build processor
 - [Binutils](https://www.gnu.org/software/binutils/)
@@ -94,7 +94,7 @@ FUTAG  использует, в  качестве внешнего интерф�
 - Предварительно должен быть установлен пакет futag-<версия>.tar.gz по пути futag-llvm/python-package/:
 ```bash
   ~$ pip install -r futag-llvm/python-package/requirements.txt
-  ~$ pip install futag-llvm/python-package/futag-2.0.4.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-2.1.0.tar.gz
 ```
 - Для того, чтобы Futag генерировал фаззинг-обертки в формате AFLplusplus необходимо запустить скрипт futag-llvm/export.sh
 
