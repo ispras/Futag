@@ -19,7 +19,7 @@ RUN ./get-Futag.sh
 
 USER root
 WORKDIR /home/futag/Futag/
-RUN pip install futag-llvm/python-package/futag-2.0.1.tar.gz
+RUN pip install futag-llvm/python-package/futag-2.1.0.tar.gz
 RUN pip install -r futag-llvm/python-package/requirements.txt
 
 USER futag 
