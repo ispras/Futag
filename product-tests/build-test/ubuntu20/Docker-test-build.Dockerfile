@@ -26,4 +26,4 @@ RUN ./buildAFLplusplus.sh
 
 USER root
 WORKDIR /home/futag/Futag/
-RUN pip install futag-llvm/python-package/futag-2.0.4.tar.gz
+RUN pip install futag-llvm/python-package/futag-2.1.0.tar.gz
