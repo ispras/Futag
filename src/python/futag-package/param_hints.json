@@ -1,0 +1,26 @@
+{
+    "fixed_length":[{
+        "name":"arg1",
+        "length":1
+    },
+    {
+        "name":"arg2",
+        "length":2
+    }],
+    "true_pairs":[
+        {
+            "str": "buf1",
+            "len": "len1"
+        },
+        {
+            "str": "buf2",
+            "len": "len2"
+        }
+    ],
+    "false_pairs":[
+        {
+            "arg1": "arg1",
+            "arg2": "arg1"
+        }
+    ]
+}
