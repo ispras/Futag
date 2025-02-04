@@ -20,18 +20,19 @@ echo "************************************************"
 echo "* This script helps to download source code of *"
 echo "*            clang, llvm, compiler-rt          *"
 echo "************************************************"
-echo 
+echo
 llvmVersion=(1 2 )
 if [ $# -eq 0 ]; then
     echo "Futag will collect information for preparing build system."
     echo "========================================================="
     echo "-- [Futag] Select version of llvm for building:"
-    echo "-- 1. LLVM 14.0.6"
-    echo "-- 2. LLVM 13.0.1"
-    
-    read -p "-- Your choice (1/2 - default to 1): " selectedVersion 
+    echo "-- 1. LLVM 19.1.7"
+    echo "-- 2. LLVM 14.0.6"
+    echo "-- 3. LLVM 13.0.1"
+
+    read -p "-- Your choice (1/2/3 - default to 1): " selectedVersion
     if [[ ! " ${llvmVersion[*]} " =~ " ${selectedVersion} " ]]; then
-        echo "-- [Futag] Wrong input! Please enter 1 or 2! Exit..."
+        echo "-- [Futag] Wrong input! Please enter 1, 2 or 3! Exit..."
         exit
     fi
     echo "========================================================="
@@ -40,7 +41,7 @@ else
     selectedVersion=$1
     if [[ ! " ${llvmVersion[*]} " =~ " ${selectedVersion} " ]]; then
         echo
-        echo "-- [Futag] Wrong input! Please enter 1 or 2! Exit..."
+        echo "-- [Futag] Wrong input! Please enter 1, 2 or 3! Exit..."
         echo
         exit
     fi
@@ -83,6 +84,14 @@ if [ -d "llvm-project" ]; then
 fi
 if [ "$selectedVersion" == "1" ]; then
     echo "LLVM=14.0.6" > $file_info
+    if [ ! -f llvm-project-19.1.7.src.tar.xz ]; then
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/llvm-project-19.1.7.src.tar.xz
+    fi
+    tar xf llvm-project-19.1.7.src.tar.xz
+    mv llvm-project-19.1.7.src.tar.xz llvm-project
+fi
+if [ "$selectedVersion" == "2" ]; then
+    echo "LLVM=14.0.6" > $file_info
     if [ ! -f llvm-project-14.0.6.src.tar.xz ]; then
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-14.0.6/llvm-project-14.0.6.src.tar.xz
     fi
@@ -90,7 +99,7 @@ if [ "$selectedVersion" == "1" ]; then
     mv llvm-project-14.0.6.src llvm-project
 fi
 
-if [ "$selectedVersion" == "2" ]; then
+if [ "$selectedVersion" == "3" ]; then
     echo "LLVM=13.0.1" > $file_info
     if [ ! -f llvm-project-13.0.1.src.tar.xz ]; then
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-13.0.1/llvm-project-13.0.1.src.tar.xz
