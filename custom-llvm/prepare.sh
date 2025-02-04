@@ -88,7 +88,7 @@ if [ "$selectedVersion" == "1" ]; then
         wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/llvm-project-19.1.7.src.tar.xz
     fi
     tar xf llvm-project-19.1.7.src.tar.xz
-    mv llvm-project-19.1.7.src.tar.xz llvm-project
+    mv llvm-project-19.1.7.src llvm-project
 fi
 if [ "$selectedVersion" == "2" ]; then
     echo "LLVM=14.0.6" > $file_info
