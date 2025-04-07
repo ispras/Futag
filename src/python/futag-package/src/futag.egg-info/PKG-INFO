@@ -1,4 +1,4 @@
-Metadata-Version: 2.1
+Metadata-Version: 2.4
 Name: futag
 Version: 2.1.1
 Summary: Futag tools for creating fuzz targets of software library
@@ -15,6 +15,14 @@ Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: pathlib
 Requires-Dist: argparse
+Dynamic: author
+Dynamic: author-email
+Dynamic: description
+Dynamic: home-page
+Dynamic: license
+Dynamic: license-file
+Dynamic: requires-dist
+Dynamic: summary
 
 # Python package of Futag
 ```bash

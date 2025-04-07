@@ -31,7 +31,7 @@ from distutils.dir_util import copy_tree
 class Generator:
     """Futag Generator"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str=".", hint: str = ""):
+    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str="."):
         """ Constructor of Generator class.
 
         Args:
@@ -94,10 +94,10 @@ class Generator:
 
         if self.target_type == LIBFUZZER:
             if not pathlib.Path(self.futag_llvm_package / "bin/clang").exists():
-                sys.exit(COMPILER_NOT_FOUND + ": " + pathlib.Path(self.futag_llvm_package / "bin/clang").as_posix())
+                sys.exit(INVALID_FUTAG_PATH)
         else:
             if not pathlib.Path(self.futag_llvm_package / "AFLplusplus/usr/local/bin/afl-clang-fast").exists():
-                sys.exit(COMPILER_NOT_FOUND + ": " + pathlib.Path(self.futag_llvm_package / "AFLplusplus/usr/local/bin/afl-clang-fast").as_posix())
+                sys.exit(INVALID_FUTAG_PATH)
 
         if pathlib.Path(self.library_root).exists():
             self.library_root = pathlib.Path(self.library_root).absolute()
@@ -108,21 +108,7 @@ class Generator:
             self.json_file = self.library_root / ANALYSIS_FILE_PATH
         else:
             self.json_file = pathlib.Path(json_file)
-        
-        # Read the hints param_hints.json
-        if hint:
-            if pathlib.Path(json_file).exists():
-                f = open(self.json_file.as_posix())
-                if not f.closed:
-                    self.hint = json.load(f)
-                else:
-                    self.hint = None
-            else:
-                self.hint = None
-        else:
-            self.hint = None
-        
-        # check library db file
+
         if self.json_file.exists():
             f = open(self.json_file.as_posix())
             if not f.closed:
@@ -167,24 +153,6 @@ class Generator:
             sys.exit(INVALID_INSTALLPATH)
         self.install_path = self.library_root / install_path
 
-    def __find_true_pairs(self, first, last):
-        for pair in self.hint["true_pairs"]:
-            if first == pair["str"] and last == pair["len"]:
-                return True
-        return False
-    
-    def __find_false_pairs(self, first, last):
-        for pair in self.hint["false_pairs"]:
-            if first == pair["arg1"] and last == pair["arg2"]:
-                return True
-        return False
-
-    def __find_fix_length(self, name):
-        for pair in self.hint["fixed_length"]:
-            if name == pair["name"]:
-                return pair["length"]
-        return 0
-    
     def __get_compile_command(self, file):
         """ Get the compile command of given file
 
@@ -2145,30 +2113,27 @@ class Generator:
                             curr_name, gen_type_info)
                         self.__append_gen_dict(curr_gen)
                         break
-
                     # GEN STRING SIZE
-                    elif not self.hint:
-                        if param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
-                            if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
-                                dyn_size_idx = 0
-                                array_name = ""
-                                if func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
-                                    dyn_size_idx = self.dyn_cstring_size_idx
-                                    array_name = "dyn_cstring_size"
-                                elif func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
-                                    dyn_size_idx = self.dyn_wstring_size_idx
-                                    array_name = "dyn_wstring_size"
-                                else:
-                                    dyn_size_idx = self.dyn_cxxstring_size_idx
-                                    array_name = "dyn_cxxstring_size"
-                                curr_name = "sz_" + curr_name  # size_prefix
-                                curr_gen = self.__gen_strsize(
-                                    curr_name, curr_param["param_type"], dyn_size_idx, array_name)
-                                self.__append_gen_dict(curr_gen)
-                                this_gen_size = True
-                                break
-                    else:
-                        if self.__find_true_pairs()
+
+                    elif param_id > 0 and (func["params"][param_id - 1]["gen_list"][0]["gen_type"] in [GEN_CSTRING, GEN_WSTRING, GEN_CXXSTRING] or curr_param["param_usage"] == "SIZE_FIELD"):
+                        if gen_type_info["type_name"] in ["size_t", "unsigned char", "char", "int", "unsigned", "unsigned int", "short", "unsigned short", "short int", "unsigned short int"]:
+                            dyn_size_idx = 0
+                            array_name = ""
+                            if func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_CSTRING:
+                                dyn_size_idx = self.dyn_cstring_size_idx
+                                array_name = "dyn_cstring_size"
+                            elif func["params"][param_id - 1]["gen_list"][0]["gen_type"] == GEN_WSTRING:
+                                dyn_size_idx = self.dyn_wstring_size_idx
+                                array_name = "dyn_wstring_size"
+                            else:
+                                dyn_size_idx = self.dyn_cxxstring_size_idx
+                                array_name = "dyn_cxxstring_size"
+                            curr_name = "sz_" + curr_name  # size_prefix
+                            curr_gen = self.__gen_strsize(
+                                curr_name, curr_param["param_type"], dyn_size_idx, array_name)
+                            self.__append_gen_dict(curr_gen)
+                            this_gen_size = True
+                            break
                     if not this_gen_size:
                         curr_name = "b_" + curr_name  # builtin_prefix
                         curr_gen = self.__gen_builtin(curr_name, gen_type_info)
@@ -2686,8 +2651,6 @@ class Generator:
                 else:
                     compiler_path = self.futag_llvm_package / \
                         "AFLplusplus/usr/local/bin/afl-clang-fast++"
-            if not compiler_path.exists():
-                sys.exit(COMPILER_NOT_FOUND + ": " + compiler_path.as_poxis())
 
             current_func_compilation_opts = ""
             compilation_opts = ""
@@ -2805,7 +2768,7 @@ class Generator:
 class ContextGenerator:
     """Futag Context Generator"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, db_json_file: str = ANALYSIS_FILE_PATH, context_json_file: str = CONTEXT_FILE_PATH, output_path=CONTEXT_FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH):
+    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, db_json_file: str = ANALYSIS_FILE_PATH, context_json_file: str = CONTEXT_FILE_PATH, output_path=CONTEXT_FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str = '.'):
         """ Constructor of Generator class.
 
         Args:
@@ -2851,6 +2814,7 @@ class ContextGenerator:
         self.curr_gen_string = -1
         self.param_list = []
         self.var_function_idx = 0
+        self.delimiter = delimiter
 
         # save the list of generated function for debugging
         self.target_extension = ""
@@ -4556,8 +4520,6 @@ class ContextGenerator:
                 else:
                     compiler_path = self.futag_llvm_package / \
                         "AFLplusplus/usr/local/bin/afl-clang-fast++"
-            if not compiler_path.exists():
-                sys.exit(INVALID_COMPILER_PATH + ": " + compiler_path.as_poxis())
 
             current_func_compilation_opts = ""
             compilation_opts = ""

@@ -27,7 +27,7 @@ from futag.sysmsg import *
 class Fuzzer:
     """Futag Fuzzer"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False):
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = ""):
         """_summary_
 
         Args:
@@ -47,6 +47,7 @@ class Fuzzer:
 
         self.futag_llvm_package = futag_llvm_package
         self.fuzz_driver_path = fuzz_driver_path
+        self.source_path = source_path
 
         if Path(self.futag_llvm_package).exists():
             self.futag_llvm_package = Path(self.futag_llvm_package).absolute()
@@ -766,20 +767,22 @@ class Fuzzer:
                 stdout=cov_report_file,
                 stderr=PIPE,
             )
-
-            
+            source_path = []
+            if self.source_path:
+                source_path = [self.source_path]
+                
             llvm_cov_show = [
                 llvm_cov.as_posix(),
                 "show",
                 "-format=html",
                 "-instr-profile=" + (self.fuzz_driver_path / "futag-fuzz-result.profdata").as_posix(),
-            ] + object_files
+            ] + ["-output-dir="+ (self.fuzz_driver_path).as_posix()] + object_files + source_path
 
-            cov_filename = (self.fuzz_driver_path / "futag-coverage-result.html").as_posix()
-            cov_file = open(cov_filename, "w")
+            # cov_filename = (self.fuzz_driver_path / "futag-coverage-result.html").as_posix()
+            # cov_file = open(cov_filename, "w")
             p = Popen(
                 llvm_cov_show,
-                stdout=cov_file,
+                # stdout=cov_file,
                 stderr=PIPE,
             )
             if self.debug:
@@ -1546,11 +1549,11 @@ class NatchFuzzer:
             ]
             if self.debug:
                 print(" ".join(llvm_cov_report))
-            cov_report_filename = (self.fuzz_driver_path / "futag-coverage-report.txt").as_posix()
-            cov_report_file = open(cov_report_filename, "w")
+            # cov_report_filename = (self.fuzz_driver_path / "futag-coverage-report.txt").as_posix()
+            # cov_report_file = open(cov_report_filename, "w")
             p = Popen(
                 llvm_cov_report,
-                stdout=cov_report_file,
+                # stdout=cov_report_file,
                 stderr=PIPE,
             )
 
@@ -1562,11 +1565,11 @@ class NatchFuzzer:
                 "-instr-profile=" + (self.fuzz_driver_path / "futag-fuzz-result.profdata").as_posix(),
             ] + object_files
 
-            cov_filename = (self.fuzz_driver_path / "futag-coverage-result.html").as_posix()
-            cov_file = open(cov_filename, "w")
+            # cov_filename = (self.fuzz_driver_path / "futag-coverage-result.html").as_posix()
+            # cov_file = open(cov_filename, "w")
             p = Popen(
                 llvm_cov_show,
-                stdout=cov_file,
+                # stdout=cov_file,
                 stderr=PIPE,
             )
             if self.debug:

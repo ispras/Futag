@@ -104,7 +104,7 @@ class Builder:
         (self.library_root / analysis_path).mkdir(parents=True, exist_ok=True)
         self.analysis_path = self.library_root / analysis_path
         if not flags:
-            flags = DEBUG_FLAGS + " " + COMPILER_FLAGS
+            flags = DEBUG_FLAGS + " " + COMPILER_FLAGS + " " + COMPILER_COVERAGE_FLAGS
         self.flags = flags
         self.build_ex_params = build_ex_params
         self.intercept = intercept

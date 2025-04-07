@@ -1,10 +1,12 @@
 build
 build/**
-llvm-project/**
+build-scripts/
 llvm-project
 .vscode
 futag-llvm
-futag-llvm/**
+futag-install
+futag-build
+futag-build/**
 custom-llvm/INFO
 custom-llvm/*.tar.xz
 custom-llvm/futag-llvm/**
