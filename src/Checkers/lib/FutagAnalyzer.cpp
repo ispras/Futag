@@ -379,7 +379,7 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
             sm.getIncludeLoc(sm.translateFile(it->first));
         string include_path =
             utils::PathProcessor::RemoveUnnecessaryPathComponents(
-                it->first->getName().str());
+                it->first.getName().str());
         if (includeLoc.isValid() && sm.isInMainFile(includeLoc)) {
             mIncludesInfo["includes"].push_back(include_path);
         }
