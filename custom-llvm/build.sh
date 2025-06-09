@@ -45,6 +45,8 @@ ASTMatchFinderh="ASTMatchFinder$version.h"
 ASTMatchFindercpp="ASTMatchFinder$version.cpp"
 Checkerstd="Checkers$version.td"
 CheckerCMakeLists="CMakeLists$version.txt"
+FutagAnalyzer="FutagAnalyzer$version.cpp"
+FutagConsumerAnalyzer="FutagConsumerAnalyzer$version.cpp"
 
 cp -r $futag_src/clang/include/clang/$ASTMatchFinderh $custom_llvm/clang/include/clang/ASTMatchers/ASTMatchFinder.h
 cp -r $futag_src/clang/lib/clang/$ASTMatchFindercpp $custom_llvm/clang/lib/ASTMatchers/ASTMatchFinder.cpp
@@ -55,7 +57,8 @@ cp -r $futag_src/clang/lib/Futag $custom_llvm/clang/lib/
 
 # copy clang Checker
 cp $futag_src/Checkers/include/$Checkerstd $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/Checkers.td
-cp $futag_src/Checkers/lib/*.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
+cp $futag_src/Checkers/lib/$FutagConsumerAnalyzer $custom_llvm/clang/lib/StaticAnalyzer/Checkers/FutagConsumerAnalyzer.cpp
+cp $futag_src/Checkers/lib/$FutagAnalyzer $custom_llvm/clang/lib/StaticAnalyzer/Checkers/FutagAnalyzer.cpp
 cp -r $futag_src/Checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
 
 if [ $llvmVersion == "LLVM=18.1.0" ]; then
@@ -73,7 +76,7 @@ if [ $llvmVersion == "LLVM=13.0.1" ]; then
 
 fi
 
-make -j$(($(nproc)/2)) && make -j$(($(nproc)/2)) install
+make $(($(nproc)/2)) && make -j$(($(nproc)/2)) install
 
 if [ -d $futag_install_folder/python-package ]
 then

@@ -26,3 +26,4 @@ src/Checkers/include/Checkers.td.test
 src/Checkers/lib/FutagTest.cpp
 futag-llvm*
 Algorithms
+src/python/futag-package/dist/**
