@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: futag
-Version: 2.1.1
+Version: 3.0.0
 Summary: Futag tools for creating fuzz targets of software library
 Home-page: https://github.com/ispras/Futag/tree/main/src/python/futag-package
 Author: Futag-team of ISP RAS
