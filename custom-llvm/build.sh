@@ -75,7 +75,7 @@ if [ $llvmVersion == "LLVM=14.0.6" ]; then
 
 fi
 
-make $(($(nproc)/2)) && make -j$(($(nproc)/2)) install
+make -j$(($(nproc)/2)) && make -j$(($(nproc)/2)) install
 
 if [ -d $futag_install_folder/python-package ]
 then
