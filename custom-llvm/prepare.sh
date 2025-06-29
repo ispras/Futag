@@ -14,7 +14,7 @@ echo "*    / /_    / / / /   / /   / /| |  / / __    *"
 echo "*   / __/   / /_/ /   / /   / ___ | / /_/ /    *"
 echo "*  /_/      \____/   /_/   /_/  |_| \____/     *"
 echo "*                                              *"
-echo "*     Fuzzing target Automated Generator       *"
+echo "*     Fuzz target Automated Generator       *"
 echo "*             a tool of ISP RAS                *"
 echo "************************************************"
 echo "* This script helps to download source code of *"
@@ -26,7 +26,7 @@ if [ $# -eq 0 ]; then
     echo "Futag will collect information for preparing build system."
     echo "========================================================="
     echo "-- [Futag] Select version of llvm for building:"
-    echo "-- 1. LLVM 18.1.0"
+    echo "-- 1. LLVM 18.1.8"
     echo "-- 2. LLVM 14.0.6"
     echo "-- 3. LLVM 13.0.1"
     
@@ -84,15 +84,15 @@ if [ -d "llvm-project" ]; then
 fi
 
 if [ "$selectedVersion" == "1" ]; then
-# Alt Linux 11 with llvm-project 18.1 
+# Alt Linux 11 with llvm-project 18.1.8
 # https://www.altlinux.org/%D0%9E%D0%B4%D0%B8%D0%BD%D0%BD%D0%B0%D0%B4%D1%86%D0%B0%D1%82%D0%B0%D1%8F_%D0%BF%D0%BB%D0%B0%D1%82%D1%84%D0%BE%D1%80%D0%BC%D0%B0
-# https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.0/llvm-project-18.1.0.src.tar.xz
-    echo "LLVM=18.1.0" > $file_info
-    if [ ! -f llvm-project-18.1.0.src.tar.xz ]; then
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.0/llvm-project-18.1.0.src.tar.xz
+    echo "LLVM=18.1.8" > $file_info
+    # echo "LLVM=18.1.0" > $file_info
+    if [ ! -f llvm-project-18.1.8.src.tar.xz ]; then
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-18.1.8/llvm-project-18.1.8.src.tar.xz
     fi
-    tar xf llvm-project-18.1.0.src.tar.xz
-    mv llvm-project-18.1.0.src llvm-project
+    tar xf llvm-project-18.1.8.src.tar.xz
+    mv llvm-project-18.1.8.src llvm-project
 fi
 
 if [ "$selectedVersion" == "2" ]; then

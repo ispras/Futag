@@ -33,7 +33,7 @@ Dynamic: summary
     **   / __/   / /_/ /   / /   / ___ | / /_/ /    **
     **  /_/      \____/   /_/   /_/  |_| \____/     **
     **                                              **
-    **     Fuzzing target Automated Generator       **
+    **     Fuzz target Automated Generator       **
     **             a tool of ISP RAS                **
     **************************************************
     ** This package is for building, generating,    **

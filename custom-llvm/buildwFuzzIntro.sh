@@ -13,7 +13,7 @@ echo "*    / /_    / / / /   / /   / /| |  / / __    *"
 echo "*   / __/   / /_/ /   / /   / ___ | / /_/ /    *"
 echo "*  /_/      \____/   /_/   /_/  |_| \____/     *"
 echo "*                                              *"
-echo "*     Fuzzing target Automated Generator       *"
+echo "*     Fuzz target Automated Generator       *"
 echo "*             a tool of ISP RAS                *"
 echo "************************************************"
 echo ""
@@ -111,5 +111,5 @@ cp $custom_prepare/INFO $futag_install_folder/
 cd ../product-tests
 XZ_OPT='-T8 -9' tar cJf futag-llvm$version.fuzz-introspector.latest.tar.xz ../futag-llvm
 echo ""
-echo "======== End of build script for FUTAG - a fuzzing target automated generator ========"
+echo "======== End of build script for FUTAG - a Fuzz target automated generator ========"
 echo 

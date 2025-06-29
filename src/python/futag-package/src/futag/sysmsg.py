@@ -6,7 +6,7 @@
 **   / __/   / /_/ /   / /   / ___ | / /_/ /    **
 **  /_/      \____/   /_/   /_/  |_| \____/     **
 **                                              **
-**     Fuzzing target Automated Generator       **
+**     Fuzz target Automated Generator       **
 **             a tool of ISP RAS                **
 **************************************************
 ** This module is for saving constants of Futag **
