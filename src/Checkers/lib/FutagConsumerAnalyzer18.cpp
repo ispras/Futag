@@ -405,7 +405,7 @@ void FutagConsumerAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
             sm.getIncludeLoc(sm.translateFile(it->first));
         string include_path =
             utils::PathProcessor::RemoveUnnecessaryPathComponents(
-                it->first->getName().str());
+                it->first.getName().str());
         // include_path[0] != '/' - is probably an awfully bad check to
         // avoid system headers, but I couldn't find any way around
         if (includeLoc.isValid() && sm.isInMainFile(includeLoc)) {

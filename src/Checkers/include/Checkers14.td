@@ -271,27 +271,6 @@ let ParentPackage = Futag in {
                     Released>,
     ]>,
     Documentation<NotDocumented>;
-
-    def FutagCatchInfo : Checker<"FutagCatchInfo">,
-    HelpText<"Checker for finding context in consumer libraries.">,
-    CheckerOptions<[
-        CmdLineOption<String,
-                    "FuncName",
-                    "Name of function to slice",
-                    "main",
-                    Released>,
-        CmdLineOption<Integer,
-                    "Beginline",
-                    "Begin line",
-                    "0",
-                    Released>,
-        CmdLineOption<Integer,
-                    "EndLine",
-                    "End line",
-                    "0",
-                    Released>,
-    ]>,
-    Documentation<NotDocumented>;
 } //end Futag 
 
 

@@ -200,7 +200,7 @@ public:
   /// Finds all matches in the given AST.
   void matchAST(ASTContext &Context);
 
-  /// Finds all matches in the given AST node.
+    /// Finds all matches in the given AST node.
   void futagMatchAST(ASTContext& Context, Stmt* Node);
 
   /// Registers a callback to notify the end of parsing.
