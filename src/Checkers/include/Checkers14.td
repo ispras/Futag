@@ -252,10 +252,6 @@ let ParentPackage = Futag in {
     ]>,
     Documentation<NotDocumented>;
     
-    def FutagSimpleChecker : Checker<"FutagSimpleChecker">,
-    HelpText<"Futag Simple Checker for traversing nodes in AST.">,
-    Documentation<NotDocumented>;
-
     def FutagConsumerAnalyzer : Checker<"FutagConsumerAnalyzer">,
     HelpText<"Futag Checker for finding potential fuzzing functions. Use scan-build for viewing result and generating list of needed function">,
     CheckerOptions<[
