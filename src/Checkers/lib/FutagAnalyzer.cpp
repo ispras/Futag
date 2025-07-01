@@ -385,7 +385,7 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
         }
     }
     std::string compiler_opts = Mgr.getAnalyzerOptions().FullCompilerInvocation;
-    auto fe = sm.getFileEntryForID(sm.getMainFileID());
+    const FileEntry * fe = sm.getFileEntryForID(sm.getMainFileID());
     if (fe->tryGetRealPathName().empty()) {
         if (fe->getName().empty()) {
             return;
@@ -460,10 +460,10 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     std::string parent_hash = "";
 
     if (fe->tryGetRealPathName().empty()) {
-        if (fe->getName().empty()) {
+        if (fe.getName().empty()) {
             std::cerr << " -- Debug info: Cannot find filename and filepath!\n";
         } else {
-            file_name = fe->getName().str();
+            file_name = fe.getName().str();
         }
     } else {
         file_name = fe->tryGetRealPathName().str();
@@ -640,9 +640,6 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
                 if (isa<CXXRecordDecl>(RD)) {
                     auto cxx_record_decl = dyn_cast_or_null<CXXRecordDecl>(RD);
                     if (cxx_record_decl && cxx_record_decl->hasDefinition()) {
-                        // llvm::outs() << "Record has definition: "
-                        //              << cxx_record_decl->getNameAsString() <<
-                        //              "\n";
                         Hash.AddCXXRecordDecl(cxx_record_decl->getDefinition());
                         hash_str = std::to_string(Hash.CalculateHash());
                     }
@@ -650,16 +647,8 @@ void FutagAnalyzer::VisitTypedef(const TypedefDecl *TD,
             }
         }
         if (tag_decl->isEnum()) {
-            // llvm::outs() << " - isEnum tag ";
             const EnumType *enum_type = dyn_cast<EnumType>(type_source);
             auto enum_type_decl = enum_type->getDecl();
-            // for (auto it = enum_type_decl->enumerator_begin();
-            //      it != enum_type_decl->enumerator_end(); it++) {
-            //   llvm::outs() << "-- field_value" <<
-            //   it->getInitVal().getExtValue()
-            //                << "; field_name: " << it->getNameAsString() <<
-            //                "\n";
-            // }
             Hash.AddEnumDecl(enum_type_decl);
             hash_str = std::to_string(Hash.CalculateHash());
         }

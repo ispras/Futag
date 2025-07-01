@@ -85,13 +85,14 @@ if [ -d "llvm-project" ]; then
 fi
 
 if [ "$selectedVersion" == "1" ]; then
-
-    echo "LLVM=19.1.7" > $file_info
-    if [ ! -f llvm-project-19.1.7.src.tar.xz ]; then
-        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/llvm-project-19.1.7.src.tar.xz
-    fi
-    tar xf llvm-project-19.1.7.src.tar.xz
-    mv llvm-project-19.1.7.src llvm-project
+    echo "LLVM 19 will be supported soon!"
+    exit 1
+    # echo "LLVM=19.1.7" > $file_info
+    # if [ ! -f llvm-project-19.1.7.src.tar.xz ]; then
+    #     wget https://github.com/llvm/llvm-project/releases/download/llvmorg-19.1.7/llvm-project-19.1.7.src.tar.xz
+    # fi
+    # tar xf llvm-project-19.1.7.src.tar.xz
+    # mv llvm-project-19.1.7.src llvm-project
 fi
 
 if [ "$selectedVersion" == "2" ]; then
