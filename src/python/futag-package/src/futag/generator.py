@@ -1220,6 +1220,7 @@ class Generator:
 
         # qname = func["qname"]
         if len(filename) > 250:
+            print("Error: File name is too long (>250 characters)!")
             return None
         dir_name = filename + str(file_index)
 
@@ -1236,6 +1237,7 @@ class Generator:
                 break
 
         if file_index > self.max_wrappers:
+            print("Warning: exeeded maximum number of generated fuzzing-wrappers for each function!")
             return None
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -1244,6 +1246,7 @@ class Generator:
         full_path = (filepath / filename / dir_name / file_name).as_posix()
         f = open(full_path, 'w')
         if f.closed:
+            print("crreate file error: ", full_path)
             return None
         return f
 
@@ -1858,6 +1861,7 @@ class Generator:
                 log = self.__log_file(func, self.gen_anonymous)
                 if not log:
                     print(CANNOT_CREATE_LOG_FILE, func["qname"])
+                    return False
                 else:
                     self.curr_func_log = f"Log for function: {func['qname']}\n{self.curr_func_log}"
                     log.write(self.curr_func_log)
@@ -2763,7 +2767,6 @@ class Generator:
                 self.__gen_target_function(func, 0)
         if not found_function:
             sys.exit("Function \"%s\" not found in library!" % target["qname"])
-
 
 class ContextGenerator:
     """Futag Context Generator"""
@@ -4904,7 +4907,6 @@ class ContextGenerator:
                     break
 
             self.__gen_context_wrapper(func)
-
 
 class NatchGenerator:
     """Futag Generator for Natch"""
