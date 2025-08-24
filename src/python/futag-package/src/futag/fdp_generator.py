@@ -80,7 +80,7 @@ class FuzzDataProviderGenerator:
         # save the list of generated function for debugging
         self.target_extension = ""
         self.result_report = {}
-
+        self.last_string_name = ""
         if (target_type > 1 or target_type < 0):
             sys.exit(INVALID_TARGET_TYPE)
 
@@ -311,12 +311,12 @@ class FuzzDataProviderGenerator:
         }
 
     def __gen_strsize(self, param_name, param_type, dyn_size_idx, array_name):
+        self.last_string_name
         return {
             "gen_lines": [
                 "//GEN_SIZE\n",
                 param_type + " " + param_name +
-                " = (" + param_type +
-                ") " + array_name + "[" + str(dyn_size_idx - 1) + "];\n",
+                " = static_cast<" + param_type + " >(" + self.last_string_name + ".length());\n",
             ],
             "gen_free": [],
             "buffer_size": []
@@ -333,26 +333,15 @@ class FuzzDataProviderGenerator:
         Returns:
             dict: (gen_lines, gen_free, buffer_size)
         """
-        ref_name = param_name
-        if (gen_type_info["local_qualifier"]):
-            ref_name = "r" + ref_name
-
         gen_lines = [
             "//GEN_CSTRING\n",
-            "std::string  " + ref_name + "_fdp = provider.ConsumeRandomLengthString();\n",
-            gen_type_info["base_type_name"]+" "+ ref_name+" = " + ref_name + "_fdp.c_str();\n",
+            "std::string  " + param_name + "_fdp = provider.ConsumeRandomLengthString();\n",
+            gen_type_info["type_name"]+" "+ param_name+" = " + param_name + "_fdp.c_str();\n",
         ]
-        if (gen_type_info["local_qualifier"]):
-            gen_lines += [gen_type_info["type_name"] +
-                          " " + param_name + " = " + ref_name + ";\n"]
-
+        self.last_string_name = param_name + "_fdp"
         return {
             "gen_lines": gen_lines,
             "gen_free": [
-                "if (" + ref_name + ") {\n",
-                "    free(" + ref_name + ");\n",
-                "    " + ref_name + " = NULL;\n",
-                "}\n"
             ],
             "buffer_size": []
         }
@@ -1322,33 +1311,33 @@ class FuzzDataProviderGenerator:
                 buffer_check += " + " + " + ".join(self.buffer_size)
             f.write("    if (Fuzz_Size < " + buffer_check + ") return 0;\n")
 
-            if self.dyn_cstring_size_idx > 0:
-                f.write(
-                    "    size_t dyn_cstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check + " )));\n")
-                f.write("    //generate random array of dynamic string sizes\n")
-                f.write("    size_t dyn_cstring_size[" +
-                        str(self.dyn_cstring_size_idx) + "];\n")
-                if self.dyn_cstring_size_idx > 1:
-                    f.write("    srand(time(NULL));\n")
-                    f.write(
-                        "    if(dyn_cstring_buffer == 0) dyn_cstring_size[0] = dyn_cstring_buffer; \n")
-                    f.write(
-                        "    else dyn_cstring_size[0] = rand() % dyn_cstring_buffer; \n")
-                    f.write("    size_t remain = dyn_cstring_size[0];\n")
-                    f.write("    for(size_t i = 1; i< " +
-                            str(self.dyn_cstring_size_idx) + " - 1; i++){\n")
-                    f.write(
-                        "        if(dyn_cstring_buffer - remain == 0) dyn_cstring_size[i] = dyn_cstring_buffer - remain;\n")
-                    f.write(
-                        "        else dyn_cstring_size[i] = rand() % (dyn_cstring_buffer - remain);\n")
-                    f.write("        remain += dyn_cstring_size[i];\n")
-                    f.write("    }\n")
-                    f.write(
-                        "    dyn_cstring_size[" + str(self.dyn_cstring_size_idx) + " - 1] = dyn_cstring_buffer - remain;\n")
-                else:
-                    f.write("    dyn_cstring_size[0] = dyn_cstring_buffer;\n")
-                f.write(
-                    "    //end of generation random array of dynamic string sizes\n")
+            # if self.dyn_cstring_size_idx > 0:
+                # f.write(
+                #     "    size_t dyn_cstring_buffer = (size_t) ((Fuzz_Size + sizeof(char) - (" + buffer_check + " )));\n")
+                # f.write("    //generate random array of dynamic string sizes\n")
+                # f.write("    size_t dyn_cstring_size[" +
+                #         str(self.dyn_cstring_size_idx) + "];\n")
+                # if self.dyn_cstring_size_idx > 1:
+                #     f.write("    srand(time(NULL));\n")
+                #     f.write(
+                #         "    if(dyn_cstring_buffer == 0) dyn_cstring_size[0] = dyn_cstring_buffer; \n")
+                #     f.write(
+                #         "    else dyn_cstring_size[0] = rand() % dyn_cstring_buffer; \n")
+                #     f.write("    size_t remain = dyn_cstring_size[0];\n")
+                #     f.write("    for(size_t i = 1; i< " +
+                #             str(self.dyn_cstring_size_idx) + " - 1; i++){\n")
+                #     f.write(
+                #         "        if(dyn_cstring_buffer - remain == 0) dyn_cstring_size[i] = dyn_cstring_buffer - remain;\n")
+                #     f.write(
+                #         "        else dyn_cstring_size[i] = rand() % (dyn_cstring_buffer - remain);\n")
+                #     f.write("        remain += dyn_cstring_size[i];\n")
+                #     f.write("    }\n")
+                #     f.write(
+                #         "    dyn_cstring_size[" + str(self.dyn_cstring_size_idx) + " - 1] = dyn_cstring_buffer - remain;\n")
+                # else:
+                #     f.write("    dyn_cstring_size[0] = dyn_cstring_buffer;\n")
+                # f.write(
+                #     "    //end of generation random array of dynamic string sizes\n")
 
             if self.dyn_wstring_size_idx > 0:
                 f.write("    size_t dyn_wstring_buffer = (size_t) ((Fuzz_Size + sizeof(wchar_t) - (" +
@@ -1908,33 +1897,33 @@ class FuzzDataProviderGenerator:
 
             # f.write("    if (Fuzz_Size < " + buffer_check + ") return 0;\n")
 
-            if self.dyn_cstring_size_idx > 0:
-                f.write(
-                    "    size_t dyn_cstring_buffer = (size_t) (Fuzz_Size + "+ str(self.dyn_cstring_size_idx) +"*sizeof(char) - (" + buffer_check + " ));\n")
-                f.write("    //generate random array of dynamic string sizes\n")
-                f.write("    size_t dyn_cstring_size[" +
-                        str(self.dyn_cstring_size_idx) + "];\n")
-                if self.dyn_cstring_size_idx > 1:
-                    f.write("    srand(time(NULL));\n")
-                    f.write(
-                        "    if(dyn_cstring_buffer == 0) dyn_cstring_size[0] = dyn_cstring_buffer; \n")
-                    f.write(
-                        "    else dyn_cstring_size[0] = rand() % dyn_cstring_buffer; \n")
-                    f.write("    size_t remain = dyn_cstring_size[0];\n")
-                    f.write("    for(size_t i = 1; i< " +
-                            str(self.dyn_cstring_size_idx) + " - 1; i++){\n")
-                    f.write(
-                        "        if(dyn_cstring_buffer - remain == 0) dyn_cstring_size[i] = dyn_cstring_buffer - remain;\n")
-                    f.write(
-                        "        else dyn_cstring_size[i] = rand() % (dyn_cstring_buffer - remain);\n")
-                    f.write("        remain += dyn_cstring_size[i];\n")
-                    f.write("    }\n")
-                    f.write(
-                        "    dyn_cstring_size[" + str(self.dyn_cstring_size_idx) + " - 1] = dyn_cstring_buffer - remain;\n")
-                else:
-                    f.write("    dyn_cstring_size[0] = dyn_cstring_buffer;\n")
-                f.write(
-                    "    //end of generation random array of dynamic string sizes\n")
+            # if self.dyn_cstring_size_idx > 0:
+            #     f.write(
+            #         "    size_t dyn_cstring_buffer = (size_t) (Fuzz_Size + "+ str(self.dyn_cstring_size_idx) +"*sizeof(char) - (" + buffer_check + " ));\n")
+            #     f.write("    //generate random array of dynamic string sizes\n")
+                # f.write("    size_t dyn_cstring_size[" +
+                #         str(self.dyn_cstring_size_idx) + "];\n")
+                # if self.dyn_cstring_size_idx > 1:
+                #     f.write("    srand(time(NULL));\n")
+                #     f.write(
+                #         "    if(dyn_cstring_buffer == 0) dyn_cstring_size[0] = dyn_cstring_buffer; \n")
+                #     f.write(
+                #         "    else dyn_cstring_size[0] = rand() % dyn_cstring_buffer; \n")
+                #     f.write("    size_t remain = dyn_cstring_size[0];\n")
+                #     f.write("    for(size_t i = 1; i< " +
+                #             str(self.dyn_cstring_size_idx) + " - 1; i++){\n")
+                #     f.write(
+                #         "        if(dyn_cstring_buffer - remain == 0) dyn_cstring_size[i] = dyn_cstring_buffer - remain;\n")
+                #     f.write(
+                #         "        else dyn_cstring_size[i] = rand() % (dyn_cstring_buffer - remain);\n")
+                #     f.write("        remain += dyn_cstring_size[i];\n")
+                #     f.write("    }\n")
+                #     f.write(
+                #         "    dyn_cstring_size[" + str(self.dyn_cstring_size_idx) + " - 1] = dyn_cstring_buffer - remain;\n")
+                # else:
+                #     f.write("    dyn_cstring_size[0] = dyn_cstring_buffer;\n")
+                # f.write(
+                #     "    //end of generation random array of dynamic string sizes\n")
 
             if self.dyn_wstring_size_idx > 0:
                 f.write("    size_t dyn_wstring_buffer = (size_t) (Fuzz_Size + " + str(self.dyn_wstring_size_idx) + "*sizeof(wchar_t) - (" +
@@ -2020,7 +2009,7 @@ class FuzzDataProviderGenerator:
                 f.write(
                     "    //end of generation random array of dynamic file sizes\n")
 
-            f.write("    uint8_t * futag_pos = Fuzz_Data;\n")
+            # f.write("    uint8_t * futag_pos = Fuzz_Data;\n")
             for line in self.gen_lines:
                 f.write("    " + line)
 

@@ -4,6 +4,7 @@ pyproject.toml
 setup.cfg
 setup.py
 src/futag/__init__.py
+src/futag/fdp_generator.py
 src/futag/fuzzer.py
 src/futag/generator.py
 src/futag/preprocessor.py
