@@ -26,8 +26,8 @@ from typing import List
 from distutils.dir_util import copy_tree
 
 
-class FuzzDataProviderGenerator:
-    """Futag Generator with FuzzedDataProvider"""
+class BlobStamperGenerator:
+    """Futag Generator from LibBlobStamper"""
 
     def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str="."):
         """ Constructor of Generator class.
