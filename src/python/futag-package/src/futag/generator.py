@@ -23,7 +23,7 @@ from futag.preprocessor import *
 
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
-from typing import List
+from typing import List, Optional, Dict, Any
 # import shutil
 from distutils.dir_util import copy_tree
 
@@ -2496,6 +2496,78 @@ class Generator:
         }
         json.dump(self.result_report, open(
             (self.build_path / "result-report.json").as_posix(), "w"))
+
+    def gen_targets_with_llm(
+        self,
+        llm_provider: str = "openai",
+        llm_model: str = "gpt-4",
+        llm_api_key: Optional[str] = None,
+        max_functions: Optional[int] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 2048
+    ) -> Dict[str, Any]:
+        """Generate fuzzing targets using LLM (similar to oss-fuzz-gen).
+        
+        This method uses Large Language Models to generate fuzzing harnesses,
+        providing an alternative approach to the traditional static analysis-based
+        generation. This is inspired by the oss-fuzz-gen project.
+        
+        Args:
+            llm_provider (str): LLM provider ('openai', 'anthropic', 'local')
+            llm_model (str): Model name to use (e.g., 'gpt-4', 'gpt-3.5-turbo')
+            llm_api_key (str): API key for the LLM provider (or None to use env var)
+            max_functions (int): Maximum number of functions to generate (None for all)
+            temperature (float): Temperature for LLM generation (0.0-1.0)
+            max_tokens (int): Maximum tokens for LLM response
+            
+        Returns:
+            dict: Statistics about generation (total, successful, failed)
+            
+        Example:
+            >>> from futag.generator import Generator
+            >>> gen = Generator("futag-llvm/", "library-path/")
+            >>> stats = gen.gen_targets_with_llm(
+            ...     llm_provider="openai",
+            ...     llm_model="gpt-4",
+            ...     max_functions=10
+            ... )
+            >>> print(f"Generated {stats['successful']} harnesses")
+        """
+        try:
+            from futag.llm_generator import LLMGenerator
+            
+            print("-- [Futag] Starting LLM-based fuzzing harness generation...")
+            print(f"   Provider: {llm_provider}")
+            print(f"   Model: {llm_model}")
+            
+            llm_gen = LLMGenerator(
+                futag_llvm_package=self.futag_llvm_package.as_posix(),
+                library_root=self.library_root.as_posix(),
+                target_type=self.target_type,
+                json_file=self.json_file.as_posix(),
+                output_path=FUZZ_DRIVER_PATH,
+                llm_provider=llm_provider,
+                llm_model=llm_model,
+                llm_api_key=llm_api_key,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            stats = llm_gen.gen_targets_with_llm(
+                max_functions=max_functions,
+                filter_public_only=True
+            )
+            
+            print("-- [Futag] LLM-based generation completed!")
+            return stats
+            
+        except ImportError as e:
+            print(f"-- [Futag] Error: Could not import LLM generator: {str(e)}")
+            print("   Make sure to install LLM dependencies: pip install openai anthropic")
+            return {"total": 0, "successful": 0, "failed": 0}
+        except Exception as e:
+            print(f"-- [Futag] Error during LLM generation: {str(e)}")
+            return {"total": 0, "successful": 0, "failed": 0}
 
     def compile_driver_worker(self, bgen_args):
         with open(bgen_args["error_path"], "w") as error_log_file:

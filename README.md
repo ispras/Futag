@@ -4,6 +4,8 @@
   - [1. Описание](#1-описание)
   - [2. Установка](#2-установка)
   - [3. Примеры использования](#3-примеры-использования)
+    - [3.1. Автоматическая генерация фаззинг-оберток в условии отсутствия контекстов использования](#31-автоматическая-генерация-фаззинг-оберток-в-условии-отсутствия-контекстов-использования)
+    - [3.2. Генерация фаззинг-оберток с помощью LLM (новое)](#32-генерация-фаззинг-оберток-с-помощью-llm-новое)
   - [4. Авторы](#4-авторы)
   - [5. Статьи и материалы](#5-статьи-и-материалы)
   - [6. Найденные ошибки](#6-найденные-ошибки)
@@ -148,7 +150,64 @@ generator.compile_targets(
 ```
 По-умолчанию, успешно скомпилированные фаззинг-обертки для целевых функций находятся в каталоге futag-fuzz-drivers, где для каждой целевой функции создаётся своя поддиректория название которой совпадает с именем целевой функции. 
 
-### 3.2. Автоматическая генерация фаззинг-оберток в наличии потребительской программы
+### 3.2. Генерация фаззинг-оберток с помощью LLM (новое)
+
+**Futag теперь поддерживает генерацию фаззинг-оберток с использованием больших языковых моделей (LLM), аналогично проекту [oss-fuzz-gen](https://github.com/google/oss-fuzz-gen).**
+
+Для использования LLM-генерации, необходимо установить дополнительные зависимости:
+
+```bash
+pip install openai anthropic
+```
+
+Пример использования с OpenAI GPT-4:
+
+```python
+from futag.preprocessor import *
+from futag.generator import *
+
+FUTAG_PATH = "/home/futag/Futag/futag-llvm"
+lib_path = "path/to/library/source/code"
+
+# Сборка и анализ библиотеки
+builder = Builder(FUTAG_PATH, lib_path)
+builder.auto_build()
+builder.analyze()
+
+# Генерация фаззинг-оберток с помощью LLM
+generator = Generator(FUTAG_PATH, lib_path)
+stats = generator.gen_targets_with_llm(
+    llm_provider="openai",      # Провайдер: 'openai', 'anthropic', 'local'
+    llm_model="gpt-4",           # Модель: 'gpt-4', 'gpt-3.5-turbo', и т.д.
+    max_functions=10,            # Максимальное количество функций
+    temperature=0.7              # Температура генерации (0.0-1.0)
+)
+
+print(f"Сгенерировано {stats['successful']} фаззинг-оберток")
+```
+
+Также можно комбинировать традиционную генерацию с LLM:
+
+```python
+# Традиционная генерация
+generator.gen_targets(anonymous=False, max_wrappers=10)
+
+# Дополнительная LLM-генерация
+generator.gen_targets_with_llm(
+    llm_provider="openai",
+    llm_model="gpt-4",
+    max_functions=5
+)
+
+# Компиляция всех сгенерированных оберток
+generator.compile_targets(workers=4, keep_failed=True)
+```
+
+Подробная документация по LLM-генерации находится [здесь](docs/LLM-GENERATION.md).
+
+Пример скрипта: [example-llm-generation.py](src/python/example-llm-generation.py)
+
+### 3.3. Автоматическая генерация фаззинг-оберток в наличии потребительской программы
 
 ```python
 from futag.preprocessor import *

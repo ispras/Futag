@@ -1,1 +1,4 @@
 setuptools==65.5.1
+# LLM dependencies (optional for LLM-based generation)
+openai>=1.0.0
+anthropic>=0.7.0

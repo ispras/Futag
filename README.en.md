@@ -87,6 +87,8 @@ testing_lib.auto_build()
 testing_lib.analyze()
 ```
 
+### 3.1. Traditional Static Analysis-Based Generation
+
 - Generate and compile fuzz-drivers
 
 ```python
@@ -109,6 +111,63 @@ g.compile_targets(
   # flags="-ferror-limit=1", # flags for compiling, default to ""
 )
 ```
+
+### 3.2. LLM-Based Generation (NEW - Similar to oss-fuzz-gen)
+
+**Futag now supports LLM-based fuzzing wrapper generation, similar to [oss-fuzz-gen](https://github.com/google/oss-fuzz-gen) project.**
+
+Install additional dependencies:
+
+```bash
+pip install openai anthropic
+```
+
+Example using OpenAI GPT-4:
+
+```python
+from futag.preprocessor import *
+from futag.generator import *
+
+FUTAG_PATH = "futag-llvm/"
+lib_path = "path/to/library/source/code"
+
+# Build and analyze library
+builder = Builder(FUTAG_PATH, lib_path)
+builder.auto_build()
+builder.analyze()
+
+# Generate fuzzing wrappers with LLM
+generator = Generator(FUTAG_PATH, lib_path)
+stats = generator.gen_targets_with_llm(
+    llm_provider="openai",      # Provider: 'openai', 'anthropic', 'local'
+    llm_model="gpt-4",           # Model: 'gpt-4', 'gpt-3.5-turbo', etc.
+    max_functions=10,            # Maximum number of functions
+    temperature=0.7              # Generation temperature (0.0-1.0)
+)
+
+print(f"Generated {stats['successful']} fuzzing harnesses")
+```
+
+You can also combine traditional and LLM-based generation:
+
+```python
+# Traditional generation
+generator.gen_targets(anonymous=False, max_wrappers=10)
+
+# Supplement with LLM generation
+generator.gen_targets_with_llm(
+    llm_provider="openai",
+    llm_model="gpt-4",
+    max_functions=5
+)
+
+# Compile all generated wrappers
+generator.compile_targets(workers=4, keep_failed=True)
+```
+
+For detailed documentation on LLM-based generation, see [docs/LLM-GENERATION.md](docs/LLM-GENERATION.md).
+
+Example script: [example-llm-generation.py](src/python/example-llm-generation.py)
 By default, successfully compiled fuzz-drivers for target functions are located in the futag-fuzz-drivers directory, where each target function is in its own subdirectory, the name of which matches the name of the target function.
 If several fuzz-drivers have been generated for a function, corresponding directories are created in the subdirectory of the target function, where a serial number is added to the name of the target function.
 
