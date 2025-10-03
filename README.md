@@ -148,13 +148,21 @@ generator.compile_targets(
     # flags="-ferror-limit=1", # значение по умолчанию: ""
 )
 ```
-По-умолчанию, успешно скомпилированные фаззинг-обертки для целевых функций находятся в каталоге futag-fuzz-drivers, где для каждой целевой функции создаётся своя поддиректория название которой совпадает с именем целевой функции. 
+По-умолчанию, успешно скомпилированные фаззинг-обертки для целевых функций находятся в каталоге futag-fuzz-drivers, где для каждой целевой функции создаётся своя поддиректория название которой совпадает с именем целевой функции.
+
+**Подробнее о LLM-генерации:**
+- [Документация по использованию LLM (русский)](docs/LLM-GENERATION.ru.md)
+- [Документация по использованию локальных LLM](docs/LOCAL-LLM-SUPPORT.md)
+- [Пример использования облачных LLM](src/python/example-llm-generation.py)
+- [Пример использования локальных LLM](src/python/example-local-llm-generation.py) 
 
 ### 3.2. Генерация фаззинг-оберток с помощью LLM (новое)
 
 **Futag теперь поддерживает генерацию фаззинг-оберток с использованием больших языковых моделей (LLM), аналогично проекту [oss-fuzz-gen](https://github.com/google/oss-fuzz-gen).**
 
-Для использования LLM-генерации, необходимо установить дополнительные зависимости:
+#### Облачные LLM (OpenAI, Anthropic)
+
+Для использования облачных LLM-генерации, необходимо установить дополнительные зависимости:
 
 ```bash
 pip install openai anthropic
@@ -177,7 +185,7 @@ builder.analyze()
 # Генерация фаззинг-оберток с помощью LLM
 generator = Generator(FUTAG_PATH, lib_path)
 stats = generator.gen_targets_with_llm(
-    llm_provider="openai",      # Провайдер: 'openai', 'anthropic', 'local'
+    llm_provider="openai",      # Провайдер: 'openai', 'anthropic'
     llm_model="gpt-4",           # Модель: 'gpt-4', 'gpt-3.5-turbo', и т.д.
     max_functions=10,            # Максимальное количество функций
     temperature=0.7              # Температура генерации (0.0-1.0)
@@ -186,16 +194,72 @@ stats = generator.gen_targets_with_llm(
 print(f"Сгенерировано {stats['successful']} фаззинг-оберток")
 ```
 
+#### Локальные LLM (Ollama, LM Studio) - **БЕСПЛАТНО и БЕЗ ИНТЕРНЕТА!**
+
+**Новое в Futag:** Теперь можно использовать локальные LLM для генерации фаззинг-оберток полностью бесплатно и без подключения к интернету!
+
+Для использования локальных LLM:
+
+```bash
+# Установка зависимостей
+pip install requests
+
+# Установка Ollama (https://ollama.ai/download)
+# Запуск сервера
+ollama serve
+
+# Загрузка модели для генерации кода
+ollama pull codellama:13b
+```
+
+Пример использования с Ollama:
+
+```python
+from futag.preprocessor import *
+from futag.generator import *
+
+FUTAG_PATH = "/home/futag/Futag/futag-llvm"
+lib_path = "path/to/library/source/code"
+
+# Сборка и анализ библиотеки
+builder = Builder(FUTAG_PATH, lib_path)
+builder.auto_build()
+builder.analyze()
+
+# Генерация фаззинг-оберток с помощью локальной LLM
+generator = Generator(FUTAG_PATH, lib_path)
+stats = generator.gen_targets_with_llm(
+    llm_provider="ollama",           # Локальный провайдер
+    llm_model="codellama:13b",       # Или: deepseek-coder:6.7b, mistral
+    max_functions=10,
+    temperature=0.2                  # Низкая температура для кода
+)
+
+print(f"Сгенерировано {stats['successful']} фаззинг-оберток")
+```
+
+**Преимущества локальных LLM:**
+- ✅ Полностью бесплатно (без затрат на API)
+- ✅ Полная конфиденциальность (данные не покидают ваш компьютер)
+- ✅ Работает без интернета (после загрузки модели)
+- ✅ Неограниченное количество генераций
+- ✅ Хорошее качество с правильными моделями (CodeLlama, DeepSeek Coder)
+
+**Рекомендуемые модели:**
+- `codellama:13b` - лучше всего для генерации кода
+- `deepseek-coder:6.7b` - специализирован на коде
+- `mistral` - универсальная модель
+
 Также можно комбинировать традиционную генерацию с LLM:
 
 ```python
 # Традиционная генерация
 generator.gen_targets(anonymous=False, max_wrappers=10)
 
-# Дополнительная LLM-генерация
+# Дополнительная LLM-генерация (локальная или облачная)
 generator.gen_targets_with_llm(
-    llm_provider="openai",
-    llm_model="gpt-4",
+    llm_provider="ollama",
+    llm_model="codellama:13b",
     max_functions=5
 )
 

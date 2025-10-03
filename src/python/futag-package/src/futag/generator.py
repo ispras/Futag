@@ -2513,8 +2513,8 @@ class Generator:
         generation. This is inspired by the oss-fuzz-gen project.
         
         Args:
-            llm_provider (str): LLM provider ('openai', 'anthropic', 'local')
-            llm_model (str): Model name to use (e.g., 'gpt-4', 'gpt-3.5-turbo')
+            llm_provider (str): LLM provider ('openai', 'anthropic', 'ollama', 'local')
+            llm_model (str): Model name to use (e.g., 'gpt-4', 'gpt-3.5-turbo', 'llama2', 'codellama')
             llm_api_key (str): API key for the LLM provider (or None to use env var)
             max_functions (int): Maximum number of functions to generate (None for all)
             temperature (float): Temperature for LLM generation (0.0-1.0)
@@ -2526,9 +2526,10 @@ class Generator:
         Example:
             >>> from futag.generator import Generator
             >>> gen = Generator("futag-llvm/", "library-path/")
+            >>> # Using Ollama (local)
             >>> stats = gen.gen_targets_with_llm(
-            ...     llm_provider="openai",
-            ...     llm_model="gpt-4",
+            ...     llm_provider="ollama",
+            ...     llm_model="codellama:13b",
             ...     max_functions=10
             ... )
             >>> print(f"Generated {stats['successful']} harnesses")

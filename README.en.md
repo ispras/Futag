@@ -116,7 +116,9 @@ g.compile_targets(
 
 **Futag now supports LLM-based fuzzing wrapper generation, similar to [oss-fuzz-gen](https://github.com/google/oss-fuzz-gen) project.**
 
-Install additional dependencies:
+#### Cloud LLMs (OpenAI, Anthropic)
+
+Install additional dependencies for cloud LLMs:
 
 ```bash
 pip install openai anthropic
@@ -139,7 +141,7 @@ builder.analyze()
 # Generate fuzzing wrappers with LLM
 generator = Generator(FUTAG_PATH, lib_path)
 stats = generator.gen_targets_with_llm(
-    llm_provider="openai",      # Provider: 'openai', 'anthropic', 'local'
+    llm_provider="openai",      # Provider: 'openai', 'anthropic'
     llm_model="gpt-4",           # Model: 'gpt-4', 'gpt-3.5-turbo', etc.
     max_functions=10,            # Maximum number of functions
     temperature=0.7              # Generation temperature (0.0-1.0)
@@ -148,16 +150,72 @@ stats = generator.gen_targets_with_llm(
 print(f"Generated {stats['successful']} fuzzing harnesses")
 ```
 
+#### Local LLMs (Ollama, LM Studio) - **FREE and OFFLINE!**
+
+**New in Futag:** Now you can use local LLMs for fuzzing harness generation completely free and without internet connection!
+
+For local LLMs:
+
+```bash
+# Install dependencies
+pip install requests
+
+# Install Ollama (https://ollama.ai/download)
+# Start the server
+ollama serve
+
+# Pull a code generation model
+ollama pull codellama:13b
+```
+
+Example using Ollama:
+
+```python
+from futag.preprocessor import *
+from futag.generator import *
+
+FUTAG_PATH = "futag-llvm/"
+lib_path = "path/to/library/source/code"
+
+# Build and analyze library
+builder = Builder(FUTAG_PATH, lib_path)
+builder.auto_build()
+builder.analyze()
+
+# Generate fuzzing wrappers with local LLM
+generator = Generator(FUTAG_PATH, lib_path)
+stats = generator.gen_targets_with_llm(
+    llm_provider="ollama",           # Local provider
+    llm_model="codellama:13b",       # Or: deepseek-coder:6.7b, mistral
+    max_functions=10,
+    temperature=0.2                  # Lower temperature for code
+)
+
+print(f"Generated {stats['successful']} fuzzing harnesses")
+```
+
+**Benefits of Local LLMs:**
+- ✅ Completely free (no API costs)
+- ✅ Complete privacy (data stays on your machine)
+- ✅ Works offline (after model download)
+- ✅ Unlimited generations
+- ✅ Good quality with proper models (CodeLlama, DeepSeek Coder)
+
+**Recommended models:**
+- `codellama:13b` - best for code generation
+- `deepseek-coder:6.7b` - code specialist
+- `mistral` - general purpose model
+
 You can also combine traditional and LLM-based generation:
 
 ```python
 # Traditional generation
 generator.gen_targets(anonymous=False, max_wrappers=10)
 
-# Supplement with LLM generation
+# Supplement with LLM generation (local or cloud)
 generator.gen_targets_with_llm(
-    llm_provider="openai",
-    llm_model="gpt-4",
+    llm_provider="ollama",
+    llm_model="codellama:13b",
     max_functions=5
 )
 
@@ -165,9 +223,11 @@ generator.gen_targets_with_llm(
 generator.compile_targets(workers=4, keep_failed=True)
 ```
 
-For detailed documentation on LLM-based generation, see [docs/LLM-GENERATION.md](docs/LLM-GENERATION.md).
-
-Example script: [example-llm-generation.py](src/python/example-llm-generation.py)
+**Learn more about LLM-based generation:**
+- [LLM Generation Documentation (English)](docs/LLM-GENERATION.md)
+- [Local LLM Support Guide](docs/LOCAL-LLM-SUPPORT.md)
+- [Cloud LLM Example](src/python/example-llm-generation.py)
+- [Local LLM Example](src/python/example-local-llm-generation.py)
 By default, successfully compiled fuzz-drivers for target functions are located in the futag-fuzz-drivers directory, where each target function is in its own subdirectory, the name of which matches the name of the target function.
 If several fuzz-drivers have been generated for a function, corresponding directories are created in the subdirectory of the target function, where a serial number is added to the name of the target function.
 

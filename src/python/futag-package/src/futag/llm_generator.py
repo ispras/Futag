@@ -27,7 +27,7 @@ class LLMGenerator:
     
     This class provides LLM-based generation of fuzzing wrappers,
     similar to oss-fuzz-gen approach. It can use various LLM providers
-    (OpenAI, Anthropic, local models) to generate fuzzing harnesses.
+    (OpenAI, Anthropic, Ollama, local models) to generate fuzzing harnesses.
     """
     
     def __init__(
@@ -51,7 +51,7 @@ class LLMGenerator:
             target_type (int): Format of fuzz-drivers (LIBFUZZER or AFLPLUSPLUS)
             json_file (str): Path to the futag-analysis-result.json file
             output_path (str): Where to save fuzz-drivers
-            llm_provider (str): LLM provider ('openai', 'anthropic', 'local')
+            llm_provider (str): LLM provider ('openai', 'anthropic', 'ollama', 'local')
             llm_model (str): Model name to use
             llm_api_key (str): API key for the LLM provider (or None for env var)
             temperature (float): Temperature for LLM generation
@@ -103,10 +103,36 @@ class LLMGenerator:
             except ImportError:
                 print("-- [Futag-LLM] Warning: anthropic package not installed. Install with: pip install anthropic")
                 self.llm_client = None
+        elif self.llm_provider == "ollama":
+            # For Ollama local models
+            try:
+                import requests
+                self.llm_client = "ollama"
+                # Test if Ollama is running
+                ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+                response = requests.get(f"{ollama_host}/api/tags", timeout=2)
+                if response.status_code == 200:
+                    print(f"-- [Futag-LLM] Connected to Ollama at {ollama_host}")
+                else:
+                    print(f"-- [Futag-LLM] Warning: Ollama server responded with status {response.status_code}")
+            except ImportError:
+                print("-- [Futag-LLM] Warning: requests package not installed. Install with: pip install requests")
+                self.llm_client = None
+            except Exception as e:
+                print(f"-- [Futag-LLM] Warning: Could not connect to Ollama: {str(e)}")
+                print("   Make sure Ollama is running with: ollama serve")
+                self.llm_client = None
         elif self.llm_provider == "local":
-            # For local models (e.g., via Ollama or LM Studio)
-            self.llm_client = None
-            print("-- [Futag-LLM] Using local LLM provider")
+            # For OpenAI-compatible local servers (LM Studio, LocalAI, etc.)
+            try:
+                import requests
+                self.llm_client = "local"
+                local_host = os.getenv("LOCAL_LLM_HOST", "http://localhost:1234")
+                print(f"-- [Futag-LLM] Using local LLM at {local_host}")
+                print("   Make sure your local LLM server is running")
+            except ImportError:
+                print("-- [Futag-LLM] Warning: requests package not installed. Install with: pip install requests")
+                self.llm_client = None
         else:
             print(f"-- [Futag-LLM] Warning: Unknown LLM provider: {self.llm_provider}")
             self.llm_client = None
@@ -198,13 +224,68 @@ Only output the code, no additional explanations.
                 )
                 return response.content[0].text
             
+            elif self.llm_provider == "ollama":
+                # Call Ollama API
+                import requests
+                ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+                
+                payload = {
+                    "model": self.llm_model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": self.temperature,
+                        "num_predict": self.max_tokens
+                    }
+                }
+                
+                response = requests.post(
+                    f"{ollama_host}/api/generate",
+                    json=payload,
+                    timeout=300  # 5 minutes timeout for generation
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    return result.get("response", "")
+                else:
+                    print(f"-- [Futag-LLM] Ollama API error: {response.status_code}")
+                    print(f"   Response: {response.text}")
+                    return None
+            
             elif self.llm_provider == "local":
-                # Placeholder for local LLM integration
-                print("-- [Futag-LLM] Local LLM not yet implemented")
-                return None
+                # Call OpenAI-compatible local LLM server (LM Studio, LocalAI, etc.)
+                import requests
+                local_host = os.getenv("LOCAL_LLM_HOST", "http://localhost:1234")
+                
+                payload = {
+                    "model": self.llm_model,
+                    "messages": [
+                        {"role": "system", "content": "You are an expert fuzzing harness generator."},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "temperature": self.temperature,
+                    "max_tokens": self.max_tokens
+                }
+                
+                response = requests.post(
+                    f"{local_host}/v1/chat/completions",
+                    json=payload,
+                    timeout=300  # 5 minutes timeout for generation
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    return result["choices"][0]["message"]["content"]
+                else:
+                    print(f"-- [Futag-LLM] Local LLM API error: {response.status_code}")
+                    print(f"   Response: {response.text}")
+                    return None
                 
         except Exception as e:
             print(f"-- [Futag-LLM] Error calling LLM: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
     
     def _extract_code(self, llm_response: str) -> str:
@@ -334,7 +415,7 @@ def check_llm_dependencies(provider: str = "openai") -> bool:
     """Check if required LLM packages are installed.
     
     Args:
-        provider: LLM provider name
+        provider: LLM provider name ('openai', 'anthropic', 'ollama', 'local')
         
     Returns:
         True if dependencies are available
@@ -345,6 +426,9 @@ def check_llm_dependencies(provider: str = "openai") -> bool:
             return True
         elif provider == "anthropic":
             import anthropic
+            return True
+        elif provider == "ollama" or provider == "local":
+            import requests
             return True
         return True
     except ImportError:
