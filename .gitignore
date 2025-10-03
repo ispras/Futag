@@ -26,3 +26,15 @@ src/Checkers/include/Checkers.td.test
 src/Checkers/lib/FutagTest.cpp
 futag-llvm*
 Algorithms
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
