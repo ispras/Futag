@@ -21,6 +21,63 @@ RUN useradd -ms /bin/bash futag
   - Run the test, have a cup of coffee and wait for the result
 - Example of fuzz target 1:
 ```c
+#include <stdio.h>
+#include <stddef.h>
+#include <time.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+#include <fuzzer/FuzzedDataProvider.h>
+#include "config.h"
+#include "math_compat.h"
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <math.h>
+#include "debug.h"
+#include "json_inttypes.h"
+#include "json_object.h"
+#include "json_object_private.h"
+#include "json_tokener.h"
+#include "json_util.h"
+#include "strdup_compat.h"
+#include <locale.h>
+
+extern "C" int LLVMFuzzerTestOneInput(uint8_t * Fuzz_Data, size_t Fuzz_Size){
+    FuzzedDataProvider provider(Fuzz_Data, Fuzz_Size);
+
+    //GEN_BUILTIN
+    auto b_1_depth = provider.ConsumeIntegral<int>();
+    //GEN_VAR_FUNCTION
+    struct json_tokener * s__tok = json_tokener_new_ex(b_1_depth);
+    //GEN_CSTRING
+    std::string  str_str_fdp = provider.ConsumeRandomLengthString();
+    const char * str_str = str_str_fdp.c_str();
+
+    //GEN_SIZE
+    int sz_len = static_cast<int >(str_str_fdp.length());
+
+    //FUNCTION_CALL
+    json_tokener_parse_ex(s__tok ,str_str ,sz_len );
+    //FREE
+    return 0;
+}
+// Compile database:
+/*
+command: /root/json-c/../futag-llvm/bin/clang -D_GNU_SOURCE -Djson_c_EXPORTS -I/root/json-c/json-c-json-c-0.18-20240915 -I/root/json-c/json-c-json-c-0.18-20240915/.futag-build -g -O0 -fsanitize=address -fprofile-instr-generate -fcoverage-mapping  -ffunction-sections -fdata-sections -Werror -Wall -Wcast-qual -Wno-error=deprecated-declarations -Wextra -Wwrite-strings -Wno-unused-parameter -Wstrict-prototypes -g -fPIC   -D JSON_C_DLL -D_REENTRANT -o CMakeFiles/json-c.dir/json_tokener.c.o -c /root/json-c/json-c-json-c-0.18-20240915/json_tokener.c
+location: /root/json-c/json-c-json-c-0.18-20240915/.futag-build
+file: /root/json-c/json-c-json-c-0.18-20240915/json_tokener.c
+*/
+
+// Compile command:
+/*
+/root/json-c/../futag-llvm/bin/clang++ -fsanitize=address,fuzzer -fprofile-instr-generate -fcoverage-mapping  -g -O0 -ferror-limit=1 -I/root/json-c/json-c-json-c-0.18-20240915 -I/root/json-c -I/root/json-c/json-c-json-c-0.18-20240915/.futag-build  /root/json-c/json-c-json-c-0.18-20240915/futag-fuzz-drivers/succeeded/json_tokener_parse_ex/json_tokener_parse_ex.1/json_tokener_parse_ex.1.c -o /root/json-c/json-c-json-c-0.18-20240915/futag-fuzz-drivers/succeeded/json_tokener_parse_ex/json_tokener_parse_ex.1/json_tokener_parse_ex.1.out -Wl,--start-group /root/json-c/json-c-json-c-0.18-20240915/.futag-build/libjson-c.a /root/json-c/json-c-json-c-0.18-20240915/.futag-install/lib/libjson-c.a -Wl,--end-group
+ */
+```
+
+- An easy way to include:
+```c
+#include"json.h"
 ```
 
 ## 3. Let's helf Futag to understand your library 
@@ -43,7 +100,7 @@ git checkout 10.7.0-alt1
 
 - How to build libvirt:
 ```bash
-    gear-rpm -bc
+gear-rpm -bc
 ```
 
 - How to use Futag to analyze libvirt:
@@ -57,7 +114,7 @@ git checkout 10.7.0-alt1
 ```
 - It's able to replace `gear-rpm -bc` by `./build.sh`
 
-- Specify the output folder:
+- Specify the output folder `-analyzer-config futag.FutagAnalyzer:report_dir=futag-analysis`:
 ```bash
 ~/Futag/futag-llvm/bin/scan-build -disable-checker core -disable-checker security -disable-checker unix -disable-checker deadcode -disable-checker nullability -disable-checker cplusplus -enable-checker futag.FutagAnalyzer -analyzer-config futag.FutagAnalyzer:report_dir=futag-analysis gear-rpm -bc
 ```
