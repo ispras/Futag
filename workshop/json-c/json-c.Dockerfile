@@ -16,8 +16,8 @@ RUN useradd -ms /bin/bash futag
 USER futag
 WORKDIR /home/futag/
 #install Futag binaries
-RUN wget https://github.com/ispras/Futag/releases/download/v3.0.0/futag-llvm.latest.tar.xz
-RUN tar xf futag-llvm.latest.tar.xz
+RUN wget https://github.com/ispras/Futag/releases/download/v3.0.0/futag-llvm18.u24.latest.tar.xz
+RUN tar xf futag-llvm18.u24.latest.tar.xz
 #install Futag python package
 RUN wget https://github.com/ispras/Futag/releases/download/v3.0.0/futag-3.0.0.tar.gz
 RUN pip3 install futag-3.0.0.tar.gz
