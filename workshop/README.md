@@ -1,6 +1,23 @@
 # Futag Workshop
 
-## 1. Preparation
+## 1. Introduction
+
+- [Slide: Раскрытие секрета инструмента Futag.pptx](./Раскрытие%20секрета%20инструмента%20Futag.pptx)
+
+## 2. An ease way of automatic testing
+
+- Some useful examples of using Futag to test your library: https://github.com/thientc/Futag-tests
+
+- Steps to use Futag to test your library:
+  - Download Futag package from github (https://github.com/ispras/Futag/releases)
+  - Install dependencies (https://github.com/ispras/Futag/blob/main/product-tests/libraries-test/ubuntu22/Docker-test-libs.Dockerfile)
+  - Install Futag python-package (It's better to use virtualenv)
+  - Download and extract you library
+  - Create test script (https://github.com/thientc/Futag-tests/blob/main/json-c/build.py)
+  - Have a cup of coffee and wait for the result
+
+## 3. Let's helf Futag to understand your library 
+Preparation
 - Download Futag package from github
 - Download  
 

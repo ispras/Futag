@@ -165,8 +165,8 @@ class FuzzDataProviderGenerator:
             commands = json.load(open(compile_commands.as_posix()))
             for command in commands:
                 if pathlib.Path(command["file"]) == pathlib.Path(file):
-                    compiler = command["command"].split(" ")[0].split("/")[-1]
-                    if compiler == "cc" or compiler == "clang" or compiler == "gcc":
+                    extension = command["file"].split(".")[-1]
+                    if extension == "c" :
                         return {
                             "compiler": "CC",
                             "command": command["command"],
@@ -1104,8 +1104,11 @@ class FuzzDataProviderGenerator:
             }
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
+        # file_name = filename + self.delimiter + \
+        #     str(file_index) + "." + self.target_extension
+        # With FuzzedDataProvider, all the files will have .cpp extension
         file_name = filename + self.delimiter + \
-            str(file_index) + "." + self.target_extension
+            str(file_index) + ".cpp"
 
         full_path = (filepath / filename / dir_name / file_name).as_posix()
         f = open(full_path, 'w')
@@ -2329,7 +2332,7 @@ class FuzzDataProviderGenerator:
             param_id += 1
             self.__gen_target_function(func, param_id)
 
-    def gen_targets(self, anonymous: bool = False, max_wrappers: int = 10):
+    def gen_targets(self, anonymous: bool = False, from_list : str = "", max_wrappers: int = 100, max_functions: int = 10000):
         """
         Parameters
         ----------
@@ -2337,13 +2340,32 @@ class FuzzDataProviderGenerator:
             option for generating fuzz-targets of non-public functions, default to False.
         """
         self.gen_anonymous = anonymous
+
+        # Load the list of functions from the provided JSON file if specified
+        if from_list:
+            try:
+                with open(from_list, 'r') as f:
+                    function_list = json.load(f)
+            except Exception as e:
+                print(f"Error loading function list from {from_list}: {e}")
+                function_list = []
+        else:
+            function_list = []
+            
         self.max_wrappers = max_wrappers
         C_generated_function = []
         C_unknown_function = []
         Cplusplus_usual_class_method = []
         Cplusplus_static_class_method = []
         Cplusplus_anonymous_class_method = []
+        
+        func_index = 0
         for func in self.target_library["functions"]:
+            if function_list and func["name"] not in function_list:
+                continue
+            func_index += 1
+            if func_index > max_functions:
+                break
             if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (func["parent_hash"] == ""):
                 print(
                     "-- [Futag] Try to generate fuzz-driver for function: ", func["name"], "...")
