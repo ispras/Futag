@@ -6,7 +6,7 @@ from futag.fdp_generator import *
 from futag.sysmsg import * 
 from futag.fuzzer import * 
 
-FUTAG_PATH = "/home/futag/Futag/futag-llvm"
+FUTAG_PATH = "/home/futag/futag-llvm"
 lib_path = "json-c-json-c-0.18-20240915" 
 build_test = Builder(
    FUTAG_PATH, 

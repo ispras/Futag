@@ -20,10 +20,16 @@ RUN wget https://github.com/ispras/Futag/releases/download/v3.0.0/futag-llvm.lat
 RUN tar xf futag-llvm.latest.tar.xz
 #install Futag python package
 RUN wget https://github.com/ispras/Futag/releases/download/v3.0.0/futag-3.0.0.tar.gz
-RUN pip install futag-3.0.0.tar.gz
+RUN pip3 install futag-3.0.0.tar.gz
+
+#download json-c source code
 RUN mkdir json-c
 WORKDIR /home/futag/json-c
 RUN wget https://github.com/json-c/json-c/archive/refs/tags/json-c-0.18-20240915.tar.gz
 RUN tar -xvf json-c-0.18-20240915.tar.gz --strip 1
 
+# Crawl test script futag.all-in-one.py
+RUN wget https://raw.githubusercontent.com/ispras/Futag/refs/heads/llvm18/workshop/json-c/futag.all-in-one.pyom/ispras/Futag/blob/llvm18/workshop/json-c/futag.all-in-one.py
+
+#automatically test json-c with Futag
 RUN python3 futag.all-in-one.py
