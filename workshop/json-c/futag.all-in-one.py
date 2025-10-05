@@ -6,7 +6,7 @@ from futag.fdp_generator import *
 from futag.sysmsg import * 
 from futag.fuzzer import * 
 
-FUTAG_PATH = "/home/futag/futag-llvm"
+FUTAG_PATH = "../futag-llvm"
 lib_path = "json-c-json-c-0.18-20240915" 
 build_test = Builder(
    FUTAG_PATH, 
@@ -32,7 +32,7 @@ generator.compile_targets(
 
 fuzzer = Fuzzer(
     FUTAG_PATH,
-    "/home/futag/json-c/json-c-json-c-0.18-20240915/futag-fuzz-drivers",
+    "json-c-json-c-0.18-20240915/futag-fuzz-drivers",
     debug=True,
     svres=True,
     totaltime= 10,

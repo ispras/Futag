@@ -26,10 +26,13 @@ RUN pip3 install futag-3.0.0.tar.gz
 RUN mkdir json-c
 WORKDIR /home/futag/json-c
 RUN wget https://github.com/json-c/json-c/archive/refs/tags/json-c-0.18-20240915.tar.gz
-RUN tar -xvf json-c-0.18-20240915.tar.gz --strip 1
+RUN tar -xvf json-c-0.18-20240915.tar.gz
 
 # Crawl test script futag.all-in-one.py
-RUN wget https://raw.githubusercontent.com/ispras/Futag/refs/heads/llvm18/workshop/json-c/futag.all-in-one.pyom/ispras/Futag/blob/llvm18/workshop/json-c/futag.all-in-one.py
+RUN wget https://raw.githubusercontent.com/ispras/Futag/refs/heads/llvm18/workshop/json-c/futag.all-in-one.py
 
 #automatically test json-c with Futag
-RUN python3 futag.all-in-one.py
+#RUN python3 futag.all-in-one.py
+
+#docker build --network=host -t futag-json-c:0.18 -f .\json-c.Dockerfile .
+#docker run -it --rm --privileged --network host -v `pwd`:/host futag-json-c:0.18 /bin/bash
