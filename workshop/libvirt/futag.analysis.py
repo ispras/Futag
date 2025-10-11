@@ -5,13 +5,13 @@ from futag.preprocessor import *
 from futag.fdp_generator import * 
 from futag.fuzzer import * 
 
-FUTAG_PATH = "/home/thientc/Futag/futag-llvm"
-lib_path = "/home/thientc/libvirt"
+FUTAG_PATH = "~/Futag/futag-llvm"
+lib_path = "~/libvirt"
 test_build = Builder(
     FUTAG_PATH,
     lib_path,
     clean=False,
-    analysis_path='analysis_result',
+    analysis_path='futag-analysis',
 )
 # test_build.auto_build()
 test_build.analyze()

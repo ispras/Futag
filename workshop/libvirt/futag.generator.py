@@ -5,15 +5,15 @@ from futag.preprocessor import *
 from futag.generator import * 
 from futag.fuzzer import * 
 
-FUTAG_PATH = "/home/thientc/Futag/futag-llvm"
-lib_path = "/home/thientc/libvirt"
+FUTAG_PATH = "~/Futag/futag-llvm"
+lib_path = "~/libvirt"
 
 generator = Generator(
     FUTAG_PATH,
     lib_path,
-    json_file='/home/thientc/libvirt/analysis_result/futag-analysis-result.json',
-    build_path='/home/thientc/libvirt/build.meson', #for compile_command.json with cmake
-    install_path='/home/thientc/libvirt/build.meson', #for compile_command.json with cmake,
+    json_file='~/libvirt/futag-analysis/futag-analysis-result.json',
+    build_path='~/RPM/BUILD/libvirt-10.7.0/x86_64-alt-linux', #for compile_command.json with cmake
+    install_path='~/RPM/BUILD/libvirt-10.7.0/x86_64-alt-linux', #for compile_command.json with cmake,
     exclude_headers=["<config.h>"]
 )
 generator.gen_targets(
