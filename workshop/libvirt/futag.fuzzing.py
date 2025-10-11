@@ -1,12 +1,10 @@
 # Futag-tests (https://github.com/thientc/Futag-tests): testing repository for Futag.
 # This file is distributed under the GPL v3 license (https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-from futag.preprocessor import *
-from futag.generator import * 
 from futag.fuzzer import * 
 
-FUTAG_PATH = "~/Futag/futag-llvm"
-lib_path = "~/libvirt"
+FUTAG_PATH = "/home/futag/Futag/futag-llvm"
+lib_path = "."
 
 fuzzer = Fuzzer( # модуль для фаззинга
     FUTAG_PATH,
