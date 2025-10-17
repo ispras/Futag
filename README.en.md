@@ -1,141 +1,243 @@
 # Table of Contents
 
 - [Table of Contents](#table-of-contents)
-  - [1. About](#1-about)
-  - [2. Installation](#2-installation)
-  - [3. Usage](#3-usage)
-  - [4. Authors](#4-authors)
-  - [5. References](#5-references)
-  - [6. Found bugs](#6-found-bugs)
+- [1. Description](#1-description)
+- [2. Papers and Materials](#2-papers-and-materials)
+- [3. Installation](#3-installation)
+  - [3.1. Using the Docker container](#31-using-the-docker-container)
+  - [3.2. Using a prepackaged release](#32-using-a-prepackaged-release)
+  - [3.3. Building and installing from source](#33-building-and-installing-from-source)
+    - [3.3.1. Dependencies](#331-dependencies)
+    - [3.3.2. Build and install](#332-build-and-install)
+- [4. Usage Examples](#4-usage-examples)
+    - [4.1. Automatic generation of fuzzing wrappers when usage contexts are absent](#41-automatic-generation-of-fuzzing-wrappers-when-usage-contexts-are-absent)
+    - [4.2. Automatic generation of fuzzing wrappers when a consumer program is available](#42-automatic-generation-of-fuzzing-wrappers-when-a-consumer-program-is-available)
+  - [5. Authors](#5-authors)
+  - [6. Reported Bugs](#6-reported-bugs)
+  - [7. Results](#7-results)
 
-## 1. About
+# 1. Description
+When fuzz-testing libraries, achieving broader coverage requires improving both the quality and the quantity of fuzzing wrappers (fuzz targets). In large software projects and libraries that contain many user-defined functions and data types, manually creating fuzzing wrappers is time-consuming and labor-intensive. This motivates the need for automated approaches not only to generate fuzzing wrappers but also to simplify their execution and the analysis of results, especially under limited-resource conditions.
 
-Futag is an automated instrument to generate fuzz targets for software libraries.
-Unlike the standalone program, software library may not contain an entry point so that generating fuzz target for it remains a challenge.
-FUTAG uses LLVM clang and clang tools as front end to analyze and generate the fuzzing targets.
-Futag uses static analysis to find:
-- Entities dependencies (data types, functions, structures, etc.) in the source code of target library.
-- Library usage contexts.
-The information then is used for generating fuzz targets.
+FUTAG is a tool for automated generation of fuzzing wrappers for software libraries.
+FUTAG can generate fuzzing wrappers both when usage contexts for the tested library are absent and when such contexts are available.
+FUTAG uses Clang tooling as an external interface to analyze library source code.
 
-This project is based on llvm-project with Clang statistic analysis, LLVM lto and is distributed under ["GPL v3 license"](https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework)
+The static analyzer implemented in FUTAG performs the following during the build of the target library:
+- locate entity definitions (data types, functions, structures, etc.);
+- discover dependencies between entities;
 
-Currently Futag supports:
-- automatically compiling libraries with Makefile, cmake and configure;
-- automatically generating fuzzing-targets for functions of libraries in C/C++ languages.
-Additionally, Futag provides the ability to test compiled targets.
+The collected information is stored as a knowledge base about the tested library (KB). When usage contexts are not available, the FUTAG generator inspects the KB and creates fuzzing wrappers.
 
-## 2. Installation
-### 2.1. Using a docker container
-You can try to build Futag with pre-built [Docker files](https://github.com/ispras/Futag/tree/main/product-tests/build-test) for Ubuntu OS.
+When usage contexts are available, FUTAG searches for function calls, builds dependencies between the discovered calls, and constructs call contexts.
 
-### 2.2. Using a prepackaged package
-Download the latest [futag-llvm.2.0.1.tar.xz](https://github.com/ispras/Futag/releases/tag/2.0.0) and unzip
+The workflow of FUTAG is illustrated in the following figure:
+![](futag-work.png)
 
-### 2.3. Building and installing from source
+This project is built on LLVM with Clang static analysis and is distributed under the "GPL v3" license (see: https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework).
 
-#### 2.3.1. Dependencies
-This instruction allows you to build a copy of the project and run it on a Unix-like system.
+# 2. Papers and Materials
 
-Futag is based on [llvm-project](https://llvm.org/). For compiling the project, these packages must be installed on your system:
+If you use FUTAG in your research or when reporting bugs found with FUTAG, please cite the following works:
 
-- [CMake](https://cmake.org/) >=3.13.4 [cmake-3.19.3-Linux-x86_64.sh](https://github.com/Kitware/CMake/releases/download/v3.19.3/cmake-3.19.3-Linux-x86_64.sh) - Makefile/workspace generator
-- [GCC](https://gcc.gnu.org/)>=5.1.0 C/C++ compiler
-- [python](https://www.python.org/) >=3.6 
-- [pip](https://pypi.org/project/pip/)
-- [zlib](http://zlib.net/) >=1.2.3.4 Compression library
-- [GNU Make](http://savannah.gnu.org/projects/make) 3.79, 3.79.1 Makefile/build processor
+- Thien, T.C. Enhancing Fuzz Testing Efficiency through Automated Fuzz Target Generation. Program Comput Soft 51, 349–356 (2025). https://doi.org/10.1134/S0361768825700227
+- Tran C. T., Kurmangaleev S.: Futag: automated fuzz target generator for testing software libraries. In: 2021 Ivannikov Memorial Workshop (IVMEM), pp. 80–85. IEEE, Nizhny Novgorod (2021). https://doi.org/10.1109/IVMEM53963.2021.00021
 
-Please check [prerequirement](https://llvm.org/docs/GettingStarted.html#requirements) on official website of LLVM for more detail.
+Thank you for acknowledging the authors' work when you use FUTAG or report bugs discovered using this tool.
 
-You also need to create a symbolic link "python" to "python3" if such a link does not exist on your system. On an Ubuntu system, this can be done by installing the python-is-python3 package.
 
-#### 2.3.1. Building and installing
+- Research on automatic generation of fuzzing wrappers for library functions, Ivannikov ISPRAS Open Conference 2022
 
-- Clone the project:
+[![Video](https://img.youtube.com/vi/qw_tzzgX04E/hqdefault.jpg)](https://www.youtube.com/watch?v=qw_tzzgX04E&t=28122s)
+
+
+# 3. Installation
+## 3.1. Using the Docker container
+You can try building FUTAG using the provided Dockerfiles for Ubuntu: https://github.com/ispras/Futag/tree/main/product-tests/build-test
+
+## 3.2. Using a prepackaged release
+- Download the latest release (for example, futag-llvm.2.1.1.tar.xz) from https://github.com/ispras/Futag/releases/tag/2.1.1 and extract it. The tool will be installed to the futag-llvm directory.
+- To build AFLplusplus, run the buildAFLplusplus.sh script in futag-llvm:
+
+```bash
+  ~/futag-llvm$ ./buildAFLplusplus.sh
+```
+
+## 3.3. Building and installing from source
+
+### 3.3.1. Dependencies
+These instructions show how to build a copy of the project and run it on a Unix-like system.
+
+FUTAG is based on the LLVM project. To compile the project, the following packages must be installed on your system:
+
+- [CMake](https://cmake.org/) >= 3.13.4 (example: cmake-3.19.3-Linux-x86_64.sh) - build system generator
+- [GCC](https://gcc.gnu.org/) >= 7.1.0 - C/C++ compiler
+- [Python](https://www.python.org/) >= 3.8 - automated test suite
+- [pip](https://pypi.org/project/pip/) >= 22.1.1
+- [zlib](http://zlib.net/) >= 1.2.3.4 - compression library
+- [GNU Make] - (make) 3.79, 3.79.1 - make/build processor
+- [Binutils](https://www.gnu.org/software/binutils/)
+
+For more detailed information about dependencies required to build LLVM, see: https://llvm.org/docs/GettingStarted.html#requirements
+
+On Ubuntu you may also need to install:
+- python-is-python3
+- gcc-multilib
+- binutils-gold binutils-dev
+
+### 3.3.2. Build and install
+
+- Clone the repository:
 
 ```bash
   ~$ git clone https://github.com/ispras/Futag
 ```
 - Prepare the "custom-llvm" directory by running the script:
+
 ```bash
   ~/Futag/custom-llvm$ ./prepare.sh
 ```
-This script creates the Futag/build directory and copies the Futag/custom-llvm/build.sh script into it.
+This script creates the Futag/build directory and copies Futag/custom-llvm/build.sh into it.
 
-Run the copied script in "Futag/build":
+- Run the copied build script in "Futag/build":
 
 ```bash
   ~/Futag/build$ ./build.sh
 ```
 
-- As a result, the tool will be installed in the Futag/futag-llvm directory.
+- After the build the tool will be installed into Futag/futag-llvm
 
-## 3. Usage
+- To build AFLplusplus run buildAFLplusplus.sh in Futag/futag-llvm:
 
-- Analyze the library:
+```bash
+  ~/Futag/futag-llvm$ ./buildAFLplusplus.sh
+```
+
+# 4. Usage Examples
+- A workshop on using FUTAG is available in the repository: [workshop/](./workshop/)
+
+- Make sure the futag-<version>.tar.gz package is installed under futag-llvm/python-package/:
+```bash
+  ~$ pip install -r futag-llvm/python-package/requirements.txt
+  ~$ pip install futag-llvm/python-package/futag-2.1.1.tar.gz
+```
+
+### 4.1. Automatic generation of fuzzing wrappers when usage contexts are absent
+- Run the build, check and analysis when no usage contexts exist:
 
 ```python
-# package futag must be already installed
 from futag.preprocessor import *
 
-testing_lib = Builder(
-    "futag-llvm/", # path to the futag-llvm
-    "path/to/library/source/code" # library root
+FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
+lib_path = "path/to/library/source/code"
+build_test = Builder(
+    FUTAG_PATH,
+    lib_path,
+    clean=True, # remove all folders generated by FUTAG before building
+    # intercept=True, # enable compilation with the "intercept" tool to analyze compile_command.json
+    # processes=4, # number of build jobs
+    # build_ex_params="--with-openssl --with-mhash" # extra params for library build
 )
-testing_lib.auto_build()
-testing_lib.analyze()
+build_test.auto_build()
+build_test.analyze()
 ```
 
-- Generate and compile fuzz-drivers
+- Generate and compile drivers:
 
 ```python
-# package futag must be already installed
 from futag.generator import *
 
-g = Generator(
-    "futag-llvm/", # path to the futag-llvm
-    "path/to/library/source/code" # library root
-    # target_type = LIBFUZZER, # or AFLPLUSPLUS
+FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
+lib_path = "path/to/library/source/code"
+
+generator = Generator(
+    FUTAG_PATH, # path to the "futag-llvm" directory
+    lib_path, # path to the directory containing the target software source code
+    # target_type=AFLPLUSPLUS, 
 )
-g.gen_targets(
-  anonymous=False # Option for generating fuzzing-wrapper of private functions
+
+# Generate fuzzing wrappers
+generator.gen_targets(
+    anonymous=False, # option to generate wrappers for non-public functions
+    max_wrappers=10 # limit the number of generated wrappers per function
 )
-g.compile_targets(
-  8, # Compile fuzz drivers with 8 processes
-  # keep_failed=True, # keep uncompiled targets
-  # extra_include="-DHAVE_CONFIG_H", # extra included paths
-  # extra_dynamiclink="-lz", # extra system linked libraries
-  # flags="-ferror-limit=1", # flags for compiling, default to ""
+# Compile fuzz drivers
+generator.compile_targets(
+    4, # number of build jobs
+    # keep_failed=True, # keep failed targets
+    # extra_include="-DHAVE_CONFIG_H", # extra include flags for building the library
+    # extra_dynamiclink="-lz", # system libraries to link
+    # flags="-ferror-limit=1", # default: ""
 )
 ```
-By default, successfully compiled fuzz-drivers for target functions are located in the futag-fuzz-drivers directory, where each target function is in its own subdirectory, the name of which matches the name of the target function.
-If several fuzz-drivers have been generated for a function, corresponding directories are created in the subdirectory of the target function, where a serial number is added to the name of the target function.
 
-Documentation Futag Python-package follows by this [link](https://github.com/ispras/Futag/tree/main/src/python/futag-package)
+By default, successfully compiled fuzzing wrappers for target functions are placed in the futag-fuzz-drivers directory, where each target function has its own subdirectory named after the function.
 
-Details of working with Futag can be read [here](https://github.com/ispras/Futag/blob/main/How-to-work-with-Futag.md)
+### 4.2. Automatic generation of fuzzing wrappers when a consumer program is available
 
-The example script can be viewed [here](https://github.com/ispras/Futag/blob/main/src/python/template-script.py)
+```python
+from futag.preprocessor import *
+from futag.generator import * 
+from futag.fuzzer import * 
 
-[Testing repository](https://github.com/thientc/Futag-tests) has been created to test Futag for libraries (json-c, php, FreeImage, etc.), you can try with [Docker container]( https://github.com/ispras/Futag/tree/main/product-tests/libraries-test).
+FUTAG_PATH = "/home/futag/Futag/futag-llvm"
+library_root = "json-c-json-c-0.16-20220414"
+consumer_root = "libstorj-1.0.3"
+consumber_builder = ConsumerBuilder(
+   FUTAG_PATH, # path to the "futag-llvm" directory
+   library_root, # path to the directory with the tested library's source code
+   consumer_root, # path to the directory with the consumer application's source code
+  #  clean=True,
+  #  processes=16,
+)
+consumber_builder.auto_build()
+consumber_builder.analyze()
 
-## 4. Authors
+context_generator = ContextGenerator(
+    FUTAG_PATH, 
+    library_root, 
+)
 
-- [Tran Chi Thien](https://github.com/thientc/) (thientc@ispras.ru)
-- Shamil Kurmangaleev (kursh@ispras.ru)
-- Theodor Arsenij Larionov-Trichkin (tlarionov@ispras.ru)
+context_generator.gen_context() # generate fuzzing wrappers for contexts
+context_generator.compile_targets( # compile generated fuzzing wrappers
+    keep_failed=True,
+)
+```
 
-## 5. References
+If multiple fuzzing wrappers are generated for a function, the target function's subdirectory will contain numbered subdirectories (appended to the function name).
+Python package documentation is available at: https://github.com/ispras/Futag/tree/main/src/python/futag-package
 
-- C. T. Tran and S. Kurmangaleev, ["Futag: Automated fuzz target generator for testing software libraries"](https://ieeexplore.ieee.org/document/9693749) 2021 Ivannikov Memorial Workshop (IVMEM), 2021, pp. 80-85, doi: 10.1109/IVMEM53963.2021.00021.
+More information about using FUTAG is available at: https://github.com/ispras/Futag/blob/main/How-to-work-with-Futag.md
 
-- Research on automatic generation of fuzz-target for software library functions, Ivannikov ISP RAS Open Conference 2022
+A template for run scripts can be found here: https://github.com/ispras/Futag/blob/main/src/python/template-script.py
 
-[![Видео](https://img.youtube.com/vi/qw_tzzgX04E/hqdefault.jpg)](https://www.youtube.com/watch?v=qw_tzzgX04E&t=28122s) 
+A test repository was created at https://github.com/thientc/Futag-tests to test FUTAG on various libraries (json-c, php, FreeImage, etc.). You can try testing using the Docker container at https://github.com/ispras/Futag/tree/main/product-tests/libraries-test.
 
-## 6. Found bugs
+## 5. Authors
 
-- Crash in function [png_convert_from_time_t](https://github.com/glennrp/libpng/issues/362) of [libpng version 1.6.37](https://github.com/glennrp/libpng) (confirmed)
+- [Tran Chi Thien](https://github.com/thientc/)
+- Shamil Kurmangaleev
+- Dmitry Ponomarev
+- Andrey Kuznetsov
+- Theodor Arsenij Larionov-Trichkin
 
-- Global-buffer-overflow in function [ErrorIDToName](https://github.com/leethomason/tinyxml2/issues/923) of tinyxml2 version 9.0.0
+
+## 6. Reported Bugs
+
+| **Library** | **Version** |       **Function**      |                **Bug type**               |                         **Date of report**                        | **Date of patch** |
+|:-----------:|:-----------:|:-----------------------:|:-----------------------------------------:|:-----------------------------------------------------------------:|:-----------------:|
+| libpng      | 1.6.37      | png_convert_from_time_t | AddressSanitizer:DEADLYSIGNAL             | [Feb 8, 2021](https://github.com/glennrp/libpng/issues/362)       | Sep 13, 2022      |
+| tinyxml2    | 9.0.0       | ErrorIDToName           | AddressSanitizer: global-buffer-overflow  | [Nov 2, 2022](https://github.com/leethomason/tinyxml2/issues/923) | Nov 12, 2022      |
+| pugixml     | 1.13        | default_allocate        | AddressSanitizer: allocation-size-too-big | [Apr 11, 2023](https://github.com/zeux/pugixml/issues/560)        | Apr 15, 2023      |
+|             |             |                         |                                           |                                                                   |                   |
+
+## 7. Results
+
+| **Library** | **Generation time (s)** | **Number of fuzzing wrappers** | **Compilation time (s)** | **Lines of code** |
+|:---:|---:|:---:|:---:|:---:|
+| lib json-c | 180 | **3111** | 612 | 280,019 |
+| libpostgres | 105 | **749** | 29 | 84,387 |
+| curl | 4,210 | **152** | 21 | 9,617 |
+| openssl | 2,172 | **269** | 255 | 19,458 |
+| pugixml | 55 | **61** | 58 | 2,815 |
+| libopus | 75 | **422** | 7 | 12,606 |
