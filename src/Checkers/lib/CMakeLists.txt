@@ -24,7 +24,6 @@ add_clang_library(clangStaticAnalyzerCheckers
   CheckObjCInstMethSignature.cpp
   CheckPlacementNew.cpp
   CheckSecuritySyntaxOnly.cpp
-  CheckSizeofPointer.cpp
   CheckerDocumentation.cpp
   ChrootChecker.cpp
   CloneChecker.cpp
@@ -50,8 +49,6 @@ add_clang_library(clangStaticAnalyzerCheckers
   FuchsiaHandleChecker.cpp
   FutagAnalyzer.cpp
   FutagConsumerAnalyzer.cpp
-  FutagCatchInfo.cpp
-  FutagSimpleChecker.cpp
   GCDAntipatternChecker.cpp
   GenericTaintChecker.cpp
   GTestChecker.cpp
@@ -82,6 +79,7 @@ add_clang_library(clangStaticAnalyzerCheckers
   NoReturnFunctionChecker.cpp
   NonNullParamChecker.cpp
   NonnullGlobalConstantsChecker.cpp
+  NoOwnershipChangeVisitor.cpp
   NullabilityChecker.cpp
   NumberObjectConversionChecker.cpp
   ObjCAtSyncChecker.cpp
@@ -100,13 +98,14 @@ add_clang_library(clangStaticAnalyzerCheckers
   PointerSortingChecker.cpp
   PointerSubChecker.cpp
   PthreadLockChecker.cpp
-  cert/PutenvWithAutoChecker.cpp
+  PutenvStackArrayChecker.cpp
   RetainCountChecker/RetainCountChecker.cpp
   RetainCountChecker/RetainCountDiagnostics.cpp
   ReturnPointerRangeChecker.cpp
   ReturnUndefChecker.cpp
   ReturnValueChecker.cpp
   RunLoopAutoreleaseLeakChecker.cpp
+  SetgidSetuidOrderChecker.cpp
   SimpleStreamChecker.cpp
   SmartPtrChecker.cpp
   SmartPtrModeling.cpp

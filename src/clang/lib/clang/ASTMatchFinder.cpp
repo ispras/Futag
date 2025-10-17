@@ -1708,7 +1708,6 @@ void MatchFinder::futagMatchAST(ASTContext &Context, Stmt *Node) {
   Visitor.onEndOfTranslationUnit();
 }
 
-
 void MatchFinder::registerTestCallbackAfterParsing(
     MatchFinder::ParsingDoneTestCallback *NewParsingDone) {
   ParsingDone = NewParsingDone;

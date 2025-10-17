@@ -1,18 +1,16 @@
-"""
-**************************************************
-**      ______  __  __  ______  ___     ______  **
-**     / ____/ / / / / /_  __/ /   |   / ____/  **
-**    / /_    / / / /   / /   / /| |  / / __    **
-**   / __/   / /_/ /   / /   / ___ | / /_/ /    **
-**  /_/      \____/   /_/   /_/  |_| \____/     **
-**                                              **
-**     Fuzzing target Automated Generator       **
-**             a tool of ISP RAS                **
-**************************************************
-** This module is for generating, compiling     **
-** fuzz-drivers of functions in library         **
-**************************************************
-"""
+# **************************************************
+# **      ______  __  __  ______  ___     ______  **
+# **     / ____/ / / / / /_  __/ /   |   / ____/  **
+# **    / /_    / / / /   / /   / /| |  / / __    **
+# **   / __/   / /_/ /   / /   / ___ | / /_/ /    **
+# **  /_/      \____/   /_/   /_/  |_| \____/     **
+# **                                              **
+# **     Fuzz target Automated Generator       **
+# **             a tool of ISP RAS                **
+# **************************************************
+# ** This module is for generating, compiling     **
+# ** fuzz-drivers of functions in library         **
+# **************************************************
 
 import json
 import pathlib
@@ -31,7 +29,7 @@ from distutils.dir_util import copy_tree
 class Generator:
     """Futag Generator"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str="."):
+    def __init__(self, futag_llvm_package: str, library_root: str, alter_compiler: str="", target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str=".", exclude_headers=None):
         """ Constructor of Generator class.
 
         Args:
@@ -59,7 +57,8 @@ class Generator:
         self.library_root = library_root
         self.target_library = None
         self.header = []
-
+        self.exclude_headers = exclude_headers if exclude_headers else []
+        self.alter_compiler = alter_compiler
         self.gen_anonymous = False
         self.max_wrappers = 10
         self.gen_this_function = True
@@ -116,10 +115,11 @@ class Generator:
             tmp_output_path = "." + output_path
             # create directory for function targets if not exists
             # TODO: set option for deleting
-            if (self.library_root / output_path).exists():
-                delete_folder(self.library_root / output_path)
-            if (self.library_root / tmp_output_path).exists():
-                delete_folder(self.library_root / tmp_output_path)
+            
+            # if (self.library_root / output_path).exists():
+            #     delete_folder(self.library_root / output_path)
+            # if (self.library_root / tmp_output_path).exists():
+            #     delete_folder(self.library_root / tmp_output_path)
 
             simple_functions = []
             if self.target_library["functions"]:
@@ -167,8 +167,8 @@ class Generator:
             commands = json.load(open(compile_commands.as_posix()))
             for command in commands:
                 if pathlib.Path(command["file"]) == pathlib.Path(file):
-                    compiler = command["command"].split(" ")[0].split("/")[-1]
-                    if compiler == "cc" or compiler == "clang" or compiler == "gcc":
+                    extension = command["file"].split(".")[-1]
+                    if extension == "c" :
                         return {
                             "compiler": "CC",
                             "command": command["command"],
@@ -182,33 +182,20 @@ class Generator:
                             "file": command["file"],
                             "location": command["directory"]
                         }
+        if file.split(".")[-1] == "c":
             return {
-                "compiler": "CXX",
-                "command": command["command"],
-                "file": command["file"],
-                "location": command["directory"]
+                "compiler": "CC",
+                "command": "",
+                "file": file,
+                "location": ""
             }
         else:
-            if file.split(".")[-1] == "c":
-                return {
-                    "compiler": "CC",
-                    "command": "",
-                    "file": file,
-                    "location": ""
-                }
-            else:
-                return {
-                    "compiler": "CXX",
-                    "command": "",
-                    "file": file,
-                    "location": ""
-                }
-        return {
-            "compiler": "CC",
-            "command": "",
-            "file": file,
-            "location": ""
-        }
+            return {
+                "compiler": "CXX",
+                "command": "",
+                "file": file,
+                "location": ""
+            }
 
     def __gen_header(self, target_function_name):
         """ Generate header for the target function
@@ -241,6 +228,14 @@ class Generator:
                         if not header[1:-1] in defaults:
                             included_headers.append(header)
                     break
+        
+        if self.exclude_headers:
+            for h in self.exclude_headers:
+                if h in included_headers:
+                    included_headers.remove(h)
+                if h in self.header:
+                    self.header.remove(h)
+        
         include_lines = []
         for i in defaults:
             include_lines.append("#include <" + i + ">\n")
@@ -1220,6 +1215,7 @@ class Generator:
 
         # qname = func["qname"]
         if len(filename) > 250:
+            print("Error: File name is too long (>250 characters)!")
             return None
         dir_name = filename + str(file_index)
 
@@ -1236,6 +1232,7 @@ class Generator:
                 break
 
         if file_index > self.max_wrappers:
+            print("Warning: exeeded maximum number of generated fuzzing-wrappers for each function!")
             return None
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -1244,6 +1241,7 @@ class Generator:
         full_path = (filepath / filename / dir_name / file_name).as_posix()
         f = open(full_path, 'w')
         if f.closed:
+            print("crreate file error: ", full_path)
             return None
         return f
 
@@ -1858,6 +1856,7 @@ class Generator:
                 log = self.__log_file(func, self.gen_anonymous)
                 if not log:
                     print(CANNOT_CREATE_LOG_FILE, func["qname"])
+                    return False
                 else:
                     self.curr_func_log = f"Log for function: {func['qname']}\n{self.curr_func_log}"
                     log.write(self.curr_func_log)
@@ -2401,13 +2400,24 @@ class Generator:
             param_id += 1
             self.__gen_target_function(func, param_id)
 
-    def gen_targets(self, anonymous: bool = False, max_wrappers: int = 10):
+    def gen_targets(self, anonymous: bool = False, from_list : str = "",max_wrappers: int = 10, max_functions: int = 10000):
         """
         Parameters
         ----------
         anonymous: bool
             option for generating fuzz-targets of non-public functions, default to False.
         """
+        # Load the list of functions from the provided JSON file if specified
+        if from_list:
+            try:
+                with open(from_list, 'r') as f:
+                    function_list = json.load(f)
+            except Exception as e:
+                print(f"Error loading function list from {from_list}: {e}")
+                function_list = []
+        else:
+            function_list = []
+
         self.gen_anonymous = anonymous
         self.max_wrappers = max_wrappers
         C_generated_function = []
@@ -2415,8 +2425,15 @@ class Generator:
         Cplusplus_usual_class_method = []
         Cplusplus_static_class_method = []
         Cplusplus_anonymous_class_method = []
+        
+        func_index = 0
+
         for func in self.target_library["functions"]:
-            # For C
+            if function_list and func["name"] not in function_list:
+                continue
+            func_index += 1
+            if func_index > max_functions:
+                break
             if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (func["parent_hash"] == ""):
                 print(
                     "-- [Futag] Try to generate fuzz-driver for function: ", func["name"], "...")
@@ -2555,7 +2572,7 @@ class Generator:
             target_file.write("\n */\n")
         target_file.close()
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = False):
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = True):
         """_summary_
 
         Args:
@@ -2683,12 +2700,21 @@ class Generator:
                     target_path = dir.as_posix() + "/" + target_src.stem + ".out"
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
-                    if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(
-                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                    compiler = compiler_path.as_posix() 
+                    if self.alter_compiler:
+                        compiler = self.alter_compiler
+                        
+                    linking = []
+                    if extra_dynamiclink:
+                        linking = extra_dynamiclink.split(" ")
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(
-                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        linking = static_lib
+                    if self.target_type == LIBFUZZER:
+                        compiler_cmd = [compiler] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(
+                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + linking
+                    else:
+                        compiler_cmd = [compiler] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(
+                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + linking
 
                     compile_cmd_list.append({
                         "compiler_cmd": compiler_cmd,
@@ -2763,7 +2789,6 @@ class Generator:
                 self.__gen_target_function(func, 0)
         if not found_function:
             sys.exit("Function \"%s\" not found in library!" % target["qname"])
-
 
 class ContextGenerator:
     """Futag Context Generator"""
@@ -2913,8 +2938,8 @@ class ContextGenerator:
             commands = json.load(open(compile_commands.as_posix()))
             for command in commands:
                 if pathlib.Path(command["file"]) == pathlib.Path(file):
-                    compiler = command["command"].split(" ")[0].split("/")[-1]
-                    if compiler == "cc":
+                    extension = command["file"].split(".")[-1]
+                    if extension == "c" :
                         return {
                             "compiler": "CC",
                             "command": command["command"],
@@ -2928,33 +2953,47 @@ class ContextGenerator:
                             "file": command["file"],
                             "location": command["directory"]
                         }
+        if file.split(".")[-1] == "c":
             return {
-                "compiler": "CXX",
-                "command": command["command"],
-                "file": command["file"],
-                "location": command["directory"]
+                "compiler": "CC",
+                "command": "",
+                "file": file,
+                "location": ""
             }
         else:
-            if file.split(".")[-1] == "c":
-                return {
-                    "compiler": "CC",
-                    "command": "",
-                    "file": file,
-                    "location": ""
-                }
-            else:
-                return {
-                    "compiler": "CXX",
-                    "command": "",
-                    "file": file,
-                    "location": ""
-                }
-        return {
-            "compiler": "CC",
-            "command": "",
-            "file": file,
-            "location": ""
-        }
+            return {
+                "compiler": "CXX",
+                "command": "",
+                "file": file,
+                "location": ""
+            }
+        #     # return {
+        #     #     "compiler": "CXX",
+        #     #     "command": command["command"],
+        #     #     "file": command["file"],
+        #     #     "location": command["directory"]
+        #     # }
+        # else:
+        #     if file.split(".")[-1] == "c":
+        #         return {
+        #             "compiler": "CC",
+        #             "command": "",
+        #             "file": file,
+        #             "location": ""
+        #         }
+        #     else:
+        #         return {
+        #             "compiler": "CXX",
+        #             "command": "",
+        #             "file": file,
+        #             "location": ""
+        #         }
+        # return {
+        #     "compiler": "CC",
+        #     "command": "",
+        #     "file": file,
+        #     "location": ""
+        # }
 
     def __gen_header(self, target_function_name):
         """ Generate header for the target function
@@ -2987,6 +3026,13 @@ class ContextGenerator:
                         if not header[1:-1] in defaults:
                             included_headers.append(header)
                     break
+        if self.exclude_headers:
+            for h in self.exclude_headers:
+                if h in included_headers:
+                    included_headers.remove(h)
+                if h in self.header:
+                    self.header.remove(h)
+        
         include_lines = []
         for i in defaults:
             include_lines.append("#include <" + i + ">\n")
@@ -4427,7 +4473,7 @@ class ContextGenerator:
             target_file.write("\n */\n")
         target_file.close()
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = False):
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = True):
         """_summary_
 
         Args:
@@ -4562,12 +4608,21 @@ class ContextGenerator:
                     target_path = dir.as_posix() + "/" + target_src.stem + ".out"
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
-                    if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(
-                            " ") if x.strip()] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                    compiler = compiler_path.as_posix() 
+                    if self.alter_compiler:
+                        compiler = self.alter_compiler
+
+                    linking = []
+                    if extra_dynamiclink:
+                        linking = extra_dynamiclink.split(" ")
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(
-                            " ") if x.strip()] + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        linking = static_lib
+                    if self.target_type == LIBFUZZER:
+                        compiler_cmd = [compiler] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(
+                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + linking
+                    else:
+                        compiler_cmd = [compiler] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(
+                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + linking
 
                     compile_cmd_list.append({
                         "compiler_cmd": compiler_cmd,
@@ -4905,7 +4960,6 @@ class ContextGenerator:
 
             self.__gen_context_wrapper(func)
 
-
 class NatchGenerator:
     """Futag Generator for Natch"""
 
@@ -5095,8 +5149,8 @@ class NatchGenerator:
             commands = json.load(open(compile_commands.as_posix()))
             for command in commands:
                 if pathlib.Path(command["file"]) == pathlib.Path(file):
-                    compiler = command["command"].split(" ")[0].split("/")[-1]
-                    if compiler == "cc" or compiler == "clang" or compiler == "gcc":
+                    extension = command["file"].split(".")[-1]
+                    if extension == "c" :
                         return {
                             "compiler": "CC",
                             "command": command["command"],
@@ -5110,33 +5164,20 @@ class NatchGenerator:
                             "file": command["file"],
                             "location": command["directory"]
                         }
+        if file.split(".")[-1] == "c":
             return {
-                "compiler": "CXX",
-                "command": command["command"],
-                "file": command["file"],
-                "location": command["directory"]
+                "compiler": "CC",
+                "command": "",
+                "file": file,
+                "location": ""
             }
         else:
-            if file.split(".")[-1] == "c":
-                return {
-                    "compiler": "CC",
-                    "command": "",
-                    "file": file,
-                    "location": ""
-                }
-            else:
-                return {
-                    "compiler": "CXX",
-                    "command": "",
-                    "file": file,
-                    "location": ""
-                }
-        return {
-            "compiler": "CC",
-            "command": "",
-            "file": file,
-            "location": ""
-        }
+            return {
+                "compiler": "CXX",
+                "command": "",
+                "file": file,
+                "location": ""
+            }
 
     def __gen_header(self, target_function_name):
         """ Generate header for the target function
@@ -5168,7 +5209,14 @@ class NatchGenerator:
                     for header in f["headers"]:
                         if not header[1:-1] in defaults:
                             included_headers.append(header)
-                    break
+                    break                
+        if self.exclude_headers:
+            for h in self.exclude_headers:
+                if h in included_headers:
+                    included_headers.remove(h)
+                if h in self.header:
+                    self.header.remove(h)
+        
         include_lines = []
         for i in defaults:
             include_lines.append("#include <" + i + ">\n")
@@ -7240,7 +7288,7 @@ class NatchGenerator:
             target_file.write("\n */\n")
         target_file.close()
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = False):
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = True):
         """_summary_
 
         Args:
@@ -7379,12 +7427,20 @@ class NatchGenerator:
                     target_path = dir.as_posix() + "/" + target_src.stem + ".out"
                     error_path = dir.as_posix() + "/" + target_src.stem + ".err"
                     generated_targets += 1
-                    if self.target_type == LIBFUZZER:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(
-                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                    compiler = compiler_path.as_posix() 
+                    if self.alter_compiler:
+                        compiler = self.alter_compiler
+                    linking = []
+                    if extra_dynamiclink:
+                        linking = extra_dynamiclink.split(" ")
                     else:
-                        compiler_cmd = [compiler_path.as_posix()] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(
-                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + static_lib + extra_dynamiclink.split(" ")
+                        linking = static_lib
+                    if self.target_type == LIBFUZZER:
+                        compiler_cmd = [compiler] + compiler_flags_libFuzzer.split(" ") + current_include + ["-I" + x for x in extra_include.split(
+                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + linking
+                    else:
+                        compiler_cmd = [compiler] + compiler_flags_aflplusplus.split(" ") + current_include + ["-I" + x for x in extra_include.split(
+                            " ") if x.strip()] + extra_params.split(" ") + [target_src.as_posix()] + ["-o"] + [target_path] + linking
 
                     compile_cmd_list.append({
                         "compiler_cmd": compiler_cmd,

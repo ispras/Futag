@@ -1,17 +1,15 @@
-"""
-**************************************************
-**      ______  __  __  ______  ___     ______  **
-**     / ____/ / / / / /_  __/ /   |   / ____/  **
-**    / /_    / / / /   / /   / /| |  / / __    **
-**   / __/   / /_/ /   / /   / ___ | / /_/ /    **
-**  /_/      \____/   /_/   /_/  |_| \____/     **
-**                                              **
-**     Fuzzing target Automated Generator       **
-**             a tool of ISP RAS                **
-**************************************************
-** This module is for saving constants of Futag **
-**************************************************
-"""
+# **************************************************
+# **      ______  __  __  ______  ___     ______  **
+# **     / ____/ / / / / /_  __/ /   |   / ____/  **
+# **    / /_    / / / /   / /   / /| |  / / __    **
+# **   / __/   / /_/ /   / /   / ___ | / /_/ /    **
+# **  /_/      \____/   /_/   /_/  |_| \____/     **
+# **                                              **
+# **     Fuzzing target Automated Generator       **
+# **             a tool of ISP RAS                **
+# **************************************************
+# ** This module is for saving constants of Futag **
+# **************************************************
 
 # constants of Futag
 BUILD_PATH = ".futag-build"
@@ -67,6 +65,7 @@ AUTO_CONSUMER_BUILD_MSG = "-- [Futag]: Futag is analyzing consumer program for f
 AUTO_BUILD_FAILED = "-- [Futag]: Futag is unable to automatically build your library. Please do it yourself!"
 CONFIGURE_FOUND = "-- [Futag]: File configure found, trying to build library with configure... "
 CMAKE_FOUND = "-- [Futag]: File CMakeList.txt found, trying to build library with cmake... "
+MESON_FOUND = "-- [Futag]: File meson.build found, trying to build library with meson... "
 MAKEFILE_FOUND = "-- [Futag]: File Makefile found, trying to build library with make... "
 INVALID_TARGET_TYPE = "-- [Futag] Error: Unknown type of fuzz-driver for generating!"
 

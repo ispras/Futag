@@ -1,17 +1,15 @@
-"""
-**************************************************
-**      ______  __  __  ______  ___     ______  **
-**     / ____/ / / / / /_  __/ /   |   / ____/  **
-**    / /_    / / / /   / /   / /| |  / / __    **
-**   / __/   / /_/ /   / /   / ___ | / /_/ /    **
-**  /_/      \____/   /_/   /_/  |_| \____/     **
-**                                              **
-**     Fuzzing target Automated Generator       **
-**             a tool of ISP RAS                **
-**************************************************
-**      This module is for fuzzing              **
-**************************************************
-"""
+# **************************************************
+# **      ______  __  __  ______  ___     ______  **
+# **     / ____/ / / / / /_  __/ /   |   / ____/  **
+# **    / /_    / / / /   / /   / /| |  / / __    **
+# **   / __/   / /_/ /   / /   / ___ | / /_/ /    **
+# **  /_/      \____/   /_/   /_/  |_| \____/     **
+# **                                              **
+# **     Fuzz target Automated Generator       **
+# **             a tool of ISP RAS                **
+# **************************************************
+# **      This module is for fuzzing              **
+# **************************************************
 
 import os
 import sys
@@ -653,141 +651,15 @@ class Fuzzer:
                                 "-- [Futag]: Parsing crash without GDB: ", x.as_posix())
                             self.__libFuzzerLog_parser(
                                 x.as_posix(), crashlog_filename, False)
-
+                    #build single coverage
                     if self.coverage:
-                        llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
-                        llvm_profdata_command = [
-                            llvm_profdata.as_posix(),
-                            "merge",
-                            "-sparse",
-                            x.as_posix() + ".profraw",
-                            "-o",
-                            x.as_posix() + ".profdata",
-                        ]
-                        if self.debug:
-                            print(" ".join(llvm_profdata_command))
-                        p = call(
-                            llvm_profdata_command,
-                            stdout=PIPE,
-                            stderr=PIPE,
-                            universal_newlines=True,
-                            env=my_env,
-                        )
-
-                        llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
-                        llvm_cov_report = [
-                            llvm_cov.as_posix(),
-                            "report",
-                            x.as_posix(),
-                            "-instr-profile",
-                            x.as_posix() + ".profdata",
-                            "--object",
-                            x.as_posix(),
-                        ]
-                        if self.debug:
-                            print(" ".join(llvm_cov_report))
-                        p = run(llvm_cov_report)
-
-                        # llvm_cov_show = [
-                        #     llvm_cov.as_posix(),
-                        #     "show",
-                        #     x.as_posix(),
-                        #     "-instr-profile=" + x.as_posix() + ".profdata",
-                        # ]
-                        llvm_cov_show = [
-                            llvm_cov.as_posix(),
-                            "show",
-                            x.as_posix(),
-                            "-format=html",
-                            "-instr-profile",
-                            x.as_posix() + ".profdata",
-                            "--object",
-                            x.as_posix(),
-                        ]
-
-                        # cov_filename = x.as_posix() + ".cov"
-                        # cov_file = open(cov_filename, "w")
-                        # p = Popen(
-                        #     llvm_cov_show,
-                        #     stdout=cov_file,
-                        #     stderr=PIPE,
-                        #     universal_newlines=True,
-                        #     env=my_env,
-                        # )
-                        # output, errors = p.communicate()
-                        # cov_file.close()
-                        cov_filename = x.as_posix() + ".html"
-                        cov_file = open(cov_filename, "w")
-                        p = Popen(
-                            llvm_cov_show,
-                            stdout=cov_file,
-                            stderr=PIPE,
-                            universal_newlines=True,
-                            env=my_env,
-                        )
-                        output, errors = p.communicate()
-                        cov_file.close()
+                        self._build_single_coverage(x.as_posix(), dir.as_posix())
+                        
+        #build overall coverage
         if self.coverage:
-            profdata_files = [x.as_posix() for x in self.fuzz_driver_path.glob("**/*.profraw") if x.is_file()]
-            object_list = [x.as_posix()[:-8] for x in self.fuzz_driver_path.glob("**/*.profraw") if x.is_file()]
-            object_files =[]
-            for o in object_list:
-                object_files += ["-object", o]
+            self._build_ovearall_coverage(self.fuzz_driver_path)
 
-            llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
-            llvm_profdata_command = [
-                    llvm_profdata.as_posix(),
-                    "merge",
-                    "-sparse"
-                ] + profdata_files + [
-                    "-o",
-                    (self.fuzz_driver_path / "futag-fuzz-result.profdata").as_posix(),
-                ]
-            if self.debug:
-                print(" ".join(llvm_profdata_command))
-            p = call(
-                llvm_profdata_command,
-                stdout=PIPE,
-                stderr=PIPE,
-            )
-
-            llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
-            llvm_cov_report = [
-                llvm_cov.as_posix(),
-                "report",
-            ]+ object_files + [
-                "-instr-profile=" + (self.fuzz_driver_path / "futag-fuzz-result.profdata").as_posix()
-            ]
-            if self.debug:
-                print(" ".join(llvm_cov_report))
-            cov_report_filename = (self.fuzz_driver_path / "futag-coverage-report.txt").as_posix()
-            cov_report_file = open(cov_report_filename, "w")
-            p = Popen(
-                llvm_cov_report,
-                stdout=cov_report_file,
-                stderr=PIPE,
-            )
-            source_path = []
-            if self.source_path:
-                source_path = [self.source_path]
-                
-            llvm_cov_show = [
-                llvm_cov.as_posix(),
-                "show",
-                "-format=html",
-                "-instr-profile=" + (self.fuzz_driver_path / "futag-fuzz-result.profdata").as_posix(),
-            ] + ["-output-dir="+ (self.fuzz_driver_path).as_posix()] + object_files + source_path
-
-            # cov_filename = (self.fuzz_driver_path / "futag-coverage-result.html").as_posix()
-            # cov_file = open(cov_filename, "w")
-            p = Popen(
-                llvm_cov_show,
-                # stdout=cov_file,
-                stderr=PIPE,
-            )
-            if self.debug:
-                print(" ".join(llvm_cov_show))
-
+        #generate svres file
         template_file = self.futag_llvm_package / "svres-tmpl/svres.tmpl"
         warning_info_text = ""
         warning_info_path = Path.cwd().absolute() / "warning_info.svres"
@@ -811,6 +683,135 @@ class Fuzzer:
             print("-- [Futag] Please import file ", (self.fuzz_driver_path /
                   "futag.svres").as_posix(), " to Svace project to view result!")
         print("============ FINISH ============")
+    
+    def _build_single_coverage(self, object_file, path):
+        my_env = os.environ.copy()
+        my_env["LLVM_PROFILE_FILE"] = object_file + ".profraw"
+        llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
+        llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
+        
+        ## Merge profraw file
+        llvm_profdata_command = [
+            llvm_profdata.as_posix(),
+            "merge",
+            "-sparse",
+            object_file + ".profraw",
+            "-o",
+            object_file + ".profdata",
+        ]
+        p = call(
+            llvm_profdata_command,
+            stdout=PIPE,
+            stderr=PIPE,
+            universal_newlines=True,
+            env=my_env,
+        )
+        
+        llvm_cov_report = [
+            llvm_cov.as_posix(),
+            "report",
+            "-instr-profile",
+            object_file + ".profdata",
+            "--object",
+            object_file,
+        ]
+        cov_file = open(object_file + ".coverage.csv", "w")
+        p = Popen(
+            llvm_cov_report,
+            stdout=cov_file,
+            stderr=PIPE,
+            universal_newlines=True,
+            env=my_env,
+        )
+        cov_file.close()
+        
+        llvm_cov_show = [
+            llvm_cov.as_posix(),
+            "show",
+            "-format=html",
+            "-instr-profile",
+            object_file + ".profdata"
+        ] + [
+            "-output-dir="+ path
+        ] + [
+            "-object",
+            object_file,
+        ] + [self.source_path]
+        
+        p = Popen(
+                llvm_cov_show,
+                stderr=PIPE,
+        ).wait()
+        os.rename(path + "/index.html", object_file + ".html")
+       
+        if self.debug:
+            print(" ".join(llvm_profdata_command))
+            print(" ".join(llvm_cov_report))
+            print(" ".join(llvm_cov_show))
+
+    def _build_ovearall_coverage(self, path):
+        my_env = os.environ.copy()
+        profdata_files = [x.as_posix() for x in path.glob("**/*.profraw") if x.is_file()]
+        object_list = [x.as_posix()[:-8] for x in path.glob("**/*.profraw") if x.is_file()]
+        object_files =[]
+        for o in object_list:
+            object_files += ["-object", o]
+            
+        llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
+        llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
+
+        llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
+        llvm_profdata_command = [
+                llvm_profdata.as_posix(),
+                "merge",
+                "-sparse"
+            ] + profdata_files + [
+                "-o",
+                (path / "futag-fuzz-result.profdata").as_posix(),
+            ]
+            
+        p = call(
+            llvm_profdata_command,
+            stdout=PIPE,
+            stderr=PIPE,
+        )
+        source_path = [self.source_path]
+        llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
+        llvm_cov_report = [
+            llvm_cov.as_posix(),
+            "report",
+        ]+ object_files + [
+            "-instr-profile=" + (self.fuzz_driver_path / "futag-fuzz-result.profdata").as_posix()
+        ] + source_path
+
+        cov_report_filename = (self.fuzz_driver_path / "futag-coverage-report.csv").as_posix()
+        cov_report_file = open(cov_report_filename, "w")
+        p = Popen(
+            llvm_cov_report,
+            stdout=cov_report_file,
+            stderr=PIPE,
+            universal_newlines=True,
+            env=my_env,
+        )
+        cov_report_file.close()
+        
+        llvm_cov_show = [
+            llvm_cov.as_posix(),
+            "show",
+            "-format=html",
+            "-instr-profile=" + (self.fuzz_driver_path / "futag-fuzz-result.profdata").as_posix(),
+        ] + ["-output-dir="+ (self.fuzz_driver_path).as_posix()] + object_files + source_path
+
+        p = Popen(
+            llvm_cov_show,
+            stderr=PIPE,
+        )
+        
+        if self.debug:
+            print(" ".join(llvm_cov_show))
+            print(" ".join(llvm_cov_report))
+            print(" ".join(llvm_profdata_command))
+
 
 class NatchFuzzer:
     """Futag Fuzzer for Natch"""

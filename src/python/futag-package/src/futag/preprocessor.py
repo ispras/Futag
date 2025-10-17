@@ -1,18 +1,17 @@
-"""
-**************************************************
-**      ______  __  __  ______  ___     ______  **
-**     / ____/ / / / / /_  __/ /   |   / ____/  **
-**    / /_    / / / /   / /   / /| |  / / __    **
-**   / __/   / /_/ /   / /   / ___ | / /_/ /    **
-**  /_/      \____/   /_/   /_/  |_| \____/     **
-**                                              **
-**     Fuzzing target Automated Generator       **
-**             a tool of ISP RAS                **
-**************************************************
-**  This preprocessor module is for building,   **
-**  analyzing library                           **
-**************************************************
-"""
+# **************************************************
+# **      ______  __  __  ______  ___     ______  **
+# **     / ____/ / / / / /_  __/ /   |   / ____/  **
+# **    / /_    / / / /   / /   / /| |  / / __    **
+# **   / __/   / /_/ /   / /   / ___ | / /_/ /    **
+# **  /_/      \____/   /_/   /_/  |_| \____/     **
+# **                                              **
+# **     Fuzz target Automated Generator       **
+# **             a tool of ISP RAS                **
+# **************************************************
+# **  This preprocessor module is for building,   **
+# **  analyzing library                           **
+# **************************************************
+
 import json
 from json.decoder import JSONDecodeError
 
@@ -121,7 +120,8 @@ class Builder:
             print(CONFIGURE_FOUND)
             self.build_configure()
             return True
-
+        
+        
         # TODO: добавить возможность указать папку cmake!!!
         if (self.library_root / "CMakeLists.txt").exists():
             print(CMAKE_FOUND)
@@ -132,9 +132,109 @@ class Builder:
             print(MAKEFILE_FOUND)
             self.build_makefile()
             return True
-
+        
+        if (self.library_root / "meson.build").exists():
+            print(CMAKE_FOUND)
+            self.build_meson()
+            return True
+        
         print(AUTO_BUILD_FAILED)
         return False
+    
+    def build_meson(self) -> bool:
+        """ This function tries to build your library with cmake.
+
+        Raises:
+        Returns:
+            bool: result of building with cmake.
+        """
+        curr_dir = os.getcwd()
+        # Configure with meson
+        os.chdir(self.library_root.as_posix())
+        my_env = os.environ.copy()
+        print(LIB_ANALYSIS_STARTED)
+        if self.build_path.resolve() == self.library_root.resolve():
+            sys.exit(CMAKE_PATH_ERROR)
+
+        my_env["CC"] = (self.futag_llvm_package / 'bin/clang').as_posix()
+        my_env["CXX"] = (self.futag_llvm_package / 'bin/clang++').as_posix()
+        config_cmd = [
+            (self.futag_llvm_package / "bin/scan-build").as_posix(),
+            "meson",
+            f"--prefix={self.install_path.as_posix()}",
+            f"{(self.build_path).as_posix()}",
+        ]
+        if self.build_ex_params:
+            config_cmd += self.build_ex_params.split(" ")
+        p = Popen(config_cmd,
+                #   stdout=PIPE, stderr=PIPE,
+                  universal_newlines=True, env=my_env)
+        
+        print(LIB_CONFIGURE_COMMAND, " ".join(p.args))
+        output, errors = p.communicate()
+        if p.returncode:
+            print(errors)
+            sys.exit(LIB_CONFIGURE_FAILED)
+        else:
+            print(LIB_CONFIGURE_SUCCEEDED)
+            
+
+        # analysis
+        os.chdir(self.build_path.as_posix())
+        analysis_command = [
+            (self.futag_llvm_package / "bin/scan-build").as_posix(),
+            "-disable-checker",
+            "core",
+            "-disable-checker",
+            "security",
+            "-disable-checker",
+            "unix",
+            "-disable-checker",
+            "deadcode",
+            "-disable-checker",
+            "nullability",
+            "-disable-checker",
+            "cplusplus",
+            "-enable-checker",
+            "futag.FutagAnalyzer",
+            "-analyzer-config",
+            "futag.FutagAnalyzer:report_dir=" + self.analysis_path.as_posix(),
+            "ninja",
+        ]
+        
+        if self.processes > 1:
+            analysis_command = analysis_command + ["-j" + str(self.processes)]
+
+        p = Popen(analysis_command, stdout=PIPE, stderr=PIPE,
+                  universal_newlines=True, env=my_env)
+        print(LIB_ANALYZING_COMMAND, " ".join(p.args))
+        output, errors = p.communicate()
+        if p.returncode:
+            print(errors)
+            sys.exit(LIB_ANALYZING_FAILED)
+        else:
+            print(LIB_ANALYZING_SUCCEEDED)
+
+
+        # Doing ninja install
+        p = Popen([
+            "ninja",
+            "install",
+        ], stdout=PIPE, stderr=PIPE, universal_newlines=True, env=my_env)
+
+        output, errors = p.communicate()
+        if p.returncode:
+            print(LIB_INSTALL_COMMAND, " ".join(p.args))
+            print(errors)
+            print(LIB_INSTALL_FAILED)
+        else:
+            print(output)
+            print(LIB_INSTALL_SUCCEEDED)
+
+        os.chdir(curr_dir)
+
+        return True
+
 
     def build_cmake(self) -> bool:
         """ This function tries to build your library with cmake.
