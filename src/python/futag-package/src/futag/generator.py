@@ -26,7 +26,6 @@ import sys
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
 from typing import List
-from distutils.dir_util import copy_tree
 
 from futag.sysmsg import *
 from futag.preprocessor import *
