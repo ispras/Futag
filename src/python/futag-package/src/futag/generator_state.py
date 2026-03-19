@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 """Generator state management for Futag fuzz target generation.
 
 This module provides a dataclass that encapsulates all mutable state used

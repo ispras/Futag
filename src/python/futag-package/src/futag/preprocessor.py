@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 # **************************************************
 # **      ______  __  __  ______  ___     ______  **
 # **     / ____/ / / / / /_  __/ /   |   / ____/  **
@@ -21,8 +25,12 @@ import re
 import shlex
 import sys
 
+import logging
+
 from futag.sysmsg import *
 from subprocess import Popen, PIPE
+
+logger = logging.getLogger(__name__)
 
 
 def delete_folder(pth):
@@ -61,20 +69,20 @@ def _run_command(cmd, env=None, msg_prefix="", fail_msg="", succeed_msg="",
         kwargs.update(stdout=PIPE, stderr=PIPE)
     p = Popen(cmd, **kwargs)
     if msg_prefix:
-        print(msg_prefix, " ".join(p.args))
+        logger.debug("%s %s", msg_prefix, " ".join(p.args))
     output, errors = p.communicate()
     if p.returncode:
         if errors:
-            print(errors)
+            logger.error(errors)
         if exit_on_fail and fail_msg:
             sys.exit(fail_msg)
         elif fail_msg:
-            print(fail_msg)
+            logger.error(fail_msg)
     else:
         if output and capture:
-            print(output)
+            logger.debug(output)
         if succeed_msg:
-            print(succeed_msg)
+            logger.info(succeed_msg)
     return p.returncode, output, errors
 
 
@@ -99,12 +107,12 @@ def _load_json_files(file_list, description=""):
             with open(jf, "r") as f:
                 data = json.load(f)
         except JSONDecodeError:
-            print(f" -- [Futag]: Warning: Could not parse JSON in {jf}")
+            logger.warning(f"Could not parse JSON in {jf}")
             continue
         if data is None:
-            print(f" -- [Futag]: Warning: loading json from file {jf} failed!")
+            logger.warning(f"loading json from file {jf} failed!")
             continue
-        print(f" -- [Futag]: Analyzing {description} in file {jf} ...")
+        logger.info(f"Analyzing {description} in file {jf} ...")
         yield data
 
 
@@ -230,30 +238,30 @@ class Builder(_BaseBuilder):
             bool: result of auto build.
         """
 
-        print(AUTO_BUILD_MSG)
+        logger.info(AUTO_BUILD_MSG)
         if (self.library_root / "configure").exists():
-            print(CONFIGURE_FOUND)
+            logger.info(CONFIGURE_FOUND)
             self.build_configure()
             return True
 
 
         # TODO: добавить возможность указать папку cmake!!!
         if (self.library_root / "CMakeLists.txt").exists():
-            print(CMAKE_FOUND)
+            logger.info(CMAKE_FOUND)
             self.build_cmake()
             return True
 
         if (self.library_root / "Makefile").exists():
-            print(MAKEFILE_FOUND)
+            logger.info(MAKEFILE_FOUND)
             self.build_makefile()
             return True
 
         if (self.library_root / "meson.build").exists():
-            print(CMAKE_FOUND)
+            logger.info(CMAKE_FOUND)
             self.build_meson()
             return True
 
-        print(AUTO_BUILD_FAILED)
+        logger.error(AUTO_BUILD_FAILED)
         return False
 
     def build_meson(self) -> bool:
@@ -267,7 +275,7 @@ class Builder(_BaseBuilder):
         # Configure with meson
         os.chdir(self.library_root.as_posix())
         my_env = self._make_env()
-        print(LIB_ANALYSIS_STARTED)
+        logger.info(LIB_ANALYSIS_STARTED)
         if self.build_path.resolve() == self.library_root.resolve():
             sys.exit(CMAKE_PATH_ERROR)
 
@@ -321,7 +329,7 @@ class Builder(_BaseBuilder):
 
         # Config with cmake
         my_env = self._make_env()
-        print(LIB_ANALYSIS_STARTED)
+        logger.info(LIB_ANALYSIS_STARTED)
         if self.build_path.resolve() == self.library_root.resolve():
             sys.exit(CMAKE_PATH_ERROR)
 
@@ -418,7 +426,7 @@ class Builder(_BaseBuilder):
         curr_dir = os.getcwd()
         os.chdir(self.build_path.as_posix())
 
-        print(LIB_ANALYSIS_STARTED)
+        logger.info(LIB_ANALYSIS_STARTED)
         config_cmd = self._scan_build_args() + [
             (self.library_root / "configure").as_posix(),
             f"--prefix=" + self.install_path.as_posix(),
@@ -487,7 +495,7 @@ class Builder(_BaseBuilder):
         """
         curr_dir = os.getcwd()
 
-        print(LIB_ANALYSIS_STARTED)
+        logger.info(LIB_ANALYSIS_STARTED)
 
         # Analyzing the library
         analysis_command = self._scan_build_args(
@@ -568,15 +576,14 @@ class Builder(_BaseBuilder):
         record_list = []
         compiled_files = []
 
-        print("")
-        print(" -- [Futag]: Analysing function declarations...")
+        logger.info("Analysing function declarations...")
         for functions in _load_json_files(decl_files, "function declarations"):
             # get global hash of all functions
             for func_hash in functions:
                 if func_hash not in function_list:
                     function_list[func_hash] = functions[func_hash]
 
-        print(" -- [Futag]: Analysing contexts...")
+        logger.info("Analysing contexts...")
         for contexts in _load_json_files(context_files, "context"):
             # get global hash of all functions
             global_hash = [x for x in function_list]
@@ -592,10 +599,9 @@ class Builder(_BaseBuilder):
                             function_list[func_hash]["call_contexts"].append(
                                 call_xref)
                 else:
-                    print(" -- %s not found in global hash list!" % (func_hash))
+                    logger.warning("%s not found in global hash list!", func_hash)
 
-        print("")
-        print(" -- [Futag]: Analysing data types ...")
+        logger.info("Analysing data types ...")
 
         for types in _load_json_files(typeinfo_files, "data types"):
             for enum_it in types["enums"]:
@@ -627,8 +633,7 @@ class Builder(_BaseBuilder):
                 if not exist:
                     typedef_list.append(typedef_it)
 
-        print("")
-        print(" -- [Futag]: Analysing header files and compiler options...")
+        logger.info("Analysing header files and compiler options...")
 
         match_include = r"^\s*#include\s*([<\"][//_\-\w.<>]+[>\"])\s*$"
         for infofile in info_files:
@@ -638,18 +643,17 @@ class Builder(_BaseBuilder):
                 with open(infofile, "r") as f:
                     compiled_file = json.load(f)
             except JSONDecodeError:
-                print(f" -- [Futag]: Warning: Could not parse JSON in {infofile}")
+                logger.warning(f"Could not parse JSON in {infofile}")
                 continue
 
             if not compiled_file or not compiled_file['file']:
-                print(f" -- [Futag]: Warning: loading json from file {infofile} failed!")
+                logger.warning(f"loading json from file {infofile} failed!")
                 continue
             else:
-                print(f" -- [Futag]: Analyzing headers in file {infofile} ...")
+                logger.info(f"Analyzing headers in file {infofile} ...")
             code = []
             if os.path.exists(compiled_file['file']):
-                print(" -- [Futag]: Getting info from file %s ..." %
-                      (compiled_file['file']))
+                logger.info("Getting info from file %s ...", compiled_file['file'])
                 with open(compiled_file['file'], "r", errors="ignore") as f:
                     code = f.readlines()
             headers = []
@@ -728,12 +732,12 @@ class Builder(_BaseBuilder):
         with open(self.analysis_path / "futag-4consumer.json", "w") as f:
             json.dump(result_4_consumer, f)
 
-        print("Total functions: ", str(len(result["functions"])))
-        print("Total functions for consumer programs: ", str(len(result_4_consumer["functions"])))
-        print("Total enums: ", str(len(result["enums"])))
-        print("Total records: ", str(len(result["records"])))
-        print("Total typedefs: ", str(len(result["typedefs"])))
-        print("Analysis result: ", (self.analysis_path /
+        logger.info("Total functions: %s", str(len(result["functions"])))
+        logger.info("Total functions for consumer programs: %s", str(len(result_4_consumer["functions"])))
+        logger.info("Total enums: %s", str(len(result["enums"])))
+        logger.info("Total records: %s", str(len(result["records"])))
+        logger.info("Total typedefs: %s", str(len(result["typedefs"])))
+        logger.info("Analysis result: %s", (self.analysis_path /
               "futag-analysis-result.json").as_posix())
 
 
@@ -803,28 +807,27 @@ class ConsumerBuilder(_BaseBuilder):
             bool: result of auto build.
         """
 
-        print(AUTO_CONSUMER_BUILD_MSG)
-        print("-- [Futag]: Testing library: ", self.library_root.as_posix())
-        print("-- [Futag]: Consumer program: ", self.consumer_root.as_posix())
-        print("-- [Futag]: Analysis result: ", self.consumer_report_path.as_posix())
-        print("")
+        logger.info(AUTO_CONSUMER_BUILD_MSG)
+        logger.info("Testing library: %s", self.library_root.as_posix())
+        logger.info("Consumer program: %s", self.consumer_root.as_posix())
+        logger.info("Analysis result: %s", self.consumer_report_path.as_posix())
         if (self.consumer_root / "configure").exists():
-            print(CONFIGURE_FOUND)
+            logger.info(CONFIGURE_FOUND)
             self.build_configure()
             return True
 
         # TODO: добавить возможность указать папку cmake!!!
         if (self.consumer_root / "CMakeLists.txt").exists():
-            print(CMAKE_FOUND)
+            logger.info(CMAKE_FOUND)
             self.build_cmake()
             return True
 
         if (self.consumer_root / "Makefile").exists():
-            print(MAKEFILE_FOUND)
+            logger.info(MAKEFILE_FOUND)
             self.build_makefile()
             return True
 
-        print(AUTO_BUILD_FAILED)
+        logger.error(AUTO_BUILD_FAILED)
         return False
 
     def build_cmake(self) -> bool:
@@ -842,7 +845,7 @@ class ConsumerBuilder(_BaseBuilder):
 
         # Config with cmake
         my_env = self._make_env()
-        print(LIB_ANALYSIS_STARTED)
+        logger.info(LIB_ANALYSIS_STARTED)
         if self.build_path.resolve() == self.consumer_root.resolve():
             sys.exit(CMAKE_PATH_ERROR)
 
@@ -890,7 +893,7 @@ class ConsumerBuilder(_BaseBuilder):
 
         curr_dir = os.getcwd()
         os.chdir(self.consumer_root.as_posix())
-        print(LIB_ANALYSIS_STARTED)
+        logger.info(LIB_ANALYSIS_STARTED)
 
         config_cmd = self._scan_build_args() + [
             (self.consumer_root / "configure").as_posix(),
@@ -926,7 +929,7 @@ class ConsumerBuilder(_BaseBuilder):
             bool: result of building with Makefile.
         """
 
-        print(LIB_ANALYSIS_STARTED)
+        logger.info(LIB_ANALYSIS_STARTED)
 
         # Analyzing the library
         analysis_command = self._scan_build_args(

@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 # **************************************************
 # **      ______  __  __  ______  ___     ______  **
 # **     / ____/ / / / / /_  __/ /   |   / ____/  **
@@ -22,7 +26,6 @@ import sys
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
 from typing import List
-from distutils.dir_util import copy_tree
 
 from futag.sysmsg import *
 from futag.preprocessor import *
@@ -36,7 +39,7 @@ class Generator(BaseGenerator):
     def __init__(self, futag_llvm_package, library_root, alter_compiler="",
                  target_type=LIBFUZZER, json_file=ANALYSIS_FILE_PATH,
                  output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH,
-                 install_path=INSTALL_PATH, delimiter=".", exclude_headers=None):
+                 install_path=INSTALL_PATH, delimiter=".", exclude_headers=None) -> None:
         super().__init__(futag_llvm_package, library_root,
                          target_type=target_type, json_file=json_file,
                          output_path=output_path, build_path=build_path,
@@ -45,22 +48,26 @@ class Generator(BaseGenerator):
         self.exclude_headers = exclude_headers if exclude_headers else []
 
     @property
-    def default_headers(self):
+    def default_headers(self) -> list:
+        """Return default C headers required by generated fuzz targets."""
         return ["stdio.h", "stddef.h", "time.h", "stdlib.h", "string.h", "stdint.h"]
 
     @property
-    def supports_c(self):
+    def supports_c(self) -> bool:
+        """Return whether this generator supports C targets."""
         return True
 
     @property
-    def needs_buffer_check(self):
+    def needs_buffer_check(self) -> bool:
+        """Return whether generated harnesses need a buffer size check."""
         return True
 
     @property
-    def harness_preamble(self):
+    def harness_preamble(self) -> str:
+        """Return preamble code inserted at the start of the harness body."""
         return ""
 
-    def _gen_builtin(self, param_name, gen_type_info):
+    def _gen_builtin(self, param_name, gen_type_info) -> dict:
         """Declare and assign value for a builtin type."""
         return {
             "gen_lines": [
@@ -73,7 +80,7 @@ class Generator(BaseGenerator):
             "buffer_size": ["sizeof(" + gen_type_info["type_name"].replace("(anonymous namespace)::", "") + ")"]
         }
 
-    def _gen_strsize(self, param_name, param_type, dyn_size_idx, array_name):
+    def _gen_strsize(self, param_name, param_type, dyn_size_idx, array_name) -> dict:
         """Generate a string-size parameter."""
         return {
             "gen_lines": [
@@ -84,7 +91,7 @@ class Generator(BaseGenerator):
             "buffer_size": []
         }
 
-    def _gen_cstring(self, param_name, gen_type_info, dyn_cstring_size_idx):
+    def _gen_cstring(self, param_name, gen_type_info, dyn_cstring_size_idx) -> dict:
         """Declare and assign value for a C string type."""
         ref_name = param_name
         if gen_type_info["local_qualifier"]:
@@ -109,7 +116,7 @@ class Generator(BaseGenerator):
             "buffer_size": []
         }
 
-    def _gen_wstring(self, param_name, gen_type_info, dyn_wstring_size_idx):
+    def _gen_wstring(self, param_name, gen_type_info, dyn_wstring_size_idx) -> dict:
         """Declare and assign value for a wide string type."""
         ref_name = param_name
         if gen_type_info["local_qualifier"]:
@@ -134,7 +141,7 @@ class Generator(BaseGenerator):
             "buffer_size": []
         }
 
-    def _gen_cxxstring(self, param_name, gen_type_info, dyn_cxxstring_size_idx):
+    def _gen_cxxstring(self, param_name, gen_type_info, dyn_cxxstring_size_idx) -> dict:
         """Declare and assign value for a C++ string type."""
         ref_name = param_name
         if gen_type_info["local_qualifier"]:
@@ -148,7 +155,7 @@ class Generator(BaseGenerator):
             "buffer_size": []
         }
 
-    def _gen_enum(self, enum_record, param_name, gen_type_info, compiler_info, anonymous=False):
+    def _gen_enum(self, enum_record, param_name, gen_type_info, compiler_info, anonymous=False) -> dict:
         """Declare and assign value for an enum type."""
         enum_name = gen_type_info["type_name"]
         enum_length = len(enum_record["enum_values"])
@@ -175,7 +182,7 @@ class Generator(BaseGenerator):
                 "buffer_size": ["sizeof(unsigned int)"]
             }
 
-    def _gen_array(self, param_name, gen_type_info):
+    def _gen_array(self, param_name, gen_type_info) -> dict:
         """Declare and assign value for an array type."""
         return {
             "gen_lines": [
@@ -193,7 +200,7 @@ class Generator(BaseGenerator):
             "buffer_size": [str(gen_type_info["length"]) + " * sizeof(" + gen_type_info["base_type_name"] + ")"]
         }
 
-    def _gen_void(self, param_name):
+    def _gen_void(self, param_name) -> dict:
         """Declare and assign value for a void type."""
         return {
             "gen_lines": [
@@ -204,7 +211,7 @@ class Generator(BaseGenerator):
             "buffer_size": []
         }
 
-    def _gen_qualifier(self, param_name, prev_param_name, gen_type_info):
+    def _gen_qualifier(self, param_name, prev_param_name, gen_type_info) -> dict:
         """Declare and assign value for a qualified type."""
         return {
             "gen_lines": [
@@ -215,7 +222,7 @@ class Generator(BaseGenerator):
             "buffer_size": []
         }
 
-    def _gen_pointer(self, param_name, prev_param_name, gen_type_info):
+    def _gen_pointer(self, param_name, prev_param_name, gen_type_info) -> dict:
         """Declare and assign value for a pointer type."""
         return {
             "gen_lines": [

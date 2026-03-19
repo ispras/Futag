@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 # **************************************************
 # **      ______  __  __  ______  ___     ______  **
 # **     / ____/ / / / / /_  __/ /   |   / ____/  **
@@ -14,6 +18,7 @@
 # **************************************************
 
 import json
+import logging
 import pathlib
 import copy
 import os
@@ -22,9 +27,11 @@ from abc import ABC, abstractmethod
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
 from typing import List
-from distutils.dir_util import copy_tree
+from shutil import copytree
 
 from futag.sysmsg import *
+
+logger = logging.getLogger(__name__)
 from futag.preprocessor import delete_folder
 from futag.generator_state import GeneratorState
 
@@ -66,53 +73,327 @@ class BaseGenerator(ABC):
     # ------------------------------------------------------------------ #
 
     @abstractmethod
-    def _gen_builtin(self, param_name, gen_type_info) -> dict:
-        """Declare and assign value for a builtin type."""
+    def _gen_builtin(self, param_name: str, gen_type_info: dict) -> dict:
+        """Generate initialization code for a C/C++ builtin type variable.
+
+        Subclasses must produce code that declares a variable of the given
+        builtin type and assigns it a value derived from the fuzz input.
+
+        Args:
+            param_name: The generated variable name (e.g. "b_param0").
+            gen_type_info: Type metadata dict from analysis JSON containing
+                at least ``type_name`` (e.g. "int", "double") and
+                ``gen_type`` (always ``GEN_BUILTIN``).
+
+        Returns:
+            dict with three keys:
+                - ``gen_lines`` (list[str]): C/C++ code lines that declare and
+                  initialize the variable.
+                - ``gen_free`` (list[str]): Cleanup code lines (typically empty
+                  for builtins).
+                - ``buffer_size`` (list[str]): Size expressions consumed from
+                  the fuzz buffer.
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["int b_x;\\n",
+                             "memcpy(&b_x, futag_pos, sizeof(int));\\n",
+                             "futag_pos += sizeof(int);\\n"],
+              "gen_free": [],
+              "buffer_size": ["sizeof(int)"]}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["auto b_x = provider.ConsumeIntegral<int>();\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_strsize(self, param_name, param_type, dyn_size_idx, array_name) -> dict:
-        """Generate a string-size parameter."""
+    def _gen_strsize(self, param_name: str, param_type: str, dyn_size_idx: int, array_name: str) -> dict:
+        """Generate code for a parameter that holds the size of a preceding string.
+
+        When a function parameter immediately follows a string parameter and
+        has a size-compatible type, this method is called instead of
+        ``_gen_builtin`` to tie the size variable to the dynamic string length.
+
+        Args:
+            param_name: The generated variable name (e.g. "sz_len").
+            param_type: The C type name of the size parameter (e.g. "size_t").
+            dyn_size_idx: Index into the dynamic string size array
+                (``dyn_cstring_size``, ``dyn_wstring_size``, or
+                ``dyn_cxxstring_size``).
+            array_name: Name of the size array to index into, one of
+                ``"dyn_cstring_size"``, ``"dyn_wstring_size"``, or
+                ``"dyn_cxxstring_size"``.
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``).
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["size_t sz_len = dyn_cstring_size[0];\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["size_t sz_len = dyn_cstring_size[0];\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_cstring(self, param_name, gen_type_info, dyn_cstring_size_idx) -> dict:
-        """Declare and assign value for a C string type."""
+    def _gen_cstring(self, param_name: str, gen_type_info: dict, dyn_cstring_size_idx: int) -> dict:
+        """Generate initialization code for a C string (``char *``) variable.
+
+        Produces code that allocates a buffer, copies fuzz data into it, and
+        null-terminates the result.
+
+        Args:
+            param_name: The generated variable name (e.g. "str_buf0").
+            gen_type_info: Type metadata dict with at least ``type_name``
+                and ``gen_type`` (``GEN_CSTRING``).
+            dyn_cstring_size_idx: Current index into the ``dyn_cstring_size``
+                array, used to determine the dynamic length of this string.
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``). Typically includes a
+            ``malloc``/``free`` pair in Generator, or
+            ``ConsumeRandomLengthString`` in FDP.
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["char * str_buf0 = ...",
+                             "memcpy(str_buf0, futag_pos, ...);\\n"],
+              "gen_free": ["if (str_buf0) free(str_buf0);\\n"],
+              "buffer_size": []}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["auto str_buf0 = provider.ConsumeRandomLengthString();\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_wstring(self, param_name, gen_type_info, dyn_wstring_size_idx) -> dict:
-        """Declare and assign value for a wide string type."""
+    def _gen_wstring(self, param_name: str, gen_type_info: dict, dyn_wstring_size_idx: int) -> dict:
+        """Generate initialization code for a wide string (``wchar_t *``) variable.
+
+        Similar to ``_gen_cstring`` but for wide-character strings. Produces
+        code that allocates a ``wchar_t`` buffer, copies fuzz data, and
+        null-terminates.
+
+        Args:
+            param_name: The generated variable name (e.g. "str_wbuf0").
+            gen_type_info: Type metadata dict with ``type_name`` and
+                ``gen_type`` (``GEN_WSTRING``).
+            dyn_wstring_size_idx: Current index into the
+                ``dyn_wstring_size`` array.
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``).
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["wchar_t * str_wbuf0 = ...",
+                             "memcpy(str_wbuf0, futag_pos, ...);\\n"],
+              "gen_free": ["if (str_wbuf0) free(str_wbuf0);\\n"],
+              "buffer_size": []}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["auto str_wbuf0 = provider.ConsumeRandomLengthString();\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_cxxstring(self, param_name, gen_type_info, dyn_cxxstring_size_idx) -> dict:
-        """Declare and assign value for a C++ string type."""
+    def _gen_cxxstring(self, param_name: str, gen_type_info: dict, dyn_cxxstring_size_idx: int) -> dict:
+        """Generate initialization code for a C++ ``std::string`` variable.
+
+        Produces code that creates an ``std::string`` from fuzz input data.
+
+        Args:
+            param_name: The generated variable name (e.g. "strcxx_s0").
+            gen_type_info: Type metadata dict with ``type_name`` and
+                ``gen_type`` (``GEN_CXXSTRING``).
+            dyn_cxxstring_size_idx: Current index into the
+                ``dyn_cxxstring_size`` array.
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``).
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["char * strcxx_s0_buffer = ...",
+                             "std::string strcxx_s0(strcxx_s0_buffer);\\n"],
+              "gen_free": ["free(strcxx_s0_buffer);\\n"],
+              "buffer_size": []}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["auto strcxx_s0 = provider.ConsumeRandomLengthString();\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_enum(self, enum_record, param_name, gen_type_info, compiler_info, anonymous=False) -> dict:
-        """Declare and assign value for an enum type."""
+    def _gen_enum(self, enum_record: dict, param_name: str, gen_type_info: dict, compiler_info: dict, anonymous: bool = False) -> dict:
+        """Generate initialization code for an enum type variable.
+
+        Produces code that selects one of the enum's valid values from
+        the fuzz input.
+
+        Args:
+            enum_record: The enum definition dict from analysis JSON,
+                containing ``enum_values`` (list of valid values) and
+                ``qname``.
+            param_name: The generated variable name (e.g. "e_mode").
+            gen_type_info: Type metadata dict with ``type_name`` and
+                ``gen_type`` (``GEN_ENUM``).
+            compiler_info: Compilation context dict (with ``compiler``,
+                ``command``, ``file``, ``location`` keys) used to
+                determine C vs C++ treatment.
+            anonymous: If True, strip anonymous namespace qualifiers
+                from generated code.
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``).
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["int e_mode_value;\\n",
+                             "memcpy(&e_mode_value, futag_pos, sizeof(int));\\n",
+                             "MyEnum e_mode = static_cast<MyEnum>(values[...]);\\n"],
+              "gen_free": [],
+              "buffer_size": ["sizeof(int)"]}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["auto e_mode = provider.ConsumeIntegral<int>();\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_array(self, param_name, gen_type_info) -> dict:
-        """Declare and assign value for an array type."""
+    def _gen_array(self, param_name: str, gen_type_info: dict) -> dict:
+        """Generate initialization code for a fixed-size array variable.
+
+        Produces code that declares an array and fills it with fuzz data.
+
+        Args:
+            param_name: The generated variable name (e.g. "a_buf").
+            gen_type_info: Type metadata dict with ``type_name``,
+                ``length`` (array size), and ``gen_type`` (``GEN_ARRAY``).
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``).
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["int a_buf[10];\\n",
+                             "memcpy(a_buf, futag_pos, 10 * sizeof(int));\\n",
+                             "futag_pos += 10 * sizeof(int);\\n"],
+              "gen_free": [],
+              "buffer_size": ["10 * sizeof(int)"]}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["int a_buf[10];\\n",
+                             "for (int i=0; i<10; i++) a_buf[i] = provider.ConsumeIntegral<int>();\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_void(self, param_name) -> dict:
-        """Declare and assign value for a void type."""
+    def _gen_void(self, param_name: str) -> dict:
+        """Generate initialization code for a ``void *`` parameter.
+
+        Void pointers are generally difficult to fuzz meaningfully.
+        Implementations may produce a raw buffer cast or mark the
+        parameter as non-generable.
+
+        Args:
+            param_name: The generated variable name (e.g. "a_data").
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``).
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["void * a_data = futag_pos;\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["// void type not generated\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_qualifier(self, param_name, prev_param_name, gen_type_info) -> dict:
-        """Declare and assign value for a qualified type."""
+    def _gen_qualifier(self, param_name: str, prev_param_name: str, gen_type_info: dict) -> dict:
+        """Generate initialization code for a type-qualified (``const``/``volatile``) variable.
+
+        Wraps a previously generated variable with the appropriate
+        qualifier, typically by casting or assigning.
+
+        Args:
+            param_name: The generated variable name for this qualifier
+                layer (e.g. "q_param0").
+            prev_param_name: The variable name from the previous
+                generation layer that this qualifier wraps.
+            gen_type_info: Type metadata dict with ``type_name``
+                (the fully qualified type) and ``gen_type``
+                (``GEN_QUALIFIER``).
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``).
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["const int q_param0 = b_param0;\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["const int q_param0 = b_param0;\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     @abstractmethod
-    def _gen_pointer(self, param_name, prev_param_name, gen_type_info) -> dict:
-        """Declare and assign value for a pointer type."""
+    def _gen_pointer(self, param_name: str, prev_param_name: str, gen_type_info: dict) -> dict:
+        """Generate initialization code for a pointer type variable.
+
+        Wraps a previously generated variable by taking its address or
+        allocating a pointer to hold the value.
+
+        Args:
+            param_name: The generated variable name for this pointer
+                layer (e.g. "p_param0").
+            prev_param_name: The variable name from the previous
+                generation layer whose address is taken.
+            gen_type_info: Type metadata dict with ``type_name``
+                (the pointer type, e.g. "int *") and ``gen_type``
+                (``GEN_POINTER``).
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            (same structure as ``_gen_builtin``).
+
+        Example (Generator / memcpy backend):
+            ``{"gen_lines": ["int * p_param0 = &b_param0;\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+
+        Example (FDP backend):
+            ``{"gen_lines": ["int * p_param0 = &b_param0;\\n"],
+              "gen_free": [],
+              "buffer_size": []}``
+        """
         ...
 
     # ------------------------------------------------------------------ #
@@ -188,8 +469,7 @@ class BaseGenerator(ABC):
             self.json_file = pathlib.Path(json_file)
 
         if self.json_file.exists():
-            f = open(self.json_file.as_posix())
-            if not f.closed:
+            with open(self.json_file.as_posix()) as f:
                 self.target_library = json.load(f)
             tmp_output_path = "." + output_path
             # create directory for function targets if not exists
@@ -265,7 +545,8 @@ class BaseGenerator(ABC):
         """
         if (self.build_path / "compile_commands.json").exists():
             compile_commands = self.build_path / "compile_commands.json"
-            commands = json.load(open(compile_commands.as_posix()))
+            with open(compile_commands.as_posix()) as f:
+                commands = json.load(f)
             for command in commands:
                 if pathlib.Path(command["file"]) == pathlib.Path(file):
                     extension = command["file"].split(".")[-1]
@@ -378,7 +659,13 @@ class BaseGenerator(ABC):
                     break
         return included_headers
 
-    def _add_header(self, function_headers):
+    def _add_header(self, function_headers: list) -> None:
+        """Add headers to the current state if not already present.
+
+        Args:
+            function_headers: List of header include strings
+                (e.g. ``['"mylib.h"', '<sys/types.h>']``).
+        """
         for h in function_headers:
             if h not in self.state.header:
                 self.state.header.append(h)
@@ -436,7 +723,17 @@ class BaseGenerator(ABC):
                     })
         return result
 
-    def _append_gen_dict(self, curr_gen):
+    def _append_gen_dict(self, curr_gen: dict) -> None:
+        """Append generation results to the current state.
+
+        Merges the code lines, cleanup lines, and buffer size expressions
+        from a single type-generation result into the accumulating state.
+
+        Args:
+            curr_gen: A generation result dict with keys ``gen_lines``,
+                ``gen_free``, and ``buffer_size``. May be empty or None,
+                in which case this is a no-op.
+        """
         if curr_gen:
             self.state.buffer_size += curr_gen["buffer_size"]
             self.state.gen_lines += curr_gen["gen_lines"]
@@ -446,7 +743,26 @@ class BaseGenerator(ABC):
     #  Complex shared generation methods                                  #
     # ------------------------------------------------------------------ #
 
-    def _gen_struct(self, struct_name, struct, gen_info):
+    def _gen_struct(self, struct_name: str, struct: dict, gen_info: dict) -> dict:
+        """Generate initialization code for a struct type by iterating over fields.
+
+        Declares a struct variable and recursively generates initialization
+        code for each of its fields using the appropriate type-specific
+        generation method.
+
+        Args:
+            struct_name: The generated variable name for the struct
+                (e.g. "s_config").
+            struct: The struct record dict from analysis JSON, containing
+                a ``fields`` list where each field has ``field_name`` and
+                ``gen_list``.
+            gen_info: Type metadata dict for the struct parameter with at
+                least ``type_name`` (the struct's C type name).
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            aggregated from all field initializations.
+        """
         gen_lines = [gen_info["type_name"] + " " + struct_name + ";\n"]
         gen_free = []
         buffer_size = []
@@ -704,8 +1020,26 @@ class BaseGenerator(ABC):
             "buffer_size": []
         }
 
-    def _gen_var_function(self, func_param_name: str, func):
-        """ Initialize for argument of function call """
+    def _gen_var_function(self, func_param_name: str, func: dict) -> dict:
+        """Generate code to initialize a variable via a function call.
+
+        When a parameter's type matches the return type of another library
+        function, this method generates code that calls that function to
+        produce the needed value. It recursively generates all arguments
+        required by the called function.
+
+        Args:
+            func_param_name: The variable name to assign the function's
+                return value to (e.g. "s_config").
+            func: The function dict from analysis JSON for the function
+                to call, containing ``params``, ``qname``,
+                ``return_type``, ``func_type``, etc.
+
+        Returns:
+            dict with keys ``gen_lines``, ``gen_free``, ``buffer_size``
+            aggregated from the function's argument generation and the
+            call itself.
+        """
         # curr_dyn_size = 0
         param_list = []
         curr_gen_string = -1
@@ -955,8 +1289,24 @@ class BaseGenerator(ABC):
     #  File management methods                                            #
     # ------------------------------------------------------------------ #
 
-    def _wrapper_file(self, func):
+    def _wrapper_file(self, func: dict) -> dict:
+        """Create a wrapper source file for a fuzz target.
 
+        Creates the directory structure and opens a new source file for
+        writing the generated fuzz driver. Each function may have up to
+        ``self.max_wrappers`` variants, stored in numbered subdirectories.
+
+        Args:
+            func: The function dict from analysis JSON, used to derive
+                the file name from ``qname`` and the file extension from
+                ``location.fullpath``.
+
+        Returns:
+            dict with two keys:
+                - ``file``: An open file handle for writing, or None on
+                  error.
+                - ``msg``: A status message string describing the result.
+        """
         # if anonymous:
         #     filename = func["name"]
         #     filepath = self.tmp_output_path / "anonymous"
@@ -1009,8 +1359,22 @@ class BaseGenerator(ABC):
             "msg": "Successed: " + full_path + " created!"
         }
 
-    def _anonymous_wrapper_file(self, func):
+    def _anonymous_wrapper_file(self, func: dict):
+        """Create a wrapper file for anonymous namespace functions.
 
+        Similar to ``_wrapper_file`` but copies the original source file
+        content into the wrapper first (so that the anonymous-namespace
+        function is accessible), then opens the file in append mode for
+        adding the harness code.
+
+        Args:
+            func: The function dict from analysis JSON, containing
+                ``name``, ``hash``, and ``location.fullpath``.
+
+        Returns:
+            An open file handle in append mode, or None if the file
+            could not be created or the wrapper limit was exceeded.
+        """
         # if anonymous:
         #     filename = func["name"]
         #     filepath = self.tmp_output_path / "anonymous"
@@ -1050,16 +1414,29 @@ class BaseGenerator(ABC):
             filepath / filename / dir_name / file_name).as_posix()
         with open(source_path, 'r') as s:
             source_file = s.read()
-            d = open(full_path_destination, "w")
+        with open(full_path_destination, "w") as d:
             d.write("//"+func["hash"] + "\n")
             d.write(source_file)
-            d.close()
         f = open(full_path_destination, 'a')
         if f.closed:
             return None
         return f
 
-    def _log_file(self, func, anonymous: bool = False):
+    def _log_file(self, func: dict, anonymous: bool = False):
+        """Create a log file for recording generation decisions.
+
+        Opens a ``.log`` file alongside the generated fuzz driver to
+        capture why generation succeeded or failed for a given function.
+
+        Args:
+            func: The function dict from analysis JSON.
+            anonymous: If True, use the short ``name`` and place the
+                log under an ``anonymous`` subdirectory.
+
+        Returns:
+            An open file handle for writing, or None if the file could
+            not be created or the wrapper limit was exceeded.
+        """
         if anonymous:
             filename = func["name"]
             filepath = self.tmp_output_path / "anonymous"
@@ -1071,7 +1448,7 @@ class BaseGenerator(ABC):
 
         # qname = func["qname"]
         if len(filename) > 250:
-            print("Error: File name is too long (>250 characters)!")
+            logger.error("File name is too long (>250 characters)!")
             return None
         dir_name = filename + str(file_index)
 
@@ -1088,7 +1465,7 @@ class BaseGenerator(ABC):
                 break
 
         if file_index > self.max_wrappers:
-            print("Warning: exeeded maximum number of generated fuzzing-wrappers for each function!")
+            logger.warning("exeeded maximum number of generated fuzzing-wrappers for each function!")
             return None
         (filepath / filename / dir_name).mkdir(parents=True, exist_ok=True)
 
@@ -1097,7 +1474,7 @@ class BaseGenerator(ABC):
         full_path = (filepath / filename / dir_name / file_name).as_posix()
         f = open(full_path, 'w')
         if f.closed:
-            print("crreate file error: ", full_path)
+            logger.error("crreate file error: %s", full_path)
             return None
         return f
 
@@ -1105,12 +1482,28 @@ class BaseGenerator(ABC):
     #  State save/restore                                                 #
     # ------------------------------------------------------------------ #
 
-    def _save_state(self):
-        """Save the current generation state for later restoration."""
+    def _save_state(self) -> "GeneratorState":
+        """Save current generator state for backtracking.
+
+        Creates a deep copy of ``self.state`` so that the generator can
+        try multiple generation strategies (e.g. different functions that
+        return the needed struct type) and revert if one fails.
+
+        Returns:
+            A deep-copied ``GeneratorState`` snapshot.
+        """
         return self.state.save()
 
-    def _restore_state(self, saved_state):
-        """Restore generation state from a previously saved copy."""
+    def _restore_state(self, saved_state) -> None:
+        """Restore generator state from a saved copy.
+
+        Reverts ``self.state`` to a snapshot previously obtained via
+        ``_save_state``, discarding all mutations made since then.
+
+        Args:
+            saved_state: A ``GeneratorState`` snapshot from
+                ``_save_state()``.
+        """
         self.state.restore_from(saved_state)
 
     # ------------------------------------------------------------------ #
@@ -1118,7 +1511,34 @@ class BaseGenerator(ABC):
     #  __gen_anonymous_function                                           #
     # ------------------------------------------------------------------ #
 
-    def _gen_target_function(self, func, param_id, anonymous=False) -> bool:
+    def _gen_target_function(self, func: dict, param_id: int, anonymous: bool = False) -> bool:
+        """Recursively generate a complete fuzz target for a function.
+
+        Processes function parameters one at a time (indexed by
+        ``param_id``). For each parameter, dispatches to the appropriate
+        type-specific generation method. When all parameters have been
+        processed (base case: ``param_id == len(func['params'])``),
+        writes the complete harness file including headers, buffer size
+        checks, generated code lines, the function call, and cleanup.
+
+        For struct and class parameters, this method may try multiple
+        generation strategies (via different return-type-matching
+        functions), saving and restoring state between attempts.
+
+        Args:
+            func: The function dict from analysis JSON containing
+                ``params``, ``qname``, ``return_type``, ``func_type``,
+                ``location``, etc.
+            param_id: Zero-based index of the parameter currently being
+                processed. Incremented on each recursive call.
+            anonymous: If True, generate an anonymous-namespace-aware
+                wrapper that includes the original source file.
+
+        Returns:
+            True if the harness file was successfully written, False
+            if generation failed (e.g. unsupported type, missing
+            constructor, exceeded wrapper limit).
+        """
         malloc_free = [
             "unsigned char *",
             "char *",
@@ -1144,7 +1564,7 @@ class BaseGenerator(ABC):
             if (not len(self.state.buffer_size) and not self.state.dyn_cstring_size_idx and not self.state.dyn_cxxstring_size_idx and not self.state.dyn_wstring_size_idx and not self.state.file_idx) or not self.state.gen_this_function:
                 log = self._log_file(func, self.gen_anonymous)
                 if not log:
-                    print(CANNOT_CREATE_LOG_FILE, func["qname"])
+                    logger.error(f"{CANNOT_CREATE_LOG_FILE} {func['qname']}")
                     if not anonymous:
                         return False
                 else:
@@ -1158,9 +1578,9 @@ class BaseGenerator(ABC):
                 f = self._anonymous_wrapper_file(func)
                 if not f:
                     self.state.gen_this_function = False
-                    print(CANNOT_CREATE_WRAPPER_FILE, func["qname"])
+                    logger.error(f"{CANNOT_CREATE_WRAPPER_FILE} {func['qname']}")
                     return False
-                print(WRAPPER_FILE_CREATED, f.name)
+                logger.info(f"{WRAPPER_FILE_CREATED} {f.name}")
 
                 for line in self._gen_header(func["location"]["fullpath"]):
                     f.write("// " + line)
@@ -1168,9 +1588,8 @@ class BaseGenerator(ABC):
             else:
                 # generate file name (normal path)
                 wrapper_result = self._wrapper_file(func)
-                print("Generating fuzzing-wapper for function ",
-                      func["qname"], ": ")
-                print("-- ", wrapper_result["msg"])
+                logger.info("Generating fuzzing-wapper for function %s:", func["qname"])
+                logger.info("-- %s", wrapper_result["msg"])
                 if not wrapper_result["file"]:
                     self.state.gen_this_function = False
                     return False
@@ -1506,7 +1925,7 @@ class BaseGenerator(ABC):
 
                 if gen_type_info["gen_type"] == GEN_REFSTRING:
                     if not anonymous:
-                        print("!!!GEN_REFSTRING\n\n\n")
+                        logger.debug("!!!GEN_REFSTRING")
                     # GEN FILE NAME OR # GEN STRING
                     if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
                         curr_name = "f_" + curr_name  # string_prefix
@@ -1757,12 +2176,23 @@ class BaseGenerator(ABC):
     #  gen_targets                                                        #
     # ------------------------------------------------------------------ #
 
-    def gen_targets(self, anonymous: bool = False, from_list: str = "", max_wrappers: int = 10, max_functions: int = 10000):
-        """
-        Parameters
-        ----------
-        anonymous: bool
-            option for generating fuzz-targets of non-public functions, default to False.
+    def gen_targets(self, anonymous: bool = False, from_list: str = "", max_wrappers: int = 10, max_functions: int = 10000) -> None:
+        """Generate fuzz targets for all eligible functions in the library.
+
+        Iterates over the analyzed function list, filters by access type
+        and storage class, and calls ``_gen_target_function`` for each
+        eligible function. Results are saved under ``self.tmp_output_path``.
+
+        Args:
+            anonymous: If True, also generate fuzz targets for functions
+                in anonymous namespaces. Defaults to False.
+            from_list: Path to a JSON file containing a list of function
+                names to restrict generation to. If empty, all eligible
+                functions are processed. Defaults to "".
+            max_wrappers: Maximum number of fuzz-driver variants to
+                generate per function. Defaults to 10.
+            max_functions: Maximum total number of functions to process.
+                Defaults to 10000.
         """
         # Load the list of functions from the provided JSON file if specified
         if from_list:
@@ -1770,7 +2200,7 @@ class BaseGenerator(ABC):
                 with open(from_list, 'r') as f:
                     function_list = json.load(f)
             except Exception as e:
-                print(f"Error loading function list from {from_list}: {e}")
+                logger.error(f"Error loading function list from {from_list}: {e}")
                 function_list = []
         else:
             function_list = []
@@ -1792,8 +2222,7 @@ class BaseGenerator(ABC):
             if func_index > max_functions:
                 break
             if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (func["parent_hash"] == ""):
-                print(
-                    "-- [Futag] Try to generate fuzz-driver for function: ", func["name"], "...")
+                logger.info("Try to generate fuzz-driver for function: %s...", func["name"])
                 C_generated_function.append(func["name"])
                 self.state.reset()
                 self.state.curr_function = func
@@ -1805,8 +2234,7 @@ class BaseGenerator(ABC):
             # For C++, Declare object of class and then call the method
             if func["access_type"] == AS_PUBLIC and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR, FUNC_GLOBAL, FUNC_STATIC] and (not "::operator" in func["qname"]):
                 Cplusplus_usual_class_method.append(func["qname"])
-                print(
-                    "-- [Futag] Try to generate fuzz-driver for class method: ", func["name"], "...")
+                logger.info("Try to generate fuzz-driver for class method: %s...", func["name"])
                 self.state.reset()
                 self.state.curr_function = func
                 if "(anonymous" in func["qname"]:
@@ -1834,8 +2262,8 @@ class BaseGenerator(ABC):
             "Cplusplus_anonymous_class_methods": Cplusplus_anonymous_class_method,
             "C_unknown_functions": C_unknown_function
         }
-        json.dump(self.result_report, open(
-            (self.build_path / "result-report.json").as_posix(), "w"))
+        with open((self.build_path / "result-report.json").as_posix(), "w") as f:
+            json.dump(self.result_report, f)
 
     # ------------------------------------------------------------------ #
     #  Compilation methods                                                #
@@ -1850,67 +2278,80 @@ class BaseGenerator(ABC):
                 universal_newlines=True,
             )
 
-        target_file = open(bgen_args["source_path"], "a")
+        with open(bgen_args["source_path"], "a") as target_file:
+            target_file.write("\n// Compile database: \n")
+            target_file.write("/*\n")
+            target_file.write(
+                "command: " + bgen_args["compiler_info"]['command'] + "\n")
+            target_file.write("location: " +
+                              bgen_args["compiler_info"]['location'] + "\n")
+            target_file.write("file: " + bgen_args["compiler_info"]['file'])
+            target_file.write("\n*/\n")
 
-        target_file.write("\n// Compile database: \n")
-        target_file.write("/*\n")
-        target_file.write(
-            "command: " + bgen_args["compiler_info"]['command'] + "\n")
-        target_file.write("location: " +
-                          bgen_args["compiler_info"]['location'] + "\n")
-        target_file.write("file: " + bgen_args["compiler_info"]['file'])
-        target_file.write("\n*/\n")
-
-        new_compiler_cmd = []
-        compiler_cmd = bgen_args["compiler_cmd"]
-        target_file.write("\n// Compile command:")
-        target_file.write("\n/* \n")
-        output, errors = p.communicate()
-        if p.returncode:
-            print(" ".join(bgen_args["compiler_cmd"]))
-            print("\n-- [Futag] ERROR on target ",
-                  bgen_args["target_name"], "\n")
-            for c in compiler_cmd:
-                if c.find(self.tmp_output_path.as_posix()) >= 0:
-                    new_compiler_cmd.append(
-                        c.replace(self.tmp_output_path.as_posix(), self.failed_path.as_posix()))
-                else:
-                    new_compiler_cmd.append(c)
-
-        else:
-            print("-- [Futag] Fuzz-driver ",
-                  bgen_args["target_name"], " was compiled successfully!")
-            for c in compiler_cmd:
-                if c.find(self.tmp_output_path.as_posix()) >= 0:
-                    new_compiler_cmd.append(
-                        c.replace(self.tmp_output_path.as_posix(), self.succeeded_path.as_posix()))
-                else:
-                    new_compiler_cmd.append(c)
-
-        target_file.write(" ".join(new_compiler_cmd))
-        target_file.write("\n */\n")
-
-        error_log_file = open(bgen_args["error_path"], "r")
-        if error_log_file:
-            target_file.write("\n// Error log:")
+            new_compiler_cmd = []
+            compiler_cmd = bgen_args["compiler_cmd"]
+            target_file.write("\n// Compile command:")
             target_file.write("\n/* \n")
-            target_file.write("".join(error_log_file.readlines()))
-            error_log_file.close()
-            target_file.write("\n */\n")
-        target_file.close()
+            output, errors = p.communicate()
+            if p.returncode:
+                logger.debug(" ".join(bgen_args["compiler_cmd"]))
+                logger.error("ERROR on target %s", bgen_args["target_name"])
+                for c in compiler_cmd:
+                    if c.find(self.tmp_output_path.as_posix()) >= 0:
+                        new_compiler_cmd.append(
+                            c.replace(self.tmp_output_path.as_posix(), self.failed_path.as_posix()))
+                    else:
+                        new_compiler_cmd.append(c)
 
-    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = True):
-        """_summary_
+            else:
+                logger.info("Fuzz-driver %s was compiled successfully!", bgen_args["target_name"])
+                for c in compiler_cmd:
+                    if c.find(self.tmp_output_path.as_posix()) >= 0:
+                        new_compiler_cmd.append(
+                            c.replace(self.tmp_output_path.as_posix(), self.succeeded_path.as_posix()))
+                    else:
+                        new_compiler_cmd.append(c)
+
+            target_file.write(" ".join(new_compiler_cmd))
+            target_file.write("\n */\n")
+
+            with open(bgen_args["error_path"], "r") as error_log_file:
+                target_file.write("\n// Error log:")
+                target_file.write("\n/* \n")
+                target_file.write("".join(error_log_file.readlines()))
+                target_file.write("\n */\n")
+
+    def compile_targets(self, workers: int = 4, keep_failed: bool = False, extra_params: str = "", extra_include: str = "", extra_dynamiclink: str = "", flags: str = "", coverage: bool = False, keep_original: bool = True) -> None:
+        """Compile all generated fuzz targets using the configured toolchain.
+
+        Discovers generated source files under ``self.tmp_output_path``,
+        constructs compiler commands with appropriate flags and include
+        paths, and compiles them in parallel. Successfully compiled
+        targets are moved to ``self.succeeded_path``; optionally, failed
+        targets are preserved in ``self.failed_path``.
 
         Args:
-            workers (int, optional): number of processes for compiling. Defaults to 4.
-            keep_failed (bool, optional): option for saving not compiled fuzz-targets. Defaults to False.
-            extra_params (str, optional): option for adding parameters while compiling. Defaults to "".
-            extra_include (str, optional): option for adding included directories while compiling. Defaults to "".
-            extra_dynamiclink (str, optional): option for adding dynamic libraries while compiling. Defaults to "".
-            flags (str, optional): flags for compiling fuzz-drivers. Defaults to "-fsanitize=address -g -O0".
-            coverage (bool, optional): option for adding coverage flag. Defaults to False.
-            keep_original (bool, optional): option for keeping .futag-fuzz-drivers. Defaults to False.
+            workers: Number of parallel processes for compilation.
+                Defaults to 4.
+            keep_failed: If True, copy non-compiling fuzz targets to
+                the ``failed/`` directory for inspection. Defaults to
+                False.
+            extra_params: Additional compiler parameters (space-separated
+                string) appended to the compile command. Defaults to "".
+            extra_include: Additional include directories
+                (space-separated string). Each entry is prefixed with
+                ``-I``. Defaults to "".
+            extra_dynamiclink: Dynamic libraries to link against
+                (space-separated string, e.g. "-lssl -lcrypto"). When
+                provided, overrides static library linking. Defaults
+                to "".
+            flags: Override default compiler flags entirely. When empty,
+                defaults to sanitizer + debug flags appropriate for the
+                target type. Defaults to "".
+            coverage: If True, add coverage instrumentation flags
+                (``--coverage``). Defaults to False.
+            keep_original: If True, retain the ``.futag-fuzz-drivers``
+                temporary directory after compilation. Defaults to True.
         """
 
         # include_subdir = self.target_library["header_dirs"]
@@ -2058,7 +2499,7 @@ class BaseGenerator(ABC):
 
         compiled_targets_list = [
             x for x in self.tmp_output_path.glob("**/*.out") if x.is_file()]
-        print("-- [Futag] collecting result ...")
+        logger.info("collecting result ...")
 
         succeeded_tree = set()
         succeeded_dir = set()
@@ -2074,8 +2515,8 @@ class BaseGenerator(ABC):
                 ((self.succeeded_path /
                  dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
             # shutil.move(dir.parents[0].as_posix(), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-            copy_tree(dir.parents[0].as_posix(
-            ), (self.succeeded_path / dir.parents[1].name / dir.parents[0].name).as_posix())
+            copytree(dir.parents[0].as_posix(
+            ), (self.succeeded_path / dir.parents[1].name / dir.parents[0].name).as_posix(), dirs_exist_ok=True)
 
         if keep_failed:
             failed_tree = set()
@@ -2094,17 +2535,16 @@ class BaseGenerator(ABC):
                         ((self.failed_path /
                           dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
                     # shutil.move(dir.parents[0].as_posix(), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-                    copy_tree(dir.parents[0].as_posix(
-                    ), (self.failed_path / dir.parents[1].name / dir.parents[0].name).as_posix())
+                    copytree(dir.parents[0].as_posix(
+                    ), (self.failed_path / dir.parents[1].name / dir.parents[0].name).as_posix(), dirs_exist_ok=True)
         else:
             delete_folder(self.failed_path)
         if not keep_original:
             delete_folder(self.tmp_output_path)
 
-        print(
-            "-- [Futag] Result of compiling: "
-            + str(len(compiled_targets_list))
-            + " fuzz-driver(s)\n"
+        logger.info(
+            "Result of compiling: %s fuzz-driver(s)",
+            str(len(compiled_targets_list))
         )
 
     # ------------------------------------------------------------------ #

@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 # **************************************************
 # **      ______  __  __  ______  ___     ______  **
 # **     / ____/ / / / / /_  __/ /   |   / ____/  **

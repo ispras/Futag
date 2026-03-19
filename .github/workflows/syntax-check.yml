@@ -1,0 +1,27 @@
+name: Syntax Check
+
+on: [push, pull_request]
+
+jobs:
+  python-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check Python syntax
+        run: |
+          python -c "
+          import ast, sys, pathlib
+          errors = []
+          for f in pathlib.Path('src/python/futag-package/src/futag').glob('*.py'):
+              try:
+                  ast.parse(f.read_text())
+              except SyntaxError as e:
+                  errors.append(f'{f}: {e}')
+          if errors:
+              for e in errors: print(e)
+              sys.exit(1)
+          print('All Python files: syntax OK')
+          "

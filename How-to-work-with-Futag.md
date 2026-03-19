@@ -165,3 +165,58 @@ g.gen_targets() # генерация фаззинг-оберток
 g.compile_targets( # компиляция фаззинг-оберток
     True, # генерация Makefile
     16) # количество потоков при компиляции
+
+## Генераторы фаззинг-оберток
+
+Futag поддерживает несколько вариантов генерации фаззинг-оберток. Все генераторы наследуют от базового класса `BaseGenerator`.
+
+### Generator (стандартный)
+Использует `memcpy()` для чтения данных из буфера. Поддерживает C и C++.
+
+```python
+from futag.generator import Generator
+generator = Generator(futag_llvm_path, library_root)
+generator.gen_targets(max_wrappers=10)
+generator.compile_targets(workers=4)
+```
+
+### FuzzDataProviderGenerator
+Использует API `FuzzedDataProvider` из libFuzzer для типобезопасного чтения данных. Только C++.
+
+```python
+from futag.fdp_generator import FuzzDataProviderGenerator
+generator = FuzzDataProviderGenerator(futag_llvm_path, library_root)
+generator.gen_targets(max_wrappers=100)
+generator.compile_targets(workers=4, keep_failed=True)
+```
+
+### ContextGenerator
+Генерирует обёртки на основе контекстов использования библиотеки в потребительских программах.
+
+```python
+from futag.generator import ContextGenerator
+ctx_gen = ContextGenerator(futag_llvm_path, library_root)
+ctx_gen.gen_context()
+ctx_gen.compile_targets(keep_failed=True)
+```
+
+## Управление логированием
+
+Futag использует модуль `logging` для вывода информации. Настройка уровня логирования:
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)   # Стандартный вывод
+logging.basicConfig(level=logging.DEBUG)  # Подробный вывод
+logging.basicConfig(level=logging.WARNING)  # Тихий режим
+```
+
+## Обработка ошибок
+
+Модуль `futag.exceptions` предоставляет иерархию исключений:
+- `FutagError` — базовое исключение
+- `InvalidPathError` — неверный путь к файлу или директории
+- `InvalidConfigError` — неверная конфигурация
+- `BuildError` — ошибка сборки библиотеки
+- `GenerationError` — ошибка генерации фаззинг-оберток
+- `AnalysisError` — ошибка анализа результатов
