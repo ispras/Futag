@@ -27,5 +27,31 @@ src/Checkers/lib/FutagTest.cpp
 futag-llvm*
 Algorithms
 src/python/futag-package/dist/**
+src/python/futag-package/build/**
+src/python/futag-package/src/*.egg-info/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+.eggs/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# pytest
+.pytest_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# IDE
 CLAUDE.md
 .claude/settings.json
