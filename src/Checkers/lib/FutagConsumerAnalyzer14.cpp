@@ -64,37 +64,59 @@ using namespace futag;
 //===----------------------------------------------------------------------===//
 namespace {
 /**
- * @brief This is class for checker
+ * @brief Clang StaticAnalyzer checker that analyzes consumer programs
+ * to extract library function usage contexts.
  *
+ * Reads the JSON database produced by FutagAnalyzer (via db_filepath),
+ * then for each consumer function:
+ *   1. Matches variable initializations with library function calls
+ *   2. Builds CFG and enumerates all execution paths
+ *   3. Traces argument dependencies and modifying calls along each path
+ *   4. Outputs per-context JSON files for the Python ContextGenerator
  */
 class FutagConsumerAnalyzer
     : public Checker<check::ASTDecl<TranslationUnitDecl>> {
   private:
     bool m_log_debug_message{false};
 
+    /// Maximum CFG blocks before skipping a function (performance limit)
+    static constexpr unsigned MAX_CFG_BLOCKS = 30;
+
     mutable json callexpr_context_json{};
-    // mutable json m_func_decl_info{};
-    // mutable json m_types_info{};
     mutable json mIncludesInfo{};
 
-    // Opens json file specified in currentReportPath and writes new
-    // data provided in "state" variable to the "functions" key of the
-    // resulting json file.
+    /**
+     * @brief Writes JSON data to a file, merging with existing content.
+     * @param currentReportPath Path to the output JSON file.
+     * @param state JSON object to write.
+     */
     void WriteInfoToTheFile(const StringRef currentReportPath,
                             json &state) const;
 
+    /**
+     * @brief Generates CFG visualization (Graphviz) and metadata for a function.
+     * @param Mgr Analysis manager.
+     * @param cfg The function's control flow graph.
+     * @param func The function declaration.
+     * @param report_path Base path for output files.
+     */
     void GenCFGInfo(AnalysisManager &Mgr, CFG *cfg, const FunctionDecl *func,
                     const StringRef report_path) const;
 
+    /**
+     * @brief Recursively enumerates all paths through a CFG.
+     * Avoids cycles by checking if a block is already in the current path.
+     * @param cfg The control flow graph.
+     * @param cfg_block Current block being visited.
+     * @param fgraph Accumulates edges for Graphviz output.
+     * @param curr_path Current path from entry to this block.
+     * @param all_cfg_paths Output: all complete paths from entry to exit.
+     */
     void FindAllCFGPaths(const CFG *cfg, CFGBlock cfg_block, FutagGraph &fgraph,
                          FutagPath &curr_path,
                          std::vector<FutagPath> &all_cfg_paths) const;
-    // void SearchContextInCFGPath(std::string var_name, CFGBlock cfg_block,
-    //                             FutagPath &curr_path,
-    //                             FutagContext &curr_context) const;
-
   public:
-    mutable SmallString<0> consumer_report_path;
+    mutable SmallString<256> consumer_report_path;
     // Path to json db file
     std::string db_filepath = "";
     // json db
@@ -103,19 +125,15 @@ class FutagConsumerAnalyzer
     // Save all path of CFG
     mutable std::vector<FutagPath> all_cfg_paths;
 
-    // Full path to the current context report file
-    // mutable SmallString<0> context_report_path{};
-
-
     // Full path to save the function declaration (in header files)
-    mutable SmallString<0> func_decl_report_path{};
+    mutable SmallString<256> func_decl_report_path{};
 
     // Full path to report that has information about structs, typedefs and
     // enums
-    mutable SmallString<0> types_info_report_path{};
+    mutable SmallString<256> types_info_report_path{};
 
     // Full path to the report with includes info
-    mutable SmallString<0> includesInfoReportPath{};
+    mutable SmallString<256> includesInfoReportPath{};
 
     // Used to generate random filename
     utils::Random rand{};
@@ -123,11 +141,28 @@ class FutagConsumerAnalyzer
     FutagConsumerAnalyzer();
     ~FutagConsumerAnalyzer();
 
-    // Entry point. Collects all needed information using recursive ast visitor
+    /**
+     * @brief Entry point called by Clang for each translation unit.
+     * Collects include info, then traverses AST via RecursiveASTVisitor.
+     */
     void checkASTDecl(const TranslationUnitDecl *TUD, AnalysisManager &Mgr,
                       BugReporter &BR) const;
 
-    /* Collects information about function */
+    /**
+     * @brief Core analysis for each visited function declaration.
+     *
+     * Algorithm:
+     *   Phase 1: Match variable initializations with library function calls
+     *            using AST matchers (FutagMatchInitCallExprCB).
+     *   Phase 2: Build CFG, enumerate all paths (FindAllCFGPaths).
+     *   Phase 3: For each CFG path, map init_calls to block positions,
+     *            trace variable definitions backward (SearchVarDeclInBlock),
+     *            find modifying calls forward (SearchModifyingCallExprInBlock),
+     *            and write context to JSON.
+     *
+     * @param func The function declaration to analyze.
+     * @param Mgr Analysis manager for CFG and AST context access.
+     */
     void AnalyzeVisitedFunctionDecl(const FunctionDecl *func,
                                     AnalysisManager &Mgr) const;
 };
@@ -231,19 +266,6 @@ void FutagConsumerAnalyzer::WriteInfoToTheFile(
                          t_curr_report_path.str() + "!";
     }
 }
-
-// /**
-//  * @brief
-//  *
-//  * @param var_name
-//  * @param cfg_block
-//  * @param curr_path
-//  */
-// void SearchContextInCFGPath(std::string var_name, CFGBlock cfg_block,
-//                             FutagPath &curr_path,
-//                             FutagContext &curr_context) const {
-
-//                             }
 
 /**
  * @brief This function searches for all paths in the CFG of analyzed
@@ -374,21 +396,10 @@ FutagConsumerAnalyzer::FutagConsumerAnalyzer()
     : m_log_debug_message{std::getenv("FUTAG_FUNCTION_ANALYZER_DEBUG_LOG") !=
                           nullptr},
       callexpr_context_json{},
-      //   m_func_decl_info{},
-      //   m_types_info{},
       consumer_report_path{},
-      //   context_report_path{},
-      //   func_decl_report_path{},
-      //   types_info_report_path{},
-      //   includesInfoReportPath{},
       rand{} {}
 
-FutagConsumerAnalyzer::~FutagConsumerAnalyzer() {
-    // Write new data to the json state file
-    // if (!callexpr_context_json.empty()) {
-    //     WriteInfoToTheFile(context_report_path, callexpr_context_json);
-    // }
-}
+FutagConsumerAnalyzer::~FutagConsumerAnalyzer() {}
 
 void FutagConsumerAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
                                           AnalysisManager &Mgr,
@@ -443,7 +454,8 @@ void FutagConsumerAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
     visitor.TraverseDecl(const_cast<TranslationUnitDecl *>(TUD));
 }
 
-// Called for every function declaration
+// Called for every function declaration.
+// See class Doxygen for the 3-phase algorithm description.
 void FutagConsumerAnalyzer::AnalyzeVisitedFunctionDecl(
     const FunctionDecl *func, AnalysisManager &Mgr) const {
 
@@ -468,6 +480,7 @@ void FutagConsumerAnalyzer::AnalyzeVisitedFunctionDecl(
     } else {
         file_name = fe->tryGetRealPathName().str();
     }
+    // === Phase 1: Match variable initializations with library function calls ===
     MatchFinder Finder;
     const auto matched_binaryoperator =
         binaryOperator(
@@ -514,15 +527,19 @@ void FutagConsumerAnalyzer::AnalyzeVisitedFunctionDecl(
                  << "\"\n";
     if (matched_init_contexts.size()) {
         llvm::outs() << "[Futag]: Print contexts\n";
-        // Build the CFG of current function
+        // === Phase 2: Build CFG and enumerate all execution paths ===
         CFG *cfg = Mgr.getCFG(func);
-        //To speed up the analyzer for normal computer, we analyze only simple functions with number of block in CFG <= 30
-        if(cfg->size() > 30) {
-            return ;
-        }
         if (!cfg) {
             llvm::outs() << "-- Empty CFG for function: "
                          << func->getNameAsString() << "\n";
+            return;
+        }
+        // Limit analysis to functions with manageable CFG size
+        if (cfg->size() > MAX_CFG_BLOCKS) {
+            llvm::outs() << "[Futag]: Skipping function \""
+                         << func->getNameAsString() << "\" (CFG has "
+                         << cfg->size() << " blocks, limit is "
+                         << MAX_CFG_BLOCKS << ")\n";
             return;
         }
 
@@ -556,7 +573,12 @@ void FutagConsumerAnalyzer::AnalyzeVisitedFunctionDecl(
         }
         paths_report.close();
 
+        // === Phase 3: For each CFG path, extract ordered call sequence ===
         std::vector<std::string> result_context_files;
+
+        // Build ParentMap and CFGStmtMap once per function (not per context)
+        ParentMap parent_map(func->getBody());
+        clang::CFGStmtMap *cfg_stmt_map = CFGStmtMap::Build(cfg, &parent_map);
 
         for (const auto &[var, callexpr] : matched_init_contexts) {
 
@@ -565,14 +587,6 @@ void FutagConsumerAnalyzer::AnalyzeVisitedFunctionDecl(
             llvm::raw_string_ostream rso_stmt(stmt_str);
             callexpr->printPretty(rso_stmt, NULL,
                                   Mgr.getASTContext().getPrintingPolicy());
-            // llvm::outs() << " -- variable: \"" << var->getNameAsString()
-            //              << "\",";
-            // llvm::outs() << " callexpr: \"" << stmt_str << "\"\n";
-
-            //  Match the CFGStmtMap
-            ParentMap parent_map = ParentMap(func->getBody());
-            clang::CFGStmtMap *cfg_stmt_map;
-            cfg_stmt_map = CFGStmtMap::Build(cfg, &parent_map);
             const CFGBlock *stmt_block = cfg_stmt_map->getBlock(callexpr);
             // llvm::outs() << " |-- CallExpr: " << stmt_str
             //              << "; of block: " << stmt_block->getBlockID() <<
@@ -700,7 +714,7 @@ void FutagConsumerAnalyzer::AnalyzeVisitedFunctionDecl(
                 std::map<unsigned int, unsigned int>
                     block_Idx; //<position, BlockID>
                 // Search found blocks in current path, if not found -> quit!
-                int *help_array = new int(found_blocks.size());
+                std::vector<int> help_array(found_blocks.size(), -1);
                 unsigned int idx = 0;
                 llvm::outs() << "Current analyzed path: ";
                 for (auto item : curr_analyzed_path) {
