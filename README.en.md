@@ -32,7 +32,61 @@ The collected information is stored as a knowledge base about the tested library
 When usage contexts are available, FUTAG searches for function calls, builds dependencies between the discovered calls, and constructs call contexts.
 
 The workflow of FUTAG is illustrated in the following figure:
-![](futag-work.png)
+
+```mermaid
+graph TD
+    subgraph Inputs
+        A["Library Source Code C/C++"]
+        B["Consumer Source Code - optional"]
+        C["Natch JSON - optional"]
+    end
+
+    subgraph "Layer 3: Build Infrastructure"
+        D["custom-llvm / build.sh — Download and patch LLVM 14/18/19"]
+    end
+
+    D -->|"futag-llvm toolchain"| E
+
+    subgraph "Layer 1: C++ Clang Checkers"
+        E["scan-build + FutagAnalyzer — Extract functions, types, call contexts, includes"]
+        F["scan-build + FutagConsumerAnalyzer — Extract usage contexts from consumer programs"]
+    end
+
+    A --> E
+    B --> F
+    E -->|"JSON analysis files"| G
+    F -->|"JSON context files"| H
+
+    subgraph "Layer 2: Python Orchestration"
+        G["Builder.analyze — futag-analysis-result.json"]
+        H["ConsumerBuilder.analyze — futag-contexts.json"]
+
+        G --> I
+        H --> I
+        C --> I
+
+        subgraph "Generator Backends"
+            I{"Choose Generator"}
+            I --> J1["Generator - memcpy from buffer"]
+            I --> J2["FuzzDataProviderGenerator - type-safe FDP API"]
+            I --> J3["BlobStamperGenerator"]
+            I --> J4["ContextGenerator - consumer contexts"]
+            I --> J5["NatchGenerator - crash traces"]
+        end
+
+        J1 & J2 & J3 & J4 & J5 --> K["gen_targets and compile_targets"]
+        K --> L["Fuzzer / NatchFuzzer"]
+    end
+
+    subgraph Outputs
+        M["Fuzz Drivers"]
+        N["Crash Logs"]
+        O["Coverage Reports"]
+        P["SVRES XML"]
+    end
+
+    L --> M & N & O & P
+```
 
 This project is built on LLVM with Clang static analysis and is distributed under the "GPL v3" license (see: https://llvm.org/docs/DeveloperPolicy.html#new-llvm-project-license-framework).
 
