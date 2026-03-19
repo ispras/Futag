@@ -27,6 +27,11 @@ CONTEXT_FILE_PATH=".futag-consumer/futag-contexts.json"
 FOR_CONSUMER_FILEPATH=".futag-analysis/futag-4consumer.json"
 CONSUMER_REPORT_PATH=".futag-consumer"
 
+# Checker constants
+DISABLED_CHECKERS = ["core", "security", "unix", "deadcode", "nullability", "cplusplus"]
+FUTAG_ANALYZER_CHECKER = "futag.FutagAnalyzer"
+FUTAG_CONSUMER_ANALYZER_CHECKER = "futag.FutagConsumerAnalyzer"
+
 # messages of Futag
 CMAKE_PATH_ERROR="Please specify other directory for building with cmake."
 INVALID_INPUT_PROCESSES = "-- [Futag]: Invalid number of processes for building"
