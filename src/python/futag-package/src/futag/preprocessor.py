@@ -572,27 +572,27 @@ class Builder(_BaseBuilder):
         print(" -- [Futag]: Analysing function declarations...")
         for functions in _load_json_files(decl_files, "function declarations"):
             # get global hash of all functions
-            for hash in functions:
-                if hash not in function_list:
-                    function_list[hash] = functions[hash]
+            for func_hash in functions:
+                if func_hash not in function_list:
+                    function_list[func_hash] = functions[func_hash]
 
         print(" -- [Futag]: Analysing contexts...")
         for contexts in _load_json_files(context_files, "context"):
             # get global hash of all functions
             global_hash = [x for x in function_list]
             # iterate function hash for adding to global hash list
-            for hash in contexts:
-                if hash in global_hash:
+            for func_hash in contexts:
+                if func_hash in global_hash:
                     target_list = [
                         x["target_func_hash"] + x["target_func_loc"]
-                        for x in function_list[hash]["call_contexts"]
+                        for x in function_list[func_hash]["call_contexts"]
                     ]
-                    for call_xref in contexts[hash]["call_contexts"]:
+                    for call_xref in contexts[func_hash]["call_contexts"]:
                         if not call_xref["target_func_hash"] + call_xref["target_func_loc"] in target_list:
-                            function_list[hash]["call_contexts"].append(
+                            function_list[func_hash]["call_contexts"].append(
                                 call_xref)
                 else:
-                    print(" -- %s not found in global hash list!" % (hash))
+                    print(" -- %s not found in global hash list!" % (func_hash))
 
         print("")
         print(" -- [Futag]: Analysing data types ...")
