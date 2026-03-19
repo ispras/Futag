@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 # **************************************************
 # **      ______  __  __  ______  ___     ______  **
 # **     / ____/ / / / / /_  __/ /   |   / ____/  **
@@ -15,12 +19,15 @@
 """Futag ContextGenerator - context-aware fuzz target generation."""
 
 import json
+import logging
 import pathlib
 import copy
 import sys
 
 from futag.sysmsg import *
 from futag.generator import Generator
+
+logger = logging.getLogger(__name__)
 
 
 class ContextGenerator(Generator):
@@ -71,8 +78,7 @@ class ContextGenerator(Generator):
             self.context_json_file = pathlib.Path(context_json_file)
 
         if self.context_json_file.exists():
-            f = open(self.context_json_file.as_posix())
-            if not f.closed:
+            with open(self.context_json_file.as_posix()) as f:
                 self.consumer_contexts = json.load(f)
         else:
             sys.exit(INVALID_CONTEXT_FILE_PATH + " " +
@@ -552,8 +558,8 @@ class ContextGenerator(Generator):
 
         total_context = []
         for context in self.consumer_contexts:
-            print("====== Context: ")
-            print("cfg_blocks: ", context["cfg_blocks"])
+            logger.info("====== Context: ")
+            logger.info("cfg_blocks: %s", context["cfg_blocks"])
             cfg_blocks = context["cfg_blocks"]
             init_calls = context["init_calls"]
             modifying_calls = context["modifying_calls"]
@@ -624,7 +630,7 @@ class ContextGenerator(Generator):
         if (not len(self.state.buffer_size) and not self.state.dyn_cstring_size_idx and not self.state.dyn_cxxstring_size_idx and not self.state.dyn_wstring_size_idx and not self.state.file_idx) or not self.state.gen_this_function:
             log = self._log_file(func, self.gen_anonymous)
             if not log:
-                print(CANNOT_CREATE_LOG_FILE, func["qname"])
+                logger.error(f"{CANNOT_CREATE_LOG_FILE} {func['qname']}")
             else:
                 self.state.curr_func_log = f"Log for function: {func['qname']}\n{self.state.curr_func_log}"
                 log.write(self.state.curr_func_log)
@@ -632,8 +638,8 @@ class ContextGenerator(Generator):
             return False
         # generate file name
         wrapper_result = self._wrapper_file(func)
-        print("Generating fuzzing-wapper for function ", func["qname"], ": ")
-        print("-- ", wrapper_result["msg"])
+        logger.info("Generating fuzzing-wapper for function %s:", func["qname"])
+        logger.info("-- %s", wrapper_result["msg"])
         if not wrapper_result["file"]:
             self.state.gen_this_function = False
             return False

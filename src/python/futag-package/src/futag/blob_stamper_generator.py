@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 # **************************************************
 # **      ______  __  __  ______  ___     ______  **
 # **     / ____/ / / / / /_  __/ /   |   / ____/  **
@@ -28,10 +32,11 @@ class BlobStamperGenerator(FuzzDataProviderGenerator):
     """
 
     @property
-    def supports_c(self):
+    def supports_c(self) -> bool:
+        """Return whether this generator supports C targets."""
         return True  # BlobStamper supports both C and C++
 
-    def _wrapper_file(self, func):
-        # Don't force .cpp extension like FDP does - use original extension
+    def _wrapper_file(self, func) -> dict:
+        """Return wrapper file metadata, using the original source file extension."""
         self.target_extension = func["location"]["fullpath"].split(".")[-1]
         return BaseGenerator._wrapper_file(self, func)

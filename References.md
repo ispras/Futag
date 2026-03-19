@@ -24,3 +24,14 @@ https://stackoverflow.com/questions/58620022/how-to-get-the-macro-and-its-expans
 
 - [LLVM Loop Terminology](https://llvm.org/docs/LoopTerminology.html)
 - [CFGBlock](https://clang.llvm.org/doxygen/classclang_1_1CFGBlock.html)
+
+## Futag Internal Documentation
+- [Architecture Overview](docs/architecture.md)
+- [C++ Checker Documentation](docs/checkers.md)
+- [Generator System Documentation](docs/generators.md)
+- [Python API Reference](docs/python-api.md)
+
+## Fuzzing Libraries
+- [FuzzedDataProvider](https://llvm.org/docs/LibFuzzer.html#fuzzed-data-provider) — libFuzzer utility for type-safe data consumption
+- [AFL++](https://aflplus.plus/) — American Fuzzy Lop plus plus
+- [nlohmann/json](https://github.com/nlohmann/json) — JSON for Modern C++ (used in Futag checkers)

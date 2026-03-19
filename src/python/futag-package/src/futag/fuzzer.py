@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 # **************************************************
 # **      ______  __  __  ______  ___     ______  **
 # **     / ____/ / / / / /_  __/ /   |   / ____/  **
@@ -19,7 +23,11 @@ import tempfile
 from shutil import which
 from pathlib import Path
 from subprocess import Popen, PIPE, call, run
+import logging
+
 from futag.sysmsg import *
+
+logger = logging.getLogger(__name__)
 
 # Regex patterns for crash log parsing
 RE_ERROR = r"^==\d*==ERROR: (\w*): (.*) on.*$"
@@ -50,7 +58,24 @@ GDB_TIMEOUT = 10
 class BaseFuzzer:
     """Base class containing all shared fuzzing logic."""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = ""):
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "") -> None:
+        """Initialize the BaseFuzzer with fuzzing configuration.
+
+        Args:
+            futag_llvm_package: Path to the Futag LLVM package (with binaries, scripts, etc).
+            fuzz_driver_path: Location of fuzz-drivers, default "futag-fuzz-drivers".
+            debug: Print debug information while fuzzing, default False.
+            gdb: Debug crashes with GDB, default False.
+            svres: Generate svres file for Svace, default False.
+            fork: Fork mode of libFuzzer, default 1 (no fork mode).
+            totaltime: Total time of fuzzing one fuzz-driver in seconds, default 300.
+            timeout: If a fuzz-driver takes longer than this timeout, the process is treated as a failure case, default 10.
+            memlimit: Memory usage limit in Mb (rss_limit_mb), 0 to disable, default 2048.
+            coverage: Show coverage of fuzzing, default False.
+            leak: Detect memory leaks, default False.
+            introspect: Integrate with fuzz-introspector, default False.
+            source_path: Path to source code for coverage reports, default "".
+        """
         self.futag_llvm_package = futag_llvm_package
         self.fuzz_driver_path = fuzz_driver_path
         self.source_path = source_path
@@ -84,17 +109,38 @@ class BaseFuzzer:
         # will be passed
         self.backtrace_hashes = set()
 
-    def _error_id(self, error_string):
+    def _error_id(self, error_string: str) -> str:
+        """Compute a simple numeric ID from an error string by summing character ordinals.
+
+        Args:
+            error_string: The error description string to convert.
+
+        Returns:
+            A string representation of the computed numeric ID.
+        """
         error_id = 0
         for c in error_string:
             error_id += ord(c)
         return str(error_id)
 
-    def _printer(self, data):
+    def _printer(self, data: str) -> None:
+        """Print data to stdout with carriage return and line clear escape sequence.
+
+        Args:
+            data: The data to print.
+        """
         sys.stdout.write("\r\x1b[K" + data.__str__())
         sys.stdout.flush()
 
-    def _xml_escape(self, s):
+    def _xml_escape(self, s: str) -> str:
+        """Escape special XML characters and newlines in a string.
+
+        Args:
+            s: The string to escape.
+
+        Returns:
+            The XML-escaped string.
+        """
         s = s.replace("&", "&amp;")
         s = s.replace("<", "&lt;")
         s = s.replace(">", "&gt;")
@@ -102,7 +148,7 @@ class BaseFuzzer:
         s = s.replace("\n", " ")
         return s
 
-    def _get_backtrace_hash(self, backtrace):
+    def _get_backtrace_hash(self, backtrace: dict) -> int:
         '''
         # Format of backtrace:
         # backtrace= {
@@ -136,16 +182,21 @@ class BaseFuzzer:
                 )
         return hash(str(backtrace["warnID"]) + input_str)
 
-    def _parse_crash_log(self, crashlog_path):
-        """Reads crash log, applies regex, returns structured data.
+    def _parse_crash_log(self, crashlog_path: str) -> tuple:
+        """Parse a libFuzzer crash log file and extract stack trace information.
+
+        Args:
+            crashlog_path: Path to the crash log file to parse.
 
         Returns:
-            tuple: (backtrace dict or {}, artifact_file str)
+            A tuple of (backtrace, artifact_file) where backtrace is a dict
+            containing structured crash information or an empty dict if no
+            crash was found, and artifact_file is the path to the crash artifact.
         """
         with open(crashlog_path, "r", errors="ignore") as f:
             lines = f.readlines()
         if self.gdb:
-            print("-- [Futag] crash log:\n", "".join(lines))
+            logger.debug("crash log:\n%s", "".join(lines))
 
         backtrace = {}
         parsing_error = False
@@ -231,12 +282,22 @@ class BaseFuzzer:
 
         return backtrace, artifact_file
 
-    def _run_gdb_debug(self, fuzz_driver, artifact_file, backtrace, tmpdir):
-        """Creates .gdbinit in tmpdir, runs GDB 3 passes, returns updated backtrace.
+    def _run_gdb_debug(self, fuzz_driver: str, artifact_file: str, backtrace: dict, tmpdir: str) -> dict:
+        """Run GDB to collect detailed crash information including types and values.
 
-        Pass 1: Set breakpoints, output all args/variables
-        Pass 2: Get types of args/variables
-        Pass 3: Get values
+        Creates a .gdbinit in tmpdir and runs GDB in three passes:
+        Pass 1: Set breakpoints, output all args/variables.
+        Pass 2: Get types of args/variables.
+        Pass 3: Get values.
+
+        Args:
+            fuzz_driver: Path to the fuzz-driver executable.
+            artifact_file: Path to the crash artifact file.
+            backtrace: The backtrace dict from _parse_crash_log to augment.
+            tmpdir: Temporary directory for GDB init and log files.
+
+        Returns:
+            The updated backtrace dict with variable info populated.
         """
         gdbinit_path = os.path.join(tmpdir, ".gdbinit")
 
@@ -296,7 +357,7 @@ class BaseFuzzer:
                 cwd=tmpdir,
             )
         except Exception as e:
-            print("-- [Futag] Debug with GDB: set breakpoints failed!", e)
+            logger.error("Debug with GDB: set breakpoints failed! %s", e)
 
         # --- Pass 2: getting type of args, variables ---
         count_role_traces = 0
@@ -363,7 +424,7 @@ class BaseFuzzer:
                 cwd=tmpdir,
             )
         except Exception as e:
-            print("-- [Futag] Debug with GDB: get types of variables failed!", e)
+            logger.error("Debug with GDB: get types of variables failed! %s", e)
 
         # --- Pass 3: getting values ---
         count_role_traces = 0
@@ -464,7 +525,7 @@ class BaseFuzzer:
                 cwd=tmpdir,
             )
         except Exception as e:
-            print("-- [Futag] Debug with GDB: get values failed!", e)
+            logger.error("Debug with GDB: get values failed! %s", e)
 
         # Read back values into backtrace
         count_role_traces = 0
@@ -485,8 +546,16 @@ class BaseFuzzer:
 
         return backtrace
 
-    def _write_svres(self, backtrace):
-        """Writes XML svres output for a backtrace, deduplicating by hash."""
+    def _write_svres(self, backtrace: dict) -> None:
+        """Write a single crash backtrace entry to the svres XML file.
+
+        Writes XML svres output for a backtrace, deduplicating by hash.
+        Appends warning info to warning_info.svres and explanation to
+        warning_info_ex.svres.
+
+        Args:
+            backtrace: The structured backtrace dict to write.
+        """
         hash_backtrace = self._get_backtrace_hash(backtrace)
         if hash_backtrace in self.backtrace_hashes:
             return
@@ -537,13 +606,13 @@ class BaseFuzzer:
                 + '</traces><userAttributes class="tree-map"><entry><string>.comment</string><string></string></entry><entry><string>.status</string><string>Default</string></entry></userAttributes></WarnInfoEx>'
             )
 
-    def _parse_libfuzzer_log(self, fuzz_driver, libFuzzer_log, gdb=False):
+    def _parse_libfuzzer_log(self, fuzz_driver: str, libFuzzer_log: str, gdb: bool = False) -> None:
         """Orchestrator: parse crash log, optionally debug with GDB, write svres.
 
         Args:
-            fuzz_driver (str): path to the fuzz-driver
-            libFuzzer_log (str): path of libFuzzer log
-            gdb (bool, optional): option for parsing with GDB. Defaults to False.
+            fuzz_driver: Path to the fuzz-driver executable.
+            libFuzzer_log: Path of libFuzzer log file.
+            gdb: Option for parsing with GDB. Defaults to False.
         """
         backtrace, artifact_file = self._parse_crash_log(libFuzzer_log)
 
@@ -557,11 +626,17 @@ class BaseFuzzer:
 
         self._write_svres(backtrace)
 
-    def _get_corpus_args(self, target_path):
+    def _get_corpus_args(self, target_path) -> list:
         """Override in subclass to provide corpus path args."""
         return []
 
-    def _build_single_coverage(self, object_file, path):
+    def _build_single_coverage(self, object_file: str, path: str) -> None:
+        """Build coverage report for a single fuzz-driver using llvm-profdata and llvm-cov.
+
+        Args:
+            object_file: Path to the instrumented object file.
+            path: Directory path for the coverage HTML output.
+        """
         my_env = os.environ.copy()
         my_env["LLVM_PROFILE_FILE"] = object_file + ".profraw"
         llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
@@ -622,11 +697,16 @@ class BaseFuzzer:
         os.rename(path + "/index.html", object_file + ".html")
 
         if self.debug:
-            print(" ".join(llvm_profdata_command))
-            print(" ".join(llvm_cov_report))
-            print(" ".join(llvm_cov_show))
+            logger.debug(" ".join(llvm_profdata_command))
+            logger.debug(" ".join(llvm_cov_report))
+            logger.debug(" ".join(llvm_cov_show))
 
-    def _build_overall_coverage(self, path):
+    def _build_overall_coverage(self, path) -> None:
+        """Build an overall coverage report by merging all profraw files.
+
+        Args:
+            path: Path object to the fuzz-driver directory containing profraw files.
+        """
         my_env = os.environ.copy()
         profdata_files = [x.as_posix() for x in path.glob("**/*.profraw") if x.is_file()]
         object_list = [x.as_posix()[:-8] for x in path.glob("**/*.profraw") if x.is_file()]
@@ -683,12 +763,17 @@ class BaseFuzzer:
         )
 
         if self.debug:
-            print(" ".join(llvm_cov_show))
-            print(" ".join(llvm_cov_report))
-            print(" ".join(llvm_profdata_command))
+            logger.debug(" ".join(llvm_cov_show))
+            logger.debug(" ".join(llvm_cov_report))
+            logger.debug(" ".join(llvm_profdata_command))
 
-    def _finalize_svres(self):
-        """Generate svres file from collected warning info."""
+    def _finalize_svres(self) -> None:
+        """Write the closing XML tags to the svres file.
+
+        Reads warning_info.svres and warning_info_ex.svres, merges them
+        into the svres template, writes the final futag.svres file, and
+        removes the intermediate files.
+        """
         template_file = self.futag_llvm_package / "svres-tmpl/svres.tmpl"
         warning_info_text = ""
         warning_info_path = Path.cwd().absolute() / "warning_info.svres"
@@ -709,14 +794,14 @@ class BaseFuzzer:
             warning_info_ex_path.unlink()
             with open((self.fuzz_driver_path / "futag.svres").as_posix(), "w") as svres:
                 svres.write(lines)
-            print("-- [Futag] Please import file ", (self.fuzz_driver_path /
-                  "futag.svres").as_posix(), " to Svace project to view result!")
+            logger.info("Please import file %s to Svace project to view result!", (self.fuzz_driver_path /
+                  "futag.svres").as_posix())
 
-    def fuzz(self, extra_param: str = ""):
+    def fuzz(self, extra_param: str = "") -> None:
         """Helper for automatic fuzzing.
 
         Args:
-            extra_param (str, optional): Extra params for fuzzing. Defaults to "".
+            extra_param: Extra params for fuzzing. Defaults to "".
         """
         symbolizer = self.futag_llvm_package / "bin/llvm-symbolizer"
         generated_functions = [
@@ -726,7 +811,7 @@ class BaseFuzzer:
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
             for dir in fuzz_driver_dirs:
                 for x in [t for t in dir.glob("*.out") if t.is_file()]:
-                    print("\n-- [Futag] FUZZING driver: " + x.stem + "... \n")
+                    logger.info("FUZZING driver: %s...", x.stem)
                     my_env = os.environ.copy()
                     if not self.leak:
                         my_env["ASAN_OPTIONS"] = "detect_leaks=0"
@@ -760,8 +845,7 @@ class BaseFuzzer:
                     if extra_param:
                         execute_command = execute_command + extra_param.split(" ")
                     if self.debug:
-                        print("-- [Futag] FUZZING command:" +
-                              " ".join(execute_command))
+                        logger.debug("FUZZING command: %s", " ".join(execute_command))
                     call(
                         execute_command,
                         stdout=PIPE,
@@ -786,13 +870,11 @@ class BaseFuzzer:
                             )
                             p.communicate()
                         if self.gdb:
-                            print(
-                                "-- [Futag]: Parsing crashes with GDB: ", x.as_posix())
+                            logger.info("Parsing crashes with GDB: %s", x.as_posix())
                             self._parse_libfuzzer_log(
                                 x.as_posix(), crashlog_filename, True)
                         else:
-                            print(
-                                "-- [Futag]: Parsing crash without GDB: ", x.as_posix())
+                            logger.info("Parsing crash without GDB: %s", x.as_posix())
                             self._parse_libfuzzer_log(
                                 x.as_posix(), crashlog_filename, False)
                     # build single coverage
@@ -805,28 +887,29 @@ class BaseFuzzer:
 
         # generate svres file
         self._finalize_svres()
-        print("============ FINISH ============")
+        logger.info("============ FINISH ============")
 
 
 class Fuzzer(BaseFuzzer):
     """Futag Fuzzer"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = ""):
-        """_summary_
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "") -> None:
+        """Initialize the Fuzzer.
 
         Args:
-            futag_llvm_package (str): path to the futag llvm package (with binaries, scripts, etc)
-            fuzz_driver_path (str, optional): location of fuzz-drivers, default "futag-fuzz-drivers". Defaults to FUZZ_DRIVER_PATH.
-            debug (bool, optional): print debug infomation while fuzzing, default False. Defaults to False.
-            gdb (bool, optional): debug crashes with GDB, default False. Defaults to False.
-            svres (bool, optional): generate svres file for Svace (if you have Svace), default False. Defaults to False.
-            fork (int, optional): fork mode of libFuzzer (https://llvm.org/docs/LibFuzzer.html#fork-mode). Defaults to 1 - no fork mode.
-            totaltime (int, optional): total time of fuzzing one fuzz-driver, default 300 seconds. Defaults to 300.
-            timeout (int, optional): if an fuzz-drive takes longer than this timeout, the process is treated as a failure case. Defaults to 10.
-            memlimit (int, optional): option for rss_limit_mb of libFuzzer - Memory usage limit in Mb, 0 - disable the limit. Defaults to 2048.
-            coverage (bool, optional): option for showing coverage of fuzzing. Defaults to False.
-            leak (bool, optional): detecting memory leak, default False. Defaults to False.
-            introspect (bool, optional): option for integrate with fuzz-introspector (to be add soon). Defaults to False.
+            futag_llvm_package: Path to the Futag LLVM package (with binaries, scripts, etc).
+            fuzz_driver_path: Location of fuzz-drivers, default "futag-fuzz-drivers".
+            debug: Print debug information while fuzzing, default False.
+            gdb: Debug crashes with GDB, default False.
+            svres: Generate svres file for Svace, default False.
+            fork: Fork mode of libFuzzer, default 1 (no fork mode).
+            totaltime: Total time of fuzzing one fuzz-driver in seconds, default 300.
+            timeout: If a fuzz-driver takes longer than this timeout, the process is treated as a failure case, default 10.
+            memlimit: Memory usage limit in Mb (rss_limit_mb), 0 to disable, default 2048.
+            coverage: Show coverage of fuzzing, default False.
+            leak: Detect memory leaks, default False.
+            introspect: Integrate with fuzz-introspector, default False.
+            source_path: Path to source code for coverage reports, default "".
         """
         super().__init__(
             futag_llvm_package=futag_llvm_package,
@@ -844,7 +927,7 @@ class Fuzzer(BaseFuzzer):
             source_path=source_path,
         )
 
-    def _get_corpus_args(self, target_path):
+    def _get_corpus_args(self, target_path) -> list:
         """Fuzzer does not add corpus path args."""
         return []
 
@@ -852,22 +935,22 @@ class Fuzzer(BaseFuzzer):
 class NatchFuzzer(BaseFuzzer):
     """Futag Fuzzer for Natch"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False):
-        """_summary_
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False) -> None:
+        """Initialize the NatchFuzzer.
 
         Args:
-            futag_llvm_package (str): path to the futag llvm package (with binaries, scripts, etc)
-            fuzz_driver_path (str, optional): location of fuzz-drivers, default "futag-fuzz-drivers". Defaults to FUZZ_DRIVER_PATH.
-            debug (bool, optional): print debug infomation while fuzzing, default False. Defaults to False.
-            gdb (bool, optional): debug crashes with GDB, default False. Defaults to False.
-            svres (bool, optional): generate svres file for Svace (if you have Svace), default False. Defaults to False.
-            fork (int, optional): fork mode of libFuzzer (https://llvm.org/docs/LibFuzzer.html#fork-mode). Defaults to 1 - no fork mode.
-            totaltime (int, optional): total time of fuzzing one fuzz-driver, default 300 seconds. Defaults to 300.
-            timeout (int, optional): if an fuzz-drive takes longer than this timeout, the process is treated as a failure case. Defaults to 10.
-            memlimit (int, optional): option for rss_limit_mb of libFuzzer - Memory usage limit in Mb, 0 - disable the limit. Defaults to 2048.
-            coverage (bool, optional): option for showing coverage of fuzzing. Defaults to False.
-            leak (bool, optional): detecting memory leak, default False. Defaults to False.
-            introspect (bool, optional): option for integrate with fuzz-introspector (to be add soon). Defaults to False.
+            futag_llvm_package: Path to the Futag LLVM package (with binaries, scripts, etc).
+            fuzz_driver_path: Location of fuzz-drivers, default "futag-fuzz-drivers".
+            debug: Print debug information while fuzzing, default False.
+            gdb: Debug crashes with GDB, default False.
+            svres: Generate svres file for Svace, default False.
+            fork: Fork mode of libFuzzer, default 1 (no fork mode).
+            totaltime: Total time of fuzzing one fuzz-driver in seconds, default 300.
+            timeout: If a fuzz-driver takes longer than this timeout, the process is treated as a failure case, default 10.
+            memlimit: Memory usage limit in Mb (rss_limit_mb), 0 to disable, default 2048.
+            coverage: Show coverage of fuzzing, default False.
+            leak: Detect memory leaks, default False.
+            introspect: Integrate with fuzz-introspector, default False.
         """
         super().__init__(
             futag_llvm_package=futag_llvm_package,
@@ -885,7 +968,7 @@ class NatchFuzzer(BaseFuzzer):
             source_path="",
         )
 
-    def _get_corpus_args(self, target_path):
+    def _get_corpus_args(self, target_path) -> list:
         """NatchFuzzer adds corpus path to the execute command."""
         corpus_path = (target_path.parents[3] / "Natch_corpus" / target_path.parents[1].stem.replace("anonymous_", ""))
         return [corpus_path.as_posix()]

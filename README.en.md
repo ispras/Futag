@@ -56,7 +56,7 @@ Thank you for acknowledging the authors' work when you use FUTAG or report bugs 
 You can try building FUTAG using the provided Dockerfiles for Ubuntu: https://github.com/ispras/Futag/tree/main/product-tests/build-test
 
 ## 3.2. Using a prepackaged release
-- Download the latest release (for example, futag-llvm.2.1.1.tar.xz) from https://github.com/ispras/Futag/releases/tag/2.1.1 and extract it. The tool will be installed to the futag-llvm directory.
+- Download the latest release (for example, futag-llvm.3.0.1.tar.xz) from https://github.com/ispras/Futag/releases/tag/v3.0.1 and extract it. The tool will be installed to the futag-llvm directory.
 - To build AFLplusplus, run the buildAFLplusplus.sh script in futag-llvm:
 
 ```bash
@@ -119,7 +119,7 @@ This script creates the Futag/build directory and copies Futag/custom-llvm/build
 - Make sure the futag-<version>.tar.gz package is installed under futag-llvm/python-package/:
 ```bash
   ~$ pip install -r futag-llvm/python-package/requirements.txt
-  ~$ pip install futag-llvm/python-package/futag-2.1.1.tar.gz
+  ~$ pip install futag-llvm/python-package/futag-3.0.1.tar.gz
 ```
 
 ### 4.1. Automatic generation of fuzzing wrappers when usage contexts are absent
@@ -212,6 +212,14 @@ More information about using FUTAG is available at: https://github.com/ispras/Fu
 A template for run scripts can be found here: https://github.com/ispras/Futag/blob/main/src/python/template-script.py
 
 A test repository was created at https://github.com/thientc/Futag-tests to test FUTAG on various libraries (json-c, php, FreeImage, etc.). You can try testing using the Docker container at https://github.com/ispras/Futag/tree/main/product-tests/libraries-test.
+
+## Documentation
+
+- [Architecture Overview](docs/architecture.md) — three-layer design, data flow
+- [С/C++ Checkers](docs/checkers.md) — FutagAnalyzer and FutagConsumerAnalyzer
+- [Generator System](docs/generators.md) — BaseGenerator pattern and backends
+- [Python API Reference](docs/python-api.md) — complete class and method reference
+- [Contributing Guide](CONTRIBUTING.md) — development setup and code style
 
 ## 5. Authors
 

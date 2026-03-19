@@ -1,3 +1,7 @@
+# Copyright (c) 2023-2024 ISP RAS (https://www.ispras.ru)
+# Licensed under the GNU General Public License v3.0
+# See LICENSE file in the project root for full license text.
+
 # **************************************************
 # **      ______  __  __  ______  ___     ______  **
 # **     / ____/ / / / / /_  __/ /   |   / ____/  **
@@ -15,12 +19,15 @@
 """Futag NatchGenerator - Fuzz target generation using Natch runtime data."""
 
 import json
+import logging
 import pathlib
 import os
 import sys
 
 from futag.generator import Generator
 from futag.sysmsg import *
+
+logger = logging.getLogger(__name__)
 
 
 class NatchGenerator(Generator):
@@ -70,8 +77,9 @@ class NatchGenerator(Generator):
 
     def parse_values(self):
         """Parse Natch JSON and generate seed corpus files."""
-        print(self.Natch_corpus_path.as_posix())
-        natch_values = json.load(open(self.natch_json_file.as_posix()))
+        logger.info(self.Natch_corpus_path.as_posix())
+        with open(self.natch_json_file.as_posix()) as f:
+            natch_values = json.load(f)
         if not natch_values:
             raise ValueError(COULD_NOT_PARSE_NATCH_CALLSTACK)
         function_name_list = set()
@@ -90,10 +98,10 @@ class NatchGenerator(Generator):
                 index += 1
                 blob_name = "blob" + str(index)
             arguments = []
-            print("-- Parsing data of function " + function["Function name"])
+            logger.info("Parsing data of function %s", function["Function name"])
             with open((self.Natch_corpus_path / function["Function name"] / blob_name).as_posix(), "wb") as f:
-                print("   [*] writing seed file: " + (self.Natch_corpus_path /
-                      function["Function name"] / blob_name).as_posix() + "...")
+                logger.info("   [*] writing seed file: %s...", (self.Natch_corpus_path /
+                      function["Function name"] / blob_name).as_posix())
                 for arg in function["Arguments"]:
                     arguments.append(arg["Type"])
                     if (arg["Type"] in ["char *", "const char *", "unsigned char *", "const unsigned char *", "const char *&"]):
@@ -389,7 +397,7 @@ class NatchGenerator(Generator):
             if (not len(self.state.buffer_size) and not self.state.dyn_cstring_size_idx and not self.state.dyn_cxxstring_size_idx and not self.state.dyn_wstring_size_idx and not self.state.file_idx) or not self.state.gen_this_function:
                 log = self._log_file(func, self.gen_anonymous)
                 if not log:
-                    print(CANNOT_CREATE_LOG_FILE, func["qname"])
+                    logger.error(f"{CANNOT_CREATE_LOG_FILE} {func['qname']}")
                 else:
                     self.state.curr_func_log = f"Log for function: {func['qname']}\n{self.state.curr_func_log}"
                     log.write(self.state.curr_func_log)
@@ -397,9 +405,9 @@ class NatchGenerator(Generator):
                 return False
             # generate file name
             wrapper_result = self._wrapper_file(func)
-            print("Generating fuzzing-wapper for function ",
-                  func["qname"], ": ")
-            print("-- ", wrapper_result["msg"])
+            logger.info("Generating fuzzing-wapper for function %s:",
+                  func["qname"])
+            logger.info("-- %s", wrapper_result["msg"])
             if not wrapper_result["file"]:
                 self.state.gen_this_function = False
                 return False
@@ -767,7 +775,7 @@ class NatchGenerator(Generator):
             if (not len(self.state.buffer_size) and not self.state.dyn_cstring_size_idx and not self.state.dyn_cxxstring_size_idx and not self.state.dyn_wstring_size_idx and not self.state.file_idx) or not self.state.gen_this_function:
                 log = self._log_file(func, self.gen_anonymous)
                 if not log:
-                    print(CANNOT_CREATE_LOG_FILE, func["qname"])
+                    logger.error(f"{CANNOT_CREATE_LOG_FILE} {func['qname']}")
                 else:
                     self.state.curr_func_log = f"Log for function: {func['qname']}\n{self.state.curr_func_log}"
                     log.write(self.state.curr_func_log)
@@ -777,9 +785,9 @@ class NatchGenerator(Generator):
             f = self._anonymous_wrapper_file(func)
             if not f:
                 self.state.gen_this_function = False
-                print(CANNOT_CREATE_WRAPPER_FILE, func["qname"])
+                logger.error(f"{CANNOT_CREATE_WRAPPER_FILE} {func['qname']}")
                 return False
-            print(WRAPPER_FILE_CREATED, f.name)
+            logger.info(f"{WRAPPER_FILE_CREATED} {f.name}")
 
             for line in self._gen_header(func["location"]["fullpath"]):
                 f.write("// " + line)
@@ -896,7 +904,7 @@ class NatchGenerator(Generator):
                     self._append_gen_dict(curr_gen)
 
                 if gen_type_info["gen_type"] == GEN_REFSTRING:
-                    print("!!!GEN_REFSTRING\n\n\n")
+                    logger.debug("!!!GEN_REFSTRING")
                     # GEN FILE NAME OR # GEN STRING
                     if (curr_param["param_usage"] in ["FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH"] or curr_param["param_name"] in ["filename", "file", "filepath"] or curr_param["param_name"].find('file') != -1 or curr_param["param_name"].find('File') != -1) and len(curr_param["gen_list"]) == 1:
                         curr_name = "f_" + curr_name  # string_prefix
@@ -1152,8 +1160,7 @@ class NatchGenerator(Generator):
                     continue
                 # For C
                 if func["access_type"] == AS_NONE and func["fuzz_it"] and func["storage_class"] < 2 and (func["parent_hash"] == ""):
-                    print(
-                        "-- [Futag] Try to generate fuzz-driver for function: ", func["name"], "...")
+                    logger.info("Try to generate fuzz-driver for function: %s...", func["name"])
                     C_generated_function.append(func["name"])
                     self.state.gen_this_function = True
                     self.state.header = []
@@ -1176,8 +1183,7 @@ class NatchGenerator(Generator):
                 # For C++, Declare object of class and then call the method
                 if func["access_type"] == AS_PUBLIC and func["fuzz_it"] and func["func_type"] in [FUNC_CXXMETHOD, FUNC_CONSTRUCTOR, FUNC_DEFAULT_CONSTRUCTOR, FUNC_GLOBAL, FUNC_STATIC] and (not "::operator" in func["qname"]):
                     Cplusplus_usual_class_method.append(func["qname"])
-                    print(
-                        "-- [Futag] Try to generate fuzz-driver for class method: ", func["name"], "...")
+                    logger.info("Try to generate fuzz-driver for class method: %s...", func["name"])
                     self.state.gen_this_function = True
                     self.state.header = []
                     self.state.buffer_size = []
@@ -1227,8 +1233,8 @@ class NatchGenerator(Generator):
                 "Cplusplus_anonymous_class_methods": Cplusplus_anonymous_class_method,
                 "C_unknown_functions": C_unknown_function
             }
-            json.dump(self.result_report, open(
-                (self.build_path / "result-report.json").as_posix(), "w"))
+            with open((self.build_path / "result-report.json").as_posix(), "w") as f:
+                json.dump(self.result_report, f)
 
     def gen_targets_from_callstack(self, target):
         """Generate fuzz targets from a specific Natch callstack entry.
