@@ -41,13 +41,13 @@ graph TD
         C["Natch JSON - optional"]
     end
 
-    subgraph "Layer 3: Build Infrastructure"
+    subgraph "Layer 1: Build Infrastructure"
         D["custom-llvm / build.sh — Download and patch LLVM 14/18/19"]
     end
 
     D -->|"futag-llvm toolchain"| E
 
-    subgraph "Layer 1: C++ Clang Checkers"
+    subgraph "Layer 2: C++ Clang Checkers"
         E["scan-build + FutagAnalyzer — Extract functions, types, call contexts, includes"]
         F["scan-build + FutagConsumerAnalyzer — Extract usage contexts from consumer programs"]
     end
@@ -57,7 +57,7 @@ graph TD
     E -->|"JSON analysis files"| G
     F -->|"JSON context files"| H
 
-    subgraph "Layer 2: Python Orchestration"
+    subgraph "Layer 3: Python Orchestration"
         G["Builder.analyze — futag-analysis-result.json"]
         H["ConsumerBuilder.analyze — futag-contexts.json"]
 
@@ -69,12 +69,11 @@ graph TD
             I{"Choose Generator"}
             I --> J1["Generator - memcpy from buffer"]
             I --> J2["FuzzDataProviderGenerator - type-safe FDP API"]
-            I --> J3["BlobStamperGenerator"]
-            I --> J4["ContextGenerator - consumer contexts"]
-            I --> J5["NatchGenerator - crash traces"]
+            I --> J3["ContextGenerator - consumer contexts"]
+            I --> J4["NatchGenerator - crash traces"]
         end
 
-        J1 & J2 & J3 & J4 & J5 --> K["gen_targets and compile_targets"]
+        J1 & J2 & J3 & J4  --> K["gen_targets and compile_targets"]
         K --> L["Fuzzer / NatchFuzzer"]
     end
 
