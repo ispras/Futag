@@ -135,7 +135,7 @@ class _BaseBuilder:
             if processes < 0:
                 sys.exit(INVALID_INPUT_PROCESSES)
         except ValueError:
-            print(INVALID_INPUT_PROCESSES)
+            sys.exit(INVALID_INPUT_PROCESSES)
         self.processes = processes
 
         if pathlib.Path(futag_llvm_package).absolute().exists() and (pathlib.Path(futag_llvm_package) / "bin/clang").absolute().exists():
