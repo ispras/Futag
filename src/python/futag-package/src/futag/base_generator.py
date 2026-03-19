@@ -27,7 +27,7 @@ from abc import ABC, abstractmethod
 from subprocess import Popen, PIPE
 from multiprocessing import Pool
 from typing import List
-from distutils.dir_util import copy_tree
+from shutil import copytree
 
 from futag.sysmsg import *
 
@@ -2515,8 +2515,8 @@ class BaseGenerator(ABC):
                 ((self.succeeded_path /
                  dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
             # shutil.move(dir.parents[0].as_posix(), (self.succeeded_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-            copy_tree(dir.parents[0].as_posix(
-            ), (self.succeeded_path / dir.parents[1].name / dir.parents[0].name).as_posix())
+            copytree(dir.parents[0].as_posix(
+            ), (self.succeeded_path / dir.parents[1].name / dir.parents[0].name).as_posix(), dirs_exist_ok=True)
 
         if keep_failed:
             failed_tree = set()
@@ -2535,8 +2535,8 @@ class BaseGenerator(ABC):
                         ((self.failed_path /
                           dir.parents[1].name)).mkdir(parents=True, exist_ok=True)
                     # shutil.move(dir.parents[0].as_posix(), (self.failed_path / dir.parents[1].name).as_posix(), copy_function=shutil.copytree)
-                    copy_tree(dir.parents[0].as_posix(
-                    ), (self.failed_path / dir.parents[1].name / dir.parents[0].name).as_posix())
+                    copytree(dir.parents[0].as_posix(
+                    ), (self.failed_path / dir.parents[1].name / dir.parents[0].name).as_posix(), dirs_exist_ok=True)
         else:
             delete_folder(self.failed_path)
         if not keep_original:

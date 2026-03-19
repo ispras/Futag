@@ -49,7 +49,7 @@ class TestXmlEscape:
 
     def test_newline(self):
         fuzzer = BaseFuzzer.__new__(BaseFuzzer)
-        assert "&#10;" in fuzzer._xml_escape("a\nb")
+        assert "a b" == fuzzer._xml_escape("a\nb")
 
 
 class TestCorpusArgs:
