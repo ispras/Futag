@@ -60,6 +60,18 @@ using namespace futag;
 //===----------------------------------------------------------------------===//
 namespace {
 
+/**
+ * @brief Clang StaticAnalyzer checker that extracts function signatures,
+ * type information, and call contexts from C/C++ library source code.
+ *
+ * Operates at the TranslationUnit level via checkASTDecl callback.
+ * Uses RecursiveASTVisitor to traverse functions, records, typedefs,
+ * and enums. Outputs 4 JSON files per translation unit:
+ *   - .declaration-*.json  (function declarations keyed by ODR hash)
+ *   - .context-*.json      (call context information)
+ *   - .types-info-*.json   (enums, records, typedefs)
+ *   - .file-info-*.json    (includes and compiler options)
+ */
 class FutagAnalyzer : public Checker<check::ASTDecl<TranslationUnitDecl>> {
   private:
     bool m_log_debug_message{true};
@@ -69,19 +81,26 @@ class FutagAnalyzer : public Checker<check::ASTDecl<TranslationUnitDecl>> {
     mutable json m_types_info{};
     mutable json mIncludesInfo{};
 
-    // Opens json file specified in currentReportPath and writes new
-    // data provided in "state" variable to the "functions" key of the
-    // resulting json file.
+    /**
+     * @brief Writes JSON data to a file, merging with existing content.
+     * @param currentReportPath Path to the output JSON file.
+     * @param state JSON object to write/merge.
+     */
     void WriteInfoToTheFile(const StringRef currentReportPath,
                             json &state) const;
 
-    // Collects basic information about currently processed function:
-    //   - Hash of the function (calculated using getODRHash)
-    //   - Function name
-    //   - File name, where function is defined
-    //   - Line number, where function is defined
-    //   - Return value type
-    //   - Parameter names/types
+    /**
+     * @brief Extracts basic function metadata: ODR hash, name, location,
+     * return type, parameters (with type classification and usage info),
+     * function type, access type, storage class, and is_simple flag.
+     * @param curr_json_context JSON object to populate.
+     * @param func The function declaration to analyze.
+     * @param Mgr Analysis manager for AST context access.
+     * @param curr_func_begin_loc Source line number of function start.
+     * @param file_name Source file path.
+     * @param function_type Classification (global, method, constructor, etc.).
+     * @param parent_hash ODR hash of parent class (empty for non-methods).
+     */
     void CollectBasicFunctionInfo(json &curr_json_context,
                                   const FunctionDecl *func,
                                   AnalysisManager &Mgr,
@@ -90,39 +109,49 @@ class FutagAnalyzer : public Checker<check::ASTDecl<TranslationUnitDecl>> {
                                   const futag::FunctionType function_type,
                                   const std::string &parent_hash) const;
 
-    // Collects "advanced", context-related function information.
-    // This information consists from a lot of different things. For example:
-    //   - File/Line, where the call is found
+    /**
+     * @brief Finds function calls within a function body using AST matchers.
+     * Records caller/callee relationships for call context analysis.
+     * @param call_context_json JSON object to populate with call contexts.
+     * @param func The function whose body is searched for calls.
+     * @param Mgr Analysis manager.
+     * @param file_name Source file path of the function.
+     */
     void CollectAdvancedFunctionInfo(json &call_context_json,
                                      const FunctionDecl *func,
                                      AnalysisManager &Mgr,
                                      const std::string &file_name) const;
 
-    // Tries to identify how current function uses its arguments.
-    // This method only performs elementary analysis, which consists
-    // of AST traversal and extracting all default interesting (open, strcpy,
-    // ...) functions. After that we check if parameter to the original function
-    // is passed into one of the known functions and if so, we can determine the
-    // parameter type
+    /**
+     * @brief Classifies how a function parameter is used by checking if it
+     * is passed to known functions (open, read, write, strcpy, etc.).
+     * Uses AST matchers to find callExpr patterns containing the parameter.
+     * @param param_info JSON object to update with usage classification.
+     * @param func The function containing the parameter.
+     * @param Mgr Analysis manager.
+     * @param param The parameter declaration to classify.
+     */
     void DetermineArgUsageInAST(json &param_info, const FunctionDecl *func,
                                 AnalysisManager &Mgr,
                                 const clang::ParmVarDecl *param) const;
 
   public:
+    static constexpr unsigned REPORT_FILENAME_RAND_LEN = 8;
+
     std::string report_dir = "";
 
     // Full path to the current context report file
-    mutable SmallString<0> context_report_path{};
+    mutable SmallString<256> context_report_path{};
 
     // Full path to save the function declaration (in header files)
-    mutable SmallString<0> func_decl_report_path{};
+    mutable SmallString<256> func_decl_report_path{};
 
     // Full path to report that has information about structs, typedefs and
     // enums
-    mutable SmallString<0> types_info_report_path{};
+    mutable SmallString<256> types_info_report_path{};
 
     // Full path to the report with includes info
-    mutable SmallString<0> includesInfoReportPath{};
+    mutable SmallString<256> includesInfoReportPath{};
 
     // Used to generate random filename
     utils::Random rand{};
@@ -385,7 +414,7 @@ void FutagAnalyzer::checkASTDecl(const TranslationUnitDecl *TUD,
         }
     }
     std::string compiler_opts = Mgr.getAnalyzerOptions().FullCompilerInvocation;
-    const FileEntry * fe = sm.getFileEntryForID(sm.getMainFileID());
+    auto fe = sm.getFileEntryForID(sm.getMainFileID());
     if (fe->tryGetRealPathName().empty()) {
         if (fe->getName().empty()) {
             return;
@@ -460,10 +489,10 @@ void FutagAnalyzer::VisitFunction(const FunctionDecl *func,
     std::string parent_hash = "";
 
     if (fe->tryGetRealPathName().empty()) {
-        if (fe.getName().empty()) {
+        if (fe->getName().empty()) {
             std::cerr << " -- Debug info: Cannot find filename and filepath!\n";
         } else {
-            file_name = fe.getName().str();
+            file_name = fe->getName().str();
         }
     } else {
         file_name = fe->tryGetRealPathName().str();
@@ -726,25 +755,25 @@ void ento::registerFutagAnalyzer(CheckerManager &Mgr) {
     Chk->context_report_path = "";
     sys::path::append(Chk->context_report_path, Chk->report_dir,
                       ".context-" +
-                          Chk->rand.GenerateRandomString(consts::cAlphabet, 8) +
+                          Chk->rand.GenerateRandomString(consts::cAlphabet, FutagAnalyzer::REPORT_FILENAME_RAND_LEN) +
                           ".futag-analyzer.json");
 
     Chk->func_decl_report_path = "";
     sys::path::append(Chk->func_decl_report_path, Chk->report_dir,
                       ".declaration-" +
-                          Chk->rand.GenerateRandomString(consts::cAlphabet, 8) +
+                          Chk->rand.GenerateRandomString(consts::cAlphabet, FutagAnalyzer::REPORT_FILENAME_RAND_LEN) +
                           ".futag-analyzer.json");
 
     Chk->types_info_report_path = "";
     sys::path::append(Chk->types_info_report_path, Chk->report_dir,
                       ".types-info-" +
-                          Chk->rand.GenerateRandomString(consts::cAlphabet, 8) +
+                          Chk->rand.GenerateRandomString(consts::cAlphabet, FutagAnalyzer::REPORT_FILENAME_RAND_LEN) +
                           ".futag-analyzer.json");
 
     Chk->includesInfoReportPath = "";
     sys::path::append(Chk->includesInfoReportPath, Chk->report_dir,
                       ".file-info-" +
-                          Chk->rand.GenerateRandomString(consts::cAlphabet, 8) +
+                          Chk->rand.GenerateRandomString(consts::cAlphabet, FutagAnalyzer::REPORT_FILENAME_RAND_LEN) +
                           ".futag-analyzer.json");
 }
 
