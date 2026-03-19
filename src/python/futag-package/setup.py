@@ -15,4 +15,7 @@ setup(
        "pathlib",
        "argparse",
    ],
+   extras_require={
+       "test": ["pytest>=7.0"],
+   },
 )
