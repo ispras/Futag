@@ -569,8 +569,8 @@ class Builder(_BaseBuilder):
         compiled_files = []
 
         print("")
-        print(" -- [Futag]: Analysing fuction declarations...")
-        for functions in _load_json_files(decl_files, "fuction declarations"):
+        print(" -- [Futag]: Analysing function declarations...")
+        for functions in _load_json_files(decl_files, "function declarations"):
             # get global hash of all functions
             for hash in functions:
                 if hash not in function_list:
