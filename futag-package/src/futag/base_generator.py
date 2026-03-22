@@ -400,7 +400,7 @@ class BaseGenerator(ABC):
     #  Constructor                                                        #
     # ------------------------------------------------------------------ #
 
-    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str = "."):
+    def __init__(self, futag_llvm_package: str = "", library_root: str = "", target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str = ".", toolchain=None):
         """ Constructor of BaseGenerator class.
 
         Args:
@@ -445,18 +445,16 @@ class BaseGenerator(ABC):
 
         self.target_type = target_type
 
-        if pathlib.Path(self.futag_llvm_package).exists():
+        from futag.toolchain import ToolchainConfig
+        if toolchain is not None:
+            self.toolchain = toolchain
+        elif self.futag_llvm_package:
+            self.toolchain = ToolchainConfig.from_futag_llvm(
+                self.futag_llvm_package)
             self.futag_llvm_package = pathlib.Path(
                 self.futag_llvm_package).absolute()
         else:
-            sys.exit(INVALID_FUTAG_PATH)
-
-        if self.target_type == LIBFUZZER:
-            if not pathlib.Path(self.futag_llvm_package / "bin/clang").exists():
-                sys.exit(INVALID_FUTAG_PATH)
-        else:
-            if not pathlib.Path(self.futag_llvm_package / "AFLplusplus/usr/local/bin/afl-clang-fast").exists():
-                sys.exit(INVALID_FUTAG_PATH)
+            self.toolchain = ToolchainConfig.for_generation_only()
 
         if pathlib.Path(self.library_root).exists():
             self.library_root = pathlib.Path(self.library_root).absolute()
@@ -2423,19 +2421,15 @@ class BaseGenerator(ABC):
                 if not "-ferror-limit=1" in compiler_flags_libFuzzer:
                     compiler_flags_libFuzzer += " -ferror-limit=1"
 
-            compiler_path = ""
+            self.toolchain.require_compiler(self.target_type)
             if self.target_type == LIBFUZZER:
-                if compiler_info["compiler"] == "CC":
-                    compiler_path = self.futag_llvm_package / "bin/clang"
-                else:
-                    compiler_path = self.futag_llvm_package / "bin/clang++"
+                compiler_path = (self.toolchain.clang
+                                 if compiler_info["compiler"] == "CC"
+                                 else self.toolchain.clangpp)
             else:
-                if compiler_info["compiler"] == "CC":
-                    compiler_path = self.futag_llvm_package / \
-                        "AFLplusplus/usr/local/bin/afl-clang-fast"
-                else:
-                    compiler_path = self.futag_llvm_package / \
-                        "AFLplusplus/usr/local/bin/afl-clang-fast++"
+                compiler_path = (self.toolchain.afl_clang_fast
+                                 if compiler_info["compiler"] == "CC"
+                                 else self.toolchain.afl_clang_fastpp)
 
             current_func_compilation_opts = ""
             compilation_opts = ""

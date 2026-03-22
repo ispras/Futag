@@ -102,3 +102,18 @@ class TestGenPointer:
     def test_pointer(self, generator):
         result = generator._gen_pointer("p_x", "x", {"type_name": "int *"})
         assert any("& x" in line for line in result["gen_lines"])
+
+
+class TestToolchainIntegration:
+    def test_existing_api_still_works(self, tmp_futag_package, tmp_library_root):
+        """Backward compat: positional futag_llvm_package still works."""
+        gen = Generator(tmp_futag_package, tmp_library_root)
+        assert gen.toolchain is not None
+        assert gen.toolchain.clang is not None
+
+    def test_toolchain_kwarg(self, tmp_futag_package, tmp_library_root):
+        """New API: pass toolchain explicitly."""
+        from futag.toolchain import ToolchainConfig
+        tc = ToolchainConfig.from_futag_llvm(tmp_futag_package)
+        gen = Generator(library_root=tmp_library_root, toolchain=tc)
+        assert gen.toolchain is tc
