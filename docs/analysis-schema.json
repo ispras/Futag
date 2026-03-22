@@ -1,0 +1,207 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Futag Analysis Result",
+  "description": "Schema for futag-analysis-result.json — the JSON interface between analysis backends (Clang checkers, CodeQL, etc.) and the Python generator layer.",
+  "type": "object",
+  "required": ["functions"],
+  "properties": {
+    "functions": {
+      "type": "array",
+      "description": "List of analyzed library functions.",
+      "items": { "$ref": "#/definitions/Function" }
+    },
+    "enums": {
+      "type": "array",
+      "description": "Enum type definitions found in the library.",
+      "items": { "$ref": "#/definitions/Enum" }
+    },
+    "records": {
+      "type": "array",
+      "description": "Struct, union, and class definitions.",
+      "items": { "$ref": "#/definitions/Record" }
+    },
+    "typedefs": {
+      "type": "array",
+      "description": "Typedef definitions.",
+      "items": { "$ref": "#/definitions/Typedef" }
+    },
+    "compiled_files": {
+      "type": "array",
+      "description": "Per-file compilation info (include paths, compiler flags). Required for compile_targets().",
+      "items": { "$ref": "#/definitions/CompiledFile" }
+    }
+  },
+  "definitions": {
+    "Function": {
+      "type": "object",
+      "required": ["name", "qname", "hash", "is_simple", "func_type", "access_type", "params", "return_type", "fuzz_it", "location"],
+      "properties": {
+        "name": { "type": "string", "description": "Unqualified function name." },
+        "qname": { "type": "string", "description": "Fully qualified name (e.g., 'namespace::class::func')." },
+        "hash": { "type": "string", "description": "Unique identifier (ODR hash or equivalent)." },
+        "is_simple": { "type": "boolean", "description": "True if all parameters are simple (builtin) types." },
+        "func_type": {
+          "type": "integer",
+          "description": "Function kind: 0=CXXMETHOD, 1=CONSTRUCTOR, 2=DEFAULT_CONSTRUCTOR, 3=DESTRUCTOR, 4=GLOBAL, 5=STATIC",
+          "minimum": 0, "maximum": 5
+        },
+        "access_type": {
+          "type": "integer",
+          "description": "Access specifier: 0=PUBLIC, 1=PROTECTED, 2=PRIVATE, 3=NONE (C functions)",
+          "minimum": 0, "maximum": 3
+        },
+        "storage_class": { "type": "integer", "description": "Storage class specifier.", "default": 0 },
+        "parent_hash": { "type": "string", "description": "Hash of parent class/struct (empty for free functions).", "default": "" },
+        "return_type": {
+          "type": "object",
+          "required": ["type_name"],
+          "properties": {
+            "type_name": { "type": "string" }
+          }
+        },
+        "gen_return_type": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/GenTypeInfo" },
+          "description": "Type decomposition chain for the return type."
+        },
+        "params": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Parameter" }
+        },
+        "fuzz_it": { "type": "boolean", "description": "Whether this function should be fuzz-targeted." },
+        "contexts": { "type": "array", "description": "Internal call contexts (optional).", "default": [] },
+        "location": { "$ref": "#/definitions/Location" }
+      }
+    },
+    "Parameter": {
+      "type": "object",
+      "required": ["param_name", "param_type", "param_usage", "gen_list"],
+      "properties": {
+        "param_name": { "type": "string", "description": "Parameter name from source code." },
+        "param_type": { "type": "string", "description": "C/C++ type string (e.g., 'const char *')." },
+        "param_usage": {
+          "type": "string",
+          "description": "Semantic classification of how the parameter is used.",
+          "enum": ["UNKNOWN", "FILE_PATH_READ", "FILE_PATH_WRITE", "FILE_PATH_RW", "FILE_PATH", "FILE_DESCRIPTOR", "SIZE_FIELD", "C_STRING"]
+        },
+        "gen_list": {
+          "type": "array",
+          "description": "Type decomposition chain — the key data structure for code generation.",
+          "items": { "$ref": "#/definitions/GenTypeInfo" }
+        }
+      }
+    },
+    "GenTypeInfo": {
+      "type": "object",
+      "required": ["gen_type", "type_name", "base_type_name", "local_qualifier", "length"],
+      "properties": {
+        "gen_type": {
+          "type": "integer",
+          "description": "Type classification: 0=BUILTIN, 1=CSTRING, 2=WSTRING, 3=CXXSTRING, 4=ENUM, 5=ARRAY, 6=VOID, 7=QUALIFIER, 8=POINTER, 9=STRUCT, 10=UNION, 11=CLASS, 12=INCOMPLETE, 13=FUNCTION, 14=INPUT_FILE, 15=OUTPUT_FILE, 16=CXXFILE, 17=CFILE, 18=UNKNOWN, 19=REFSTRING",
+          "minimum": 0, "maximum": 19
+        },
+        "type_name": { "type": "string", "description": "Current qualified type (e.g., 'const char *')." },
+        "base_type_name": { "type": "string", "description": "Unqualified/pointee type (e.g., 'char')." },
+        "local_qualifier": { "type": "string", "description": "Qualifier: 'const', 'volatile', 'restrict', or empty." },
+        "length": { "type": "integer", "description": "Array length (0 if not an array).", "default": 0 }
+      }
+    },
+    "Location": {
+      "type": "object",
+      "required": ["file", "line", "directory", "fullpath"],
+      "properties": {
+        "file": { "type": "string", "description": "Source file name." },
+        "line": { "type": "string", "description": "Line number (as string)." },
+        "directory": { "type": "string", "description": "Directory containing the source file." },
+        "fullpath": { "type": "string", "description": "Full path to the source file." }
+      }
+    },
+    "Enum": {
+      "type": "object",
+      "required": ["name", "qname", "hash", "enum_values"],
+      "properties": {
+        "name": { "type": "string" },
+        "qname": { "type": "string" },
+        "hash": { "type": "string" },
+        "access_type": { "type": "integer", "default": 3 },
+        "enum_values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["field_name", "value"],
+            "properties": {
+              "field_name": { "type": "string" },
+              "value": { "type": "integer" }
+            }
+          }
+        }
+      }
+    },
+    "Record": {
+      "type": "object",
+      "required": ["name", "qname", "hash", "record_type", "fields"],
+      "properties": {
+        "name": { "type": "string" },
+        "qname": { "type": "string" },
+        "hash": { "type": "string" },
+        "is_simple": { "type": "boolean", "default": true },
+        "record_type": {
+          "type": "integer",
+          "description": "0=CLASS, 1=UNION, 2=STRUCT"
+        },
+        "access_type": { "type": "integer", "default": 3 },
+        "parent_hash": { "type": "string", "default": "" },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["field_name", "field_type", "gen_list"],
+            "properties": {
+              "field_name": { "type": "string" },
+              "field_type": { "type": "string" },
+              "gen_list": {
+                "type": "array",
+                "items": { "$ref": "#/definitions/GenTypeInfo" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Typedef": {
+      "type": "object",
+      "required": ["name", "qname", "type_name"],
+      "properties": {
+        "name": { "type": "string" },
+        "qname": { "type": "string" },
+        "type_name": { "type": "string", "description": "The underlying type." },
+        "type_source_hash": { "type": "string", "default": "" },
+        "is_builtin": { "type": "boolean", "default": false }
+      }
+    },
+    "CompiledFile": {
+      "type": "object",
+      "required": ["filename"],
+      "properties": {
+        "filename": { "type": "string", "description": "Full path to the compiled source file." },
+        "headers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Header files included by this file."
+        },
+        "include_paths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Include search paths (-I directories)."
+        },
+        "compiler_opts": {
+          "description": "Compiler options. Can be a string (space-separated) or array.",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "array", "items": { "type": "string" } }
+          ]
+        }
+      }
+    }
+  }
+}
