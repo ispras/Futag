@@ -12,7 +12,9 @@ from futag.generator import Generator
 @pytest.fixture
 def generator(tmp_futag_package, tmp_library_root):
     """Create a Generator instance with mock paths."""
-    return Generator(tmp_futag_package, tmp_library_root)
+    from futag.toolchain import ToolchainConfig
+    tc = ToolchainConfig.from_futag_llvm(tmp_futag_package)
+    return Generator(tmp_library_root, toolchain=tc)
 
 
 class TestGenBuiltin:
@@ -105,20 +107,15 @@ class TestGenPointer:
 
 
 class TestToolchainIntegration:
-    def test_existing_api_still_works(self, tmp_futag_package, tmp_library_root):
-        """Backward compat: positional futag_llvm_package still works."""
-        gen = Generator(tmp_futag_package, tmp_library_root)
-        assert gen.toolchain is not None
-        assert gen.toolchain.clang is not None
-
     def test_toolchain_kwarg(self, tmp_futag_package, tmp_library_root):
-        """New API: pass toolchain explicitly."""
+        """Pass toolchain explicitly via keyword arg."""
         from futag.toolchain import ToolchainConfig
         tc = ToolchainConfig.from_futag_llvm(tmp_futag_package)
-        gen = Generator(tmp_futag_package, tmp_library_root, toolchain=tc)
+        gen = Generator(tmp_library_root, toolchain=tc)
         assert gen.toolchain is tc
+        assert gen.toolchain.clang is not None
 
     def test_generation_only_mode(self, tmp_library_root):
-        """Generation-only: empty futag_llvm_package, no toolchain."""
-        gen = Generator("", tmp_library_root)
+        """Generation-only: no toolchain, library_root is first arg."""
+        gen = Generator(tmp_library_root)
         assert gen.toolchain.clang is None

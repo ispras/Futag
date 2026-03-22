@@ -38,17 +38,17 @@ class ContextGenerator(Generator):
     code (call sequences, variable bindings, etc.).
     """
 
-    def __init__(self, futag_llvm_package: str, library_root: str,
+    def __init__(self, library_root: str,
                  target_type: int = LIBFUZZER,
                  db_json_file: str = ANALYSIS_FILE_PATH,
                  context_json_file: str = CONTEXT_FILE_PATH,
                  output_path=CONTEXT_FUZZ_DRIVER_PATH,
                  build_path=BUILD_PATH, install_path=INSTALL_PATH,
-                 delimiter: str = '.', toolchain=None):
+                 delimiter: str = '.', toolchain=None,
+                 log_to_console: bool = True):
         """Constructor of ContextGenerator class.
 
         Args:
-            futag_llvm_package (str): path to the futag-llvm package.
             library_root (str): path to the library root.
             target_type (int, optional): format of fuzz-drivers. Defaults to LIBFUZZER.
             db_json_file (str, optional): path to the analysis JSON file. Defaults to ANALYSIS_FILE_PATH.
@@ -62,11 +62,11 @@ class ContextGenerator(Generator):
             SystemExit: on invalid paths or configuration.
         """
         super().__init__(
-            futag_llvm_package, library_root,
+            library_root,
             target_type=target_type, json_file=db_json_file,
             output_path=output_path, build_path=build_path,
             install_path=install_path, delimiter=delimiter,
-            toolchain=toolchain,
+            toolchain=toolchain, log_to_console=log_to_console,
         )
 
         self.consumer_contexts = None

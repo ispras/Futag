@@ -10,7 +10,9 @@ from futag.fdp_generator import FuzzDataProviderGenerator
 
 @pytest.fixture
 def fdp_generator(tmp_futag_package, tmp_library_root):
-    return FuzzDataProviderGenerator(tmp_futag_package, tmp_library_root)
+    from futag.toolchain import ToolchainConfig
+    tc = ToolchainConfig.from_futag_llvm(tmp_futag_package)
+    return FuzzDataProviderGenerator(tmp_library_root, toolchain=tc)
 
 
 class TestFDPProperties:

@@ -39,14 +39,14 @@ class NatchGenerator(Generator):
     - Iterates over target_functions parsed from Natch JSON
     """
 
-    def __init__(self, futag_llvm_package: str, library_root: str,
+    def __init__(self, library_root: str,
                  json_file: str = "", target_type: int = LIBFUZZER,
                  output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH,
-                 install_path=INSTALL_PATH, toolchain=None):
+                 install_path=INSTALL_PATH, toolchain=None,
+                 log_to_console: bool = True):
         """Constructor of NatchGenerator class.
 
         Args:
-            futag_llvm_package (str): path to the futag-llvm package.
             library_root (str): path to the library root.
             json_file (str): path to the JSON file from Natch.
             target_type (int, optional): format of fuzz-drivers. Defaults to LIBFUZZER.
@@ -60,12 +60,13 @@ class NatchGenerator(Generator):
 
         self.natch_json_file = pathlib.Path(json_file).absolute()
 
-        super().__init__(futag_llvm_package, library_root,
+        super().__init__(library_root,
                          target_type=target_type,
                          output_path=output_path,
                          build_path=build_path,
                          install_path=install_path,
-                         toolchain=toolchain)
+                         toolchain=toolchain,
+                         log_to_console=log_to_console)
 
         # Create Natch corpus directory
         Natch_corpus_path = self.output_path / "Natch_corpus"

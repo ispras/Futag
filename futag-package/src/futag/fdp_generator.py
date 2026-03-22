@@ -25,15 +25,15 @@ from futag.base_generator import BaseGenerator
 class FuzzDataProviderGenerator(BaseGenerator):
     """Generator using libFuzzer's FuzzedDataProvider API for type-safe data consumption."""
 
-    def __init__(self, futag_llvm_package, library_root, target_type=LIBFUZZER,
+    def __init__(self, library_root, target_type=LIBFUZZER,
                  json_file=ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH,
                  build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter=".",
-                 toolchain=None) -> None:
-        super().__init__(futag_llvm_package, library_root,
+                 toolchain=None, log_to_console=True) -> None:
+        super().__init__(library_root,
                          target_type=target_type, json_file=json_file,
                          output_path=output_path, build_path=build_path,
                          install_path=install_path, delimiter=delimiter,
-                         toolchain=toolchain)
+                         toolchain=toolchain, log_to_console=log_to_console)
         self.last_string_name: str = ""
 
     @property

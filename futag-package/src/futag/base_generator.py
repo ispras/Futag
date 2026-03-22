@@ -30,6 +30,7 @@ from typing import List
 from shutil import copytree
 
 from futag.sysmsg import *
+from futag import setup_console_logging
 
 logger = logging.getLogger(__name__)
 from futag.preprocessor import delete_folder
@@ -400,11 +401,10 @@ class BaseGenerator(ABC):
     #  Constructor                                                        #
     # ------------------------------------------------------------------ #
 
-    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str = ".", toolchain=None):
+    def __init__(self, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str = ".", toolchain=None, log_to_console: bool = True):
         """ Constructor of BaseGenerator class.
 
         Args:
-            futag_llvm_package (str): path to the futag-llvm package (with binaries, scripts, etc.).
             library_root (str): path to the library root.
             target_type (int, optional): format of fuzz-drivers (LIBFUZZER or AFLPLUSPLUS). Defaults to LIBFUZZER.
             json_file (str, optional): path to the futag-analysis-result.json file. Defaults to ANALYSIS_FILE_PATH.
@@ -421,10 +421,11 @@ class BaseGenerator(ABC):
             ValueError: INVALID_INSTALLPATH: Invalid path to the library install path.
         """
 
+        setup_console_logging(log_to_console)
+
         self.output_path = None  # Path for saving fuzzing drivers
         self.tmp_output_path = None  # Path for saving fuzzing drivers
         self.json_file = json_file
-        self.futag_llvm_package = futag_llvm_package
         self.library_root = library_root
         self.target_library = None
         self.exclude_headers = []
@@ -448,11 +449,6 @@ class BaseGenerator(ABC):
         from futag.toolchain import ToolchainConfig
         if toolchain is not None:
             self.toolchain = toolchain
-        elif self.futag_llvm_package:
-            self.toolchain = ToolchainConfig.from_futag_llvm(
-                self.futag_llvm_package)
-            self.futag_llvm_package = pathlib.Path(
-                self.futag_llvm_package).absolute()
         else:
             self.toolchain = ToolchainConfig.for_generation_only()
 
