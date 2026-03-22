@@ -37,6 +37,6 @@ class BlobStamperGenerator(FuzzDataProviderGenerator):
         return True  # BlobStamper supports both C and C++
 
     def _wrapper_file(self, func) -> dict:
-        """Return wrapper file metadata, using the original source file extension."""
-        self.target_extension = func["location"]["fullpath"].split(".")[-1]
+        """Return wrapper file metadata, always using .cpp extension."""
+        self.target_extension = "cpp"
         return BaseGenerator._wrapper_file(self, func)

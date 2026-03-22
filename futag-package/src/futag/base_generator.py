@@ -1308,7 +1308,7 @@ class BaseGenerator(ABC):
         filename = func["qname"].replace(":", "_")
         filepath = self.tmp_output_path
 
-        self.target_extension = func["location"]["fullpath"].split(".")[-1]
+        self.target_extension = "cpp"
         file_index = 1
 
         # qname = func["qname"]
@@ -1377,7 +1377,7 @@ class BaseGenerator(ABC):
         filename = "anonymous_" + func["name"].replace(":", "_")
         filepath = self.tmp_output_path
 
-        self.target_extension = func["location"]["fullpath"].split(".")[-1]
+        self.target_extension = "cpp"
         file_index = 1
 
         # qname = func["qname"]
@@ -1598,10 +1598,7 @@ class BaseGenerator(ABC):
                 func["location"]["fullpath"])
 
             if self.target_type == LIBFUZZER:
-                if compiler_info["compiler"] == "CC":
-                    f.write(LIBFUZZER_PREFIX_C)
-                else:
-                    f.write(LIBFUZZER_PREFIX_CXX)
+                f.write(LIBFUZZER_PREFIX)
             else:
                 f.write(AFLPLUSPLUS_PREFIX)
 
@@ -2419,13 +2416,9 @@ class BaseGenerator(ABC):
 
             self.toolchain.require_compiler(self.target_type)
             if self.target_type == LIBFUZZER:
-                compiler_path = (self.toolchain.clang
-                                 if compiler_info["compiler"] == "CC"
-                                 else self.toolchain.clangpp)
+                compiler_path = self.toolchain.clangpp
             else:
-                compiler_path = (self.toolchain.afl_clang_fast
-                                 if compiler_info["compiler"] == "CC"
-                                 else self.toolchain.afl_clang_fastpp)
+                compiler_path = self.toolchain.afl_clang_fastpp
 
             current_func_compilation_opts = ""
             compilation_opts = ""

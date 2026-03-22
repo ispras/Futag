@@ -652,10 +652,7 @@ class ContextGenerator(Generator):
             func["location"]["fullpath"])
 
         if self.target_type == LIBFUZZER:
-            if compiler_info["compiler"] == "CC":
-                f.write(LIBFUZZER_PREFIX_C)
-            else:
-                f.write(LIBFUZZER_PREFIX_CXX)
+            f.write(LIBFUZZER_PREFIX)
         else:
             f.write(AFLPLUSPLUS_PREFIX)
 
