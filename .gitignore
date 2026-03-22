@@ -26,9 +26,9 @@ src/Checkers/include/Checkers.td.test
 src/Checkers/lib/FutagTest.cpp
 futag-llvm*
 Algorithms
-src/python/futag-package/dist/**
-src/python/futag-package/build/**
-src/python/futag-package/src/*.egg-info/
+futag-package/dist/**
+futag-package/build/**
+futag-package/src/*.egg-info/
 
 # Python
 __pycache__/

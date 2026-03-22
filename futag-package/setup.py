@@ -11,7 +11,7 @@ setup(
    url='https://github.com/ispras/Futag',
    project_urls={
        'Documentation': 'https://github.com/ispras/Futag/tree/main/docs',
-       'Source': 'https://github.com/ispras/Futag/tree/main/src/python/futag-package',
+       'Source': 'https://github.com/ispras/Futag/tree/main/futag-package',
        'Bug Tracker': 'https://github.com/ispras/Futag/issues',
    },
    license='LICENSE',

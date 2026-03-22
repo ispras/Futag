@@ -15,7 +15,7 @@ jobs:
           python -c "
           import ast, sys, pathlib
           errors = []
-          for f in pathlib.Path('src/python/futag-package/src/futag').glob('*.py'):
+          for f in pathlib.Path('futag-package/src/futag').glob('*.py'):
               try:
                   ast.parse(f.read_text())
               except SyntaxError as e:
