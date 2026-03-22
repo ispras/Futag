@@ -34,7 +34,7 @@ static analysis checkers and generates fuzz targets in LibFuzzer or AFLplusplus 
 +---------------------------------------------------------------+
 ```
 
-### Layer 1: Build Infrastructure
+### Layer 1: Build Infrastructure (optional, one-time)
 
 Located in `build-llvm/` and `build/`, shell scripts that:
 
@@ -42,6 +42,10 @@ Located in `build-llvm/` and `build/`, shell scripts that:
 2. Patch in Futag's checkers and Clang modifications
 3. Build the complete toolchain via CMake (`build/build.sh`)
 4. Optionally build AFLplusplus support (`futag-llvm/buildAFLplusplus.sh`)
+
+**Note:** This layer is only needed for the full pipeline workflow. The Python
+package can also work with pre-built analysis JSON and system-installed clang,
+or in generation-only mode. See [Usage Modes](#usage-modes) below.
 
 ## Data Flow
 
@@ -118,6 +122,35 @@ For detailed documentation, see [docs/generators.md](generators.md) and
 [docs/python-api.md](python-api.md).
 
 
+## Usage Modes
+
+The Python package supports three usage modes via `ToolchainConfig`:
+
+| Mode | Requires | Use case |
+|------|----------|----------|
+| Full pipeline | futag-llvm toolchain | First-time setup, complete workflow |
+| Pre-built JSON + system clang | Any clang + analysis JSON | CodeQL or other backend, CI/CD |
+| Generation only | Just the analysis JSON file | Produce source files, compile elsewhere |
+
+```python
+from futag.toolchain import ToolchainConfig
+
+# Mode 1: Full pipeline (existing workflow, unchanged)
+generator = Generator(FUTAG_PATH, library_root)
+
+# Mode 2: Pre-built JSON + system clang
+tc = ToolchainConfig.from_system()
+generator = Generator(library_root=lib_root, json_file="analysis.json", toolchain=tc)
+
+# Mode 3: Generation only (no compiler needed)
+generator = Generator(library_root=lib_root, json_file="analysis.json")
+generator.gen_targets()  # produces .c/.cpp source files
+```
+
+The JSON interface between analysis backends and generators is formally specified
+in [analysis-schema.json](analysis-schema.json). For instructions on producing
+compatible JSON from alternative tools, see [analysis-backend.md](analysis-backend.md).
+
 ## Key Components
 
 | Component | Location | Documentation |
@@ -126,6 +159,7 @@ For detailed documentation, see [docs/generators.md](generators.md) and
 | Generator Classes | `futag-package/src/futag/` | [docs/generators.md](generators.md) |
 | Python API | `futag-package/` | [docs/python-api.md](python-api.md) |
 | Build Scripts | `build-llvm/`, `build/` | [README.en.md](../README.en.md) |
+| JSON Schema | `docs/analysis-schema.json` | [docs/analysis-backend.md](analysis-backend.md) |
 
 ## Directory Structure
 

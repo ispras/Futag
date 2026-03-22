@@ -27,8 +27,56 @@ generator.compile_targets(workers=4, keep_failed=True)
 | `futag.blob_stamper_generator` | `BlobStamperGenerator` | BlobStamper-based targets |
 | `futag.fuzzer` | `Fuzzer`, `NatchFuzzer` | Execute fuzz targets |
 | `futag.base_generator` | `BaseGenerator` (ABC) | Shared generator infrastructure |
+| `futag.toolchain` | `ToolchainConfig` | External tool path configuration |
 | `futag.generator_state` | `GeneratorState` | State management dataclass |
 | `futag.sysmsg` | (constants) | Constants and error messages |
+
+---
+
+## ToolchainConfig
+
+Centralizes all external tool paths. Supports three factory methods for different usage modes.
+
+```python
+from futag.toolchain import ToolchainConfig
+
+# From a compiled futag-llvm directory (existing workflow)
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
+
+# From system-installed tools (discovered via PATH)
+tc = ToolchainConfig.from_system()
+
+# Generation only — no tools needed, gen_targets() produces source files
+tc = ToolchainConfig.for_generation_only()
+```
+
+All classes (`Builder`, `Generator`, `Fuzzer`, etc.) accept an optional `toolchain` parameter. If omitted, the toolchain is constructed from `futag_llvm_package` for backward compatibility.
+
+### Usage Modes
+
+```python
+# Mode 1: Full pipeline (existing, unchanged)
+builder = Builder(FUTAG_PATH, lib_root)
+builder.auto_build()
+builder.analyze()
+generator = Generator(FUTAG_PATH, lib_root)
+generator.gen_targets()
+generator.compile_targets(4)
+
+# Mode 2: Pre-built JSON + system clang
+tc = ToolchainConfig.from_system()
+generator = Generator(library_root=lib_root,
+                      json_file="/path/to/analysis.json",
+                      toolchain=tc)
+generator.gen_targets()
+generator.compile_targets(4)
+
+# Mode 3: Generation only (no compiler needed)
+generator = Generator(library_root=lib_root,
+                      json_file="/path/to/analysis.json")
+generator.gen_targets()
+# produces .c/.cpp source files in futag-fuzz-drivers/
+```
 
 ---
 
