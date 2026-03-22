@@ -13,8 +13,8 @@ from futag.toolchain import ToolchainConfig
 # Pattern 1: Build, analyze, and generate fuzz targets for a library
 # =============================================================================
 
+tc = ToolchainConfig.from_futag_llvm("../futag-llvm/")
 test_build = Builder(
-    "../futag-llvm",               # Path to the futag-llvm working directory
     "../json-c",                   # Path to the library source directory
     flags="-g -O0",                # Compiler flags for building
     clean=True,                    # Clean futag-build/install/analysis dirs before running (default: False)
@@ -22,13 +22,12 @@ test_build = Builder(
     install_path="../json-c/futag-install",  # Path to install directory (optional)
     analysis_path="../json-c/futag-analysis", # Path to analysis directory (optional)
     processes=4,                   # Number of CPU cores for building (optional)
-    build_ex_params="--disable-zip" # Extra build parameters (optional)
+    build_ex_params="--disable-zip", # Extra build parameters (optional)
+    toolchain=tc,
 )
 
 test_build.auto_build()
 test_build.analyze()
-
-tc = ToolchainConfig.from_futag_llvm("../futag-llvm/")
 generator = Generator(
     "json-c",
     toolchain=tc,
@@ -47,10 +46,11 @@ FUTAG_PATH = "/home/futag/Futag/futag-llvm"
 library_root = "json-c-json-c-0.16-20220414"
 
 consumer_root = "libstorj-1.0.3"
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 consumer_builder = ConsumerBuilder(
-    FUTAG_PATH,       # Path to the futag-llvm directory
     library_root,     # Path to the library source directory
     consumer_root,    # Path to the consumer program source directory
+    toolchain=tc,
     # clean=True,
     # processes=16,
 )

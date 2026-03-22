@@ -49,19 +49,16 @@ test_lib.analyze()
 For more parameters of Builder please refer to docstring of this class.
 ```bash
 class Builder(builtins.object)
- |  Builder(futag_llvm_package: str, library_root: str, flags: str = '-fsanitize=address', clean: bool = False, build_path: str = '.futag-build', install_path: str = '.futag-install', analysis_path: str = '.futag-analysis', process
-es: int = 4, build_ex_params='')
- |  
+ |  Builder(library_root: str, flags: str = '', clean: bool = False, build_path: str = '.futag-build', install_path: str = '.futag-install', analysis_path: str = '.futag-analysis', processes: int = 4, build_ex_params='', toolchain=None)
+ |
  |  Futag Builder Class
- |  
+ |
  |  Methods defined here:
- |  
- |  __init__(self, futag_llvm_package: str, library_root: str, flags: str = '-fsanitize=address', clean: bool = False, build_path: str = '.futag-build', install_path: str = '.futag-install', analysis_path: str = '.futag-analysis', 
-processes: int = 4, build_ex_params='')
+ |
+ |  __init__(self, library_root: str, flags: str = '', clean: bool = False, build_path: str = '.futag-build', install_path: str = '.futag-install', analysis_path: str = '.futag-analysis', processes: int = 4, build_ex_params='', toolchain=None)
  |      Constructor of class Builder
- |      
+ |
  |      Args:
- |          futag_llvm_package (str): path to the futag-llvm package (with binaries, scripts, etc.).
  |          library_root (str): path to the library root.
  |          flags (str, optional): flags for compiling.. Defaults to COMPILER_FLAGS.
  |          clean (bool, optional): Option for deleting futag folders if they are exist, for example futag-build, futag-install, futag-analysis. Defaults to False.

@@ -134,7 +134,7 @@ def _parse_location(location_str):
 class _BaseBuilder:
     """Shared base for Builder and ConsumerBuilder."""
 
-    def _validate_common(self, futag_llvm_package, library_root, processes, build_ex_params, toolchain=None, log_to_console=True):
+    def _validate_common(self, library_root, processes, build_ex_params, futag_llvm_package="", toolchain=None, log_to_console=True):
         """Validate and set common attributes."""
         setup_console_logging(log_to_console)
         self.library_root = library_root
@@ -150,10 +150,10 @@ class _BaseBuilder:
         from futag.toolchain import ToolchainConfig
         if toolchain is not None:
             self.toolchain = toolchain
-        elif pathlib.Path(futag_llvm_package).absolute().exists() and (pathlib.Path(futag_llvm_package) / "bin/clang").absolute().exists():
+        elif futag_llvm_package and pathlib.Path(futag_llvm_package).absolute().exists() and (pathlib.Path(futag_llvm_package) / "bin/clang").absolute().exists():
             self.toolchain = ToolchainConfig.from_futag_llvm(futag_llvm_package)
         else:
-            sys.exit(INVALID_FUTAG_PATH + futag_llvm_package)
+            sys.exit(INVALID_FUTAG_PATH + str(futag_llvm_package))
 
         if pathlib.Path(library_root).absolute().exists():
             self.library_root = pathlib.Path(self.library_root).absolute()
@@ -191,11 +191,10 @@ class _BaseBuilder:
 class Builder(_BaseBuilder):
     """Futag Builder Class"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = "", clean: bool = False, intercept: bool = True, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS, toolchain=None, log_to_console: bool = True):
+    def __init__(self, library_root: str, flags: str = "", clean: bool = False, intercept: bool = True, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS, futag_llvm_package: str = "", toolchain=None, log_to_console: bool = True):
         """Constructor of class Builder
 
         Args:
-            futag_llvm_package (str): path to the futag-llvm package (with binaries, scripts, etc.).
             library_root (str): path to the library root.
             flags (str, optional): flags for compiling.. Defaults to COMPILER_FLAGS.
             clean (bool, optional): Option for deleting futag folders if they are exist, for example futag-build, futag-install, futag-analysis. Defaults to False.
@@ -211,7 +210,7 @@ class Builder(_BaseBuilder):
             ValueError: INVALID_INPUT_PROCESSES: the input value of "processes" is not a number or negative.
         """
 
-        self._validate_common(futag_llvm_package, library_root, processes, build_ex_params, toolchain=toolchain, log_to_console=log_to_console)
+        self._validate_common(library_root, processes, build_ex_params, futag_llvm_package=futag_llvm_package, toolchain=toolchain, log_to_console=log_to_console)
 
         if (self.library_root / build_path).exists() and clean:
             delete_folder(self.library_root / build_path)
@@ -746,11 +745,10 @@ class Builder(_BaseBuilder):
 class ConsumerBuilder(_BaseBuilder):
     """Futag Builder Class for Consumer programs"""
 
-    def __init__(self, futag_llvm_package: str, library_root: str, consumer_root: str, flags: str = "", clean: bool = False, build_path: str = BUILD_PATH, consumer_report_path: str = CONSUMER_REPORT_PATH, db_filepath: str = FOR_CONSUMER_FILEPATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS, toolchain=None, log_to_console: bool = True):
+    def __init__(self, library_root: str, consumer_root: str, flags: str = "", clean: bool = False, build_path: str = BUILD_PATH, consumer_report_path: str = CONSUMER_REPORT_PATH, db_filepath: str = FOR_CONSUMER_FILEPATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS, futag_llvm_package: str = "", toolchain=None, log_to_console: bool = True):
         """Constructor of class Consumer Builder
 
         Args:
-            futag_llvm_package (str): path to the futag-llvm package (with binaries, scripts, etc.).
             library_root (str): path to the library root.
             consumer_root (str): path to the consumer program.
             flags (str, optional): flags for compiling.. Defaults to COMPILER_FLAGS.
@@ -768,7 +766,7 @@ class ConsumerBuilder(_BaseBuilder):
         """
 
         self.consumer_root = consumer_root
-        self._validate_common(futag_llvm_package, library_root, processes, build_ex_params, toolchain=toolchain, log_to_console=log_to_console)
+        self._validate_common(library_root, processes, build_ex_params, futag_llvm_package=futag_llvm_package, toolchain=toolchain, log_to_console=log_to_console)
 
         if pathlib.Path(consumer_root).absolute().exists():
             self.consumer_root = pathlib.Path(self.consumer_root).absolute()

@@ -8,7 +8,8 @@ from futag.generator import Generator
 from futag.toolchain import ToolchainConfig
 
 # Step 1: Build and analyze the library
-builder = Builder("/path/to/futag-llvm", "/path/to/library", clean=True)
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
+builder = Builder("/path/to/library", clean=True, toolchain=tc)
 builder.auto_build()
 builder.analyze()
 
@@ -58,10 +59,10 @@ All classes accept an optional `toolchain` parameter. For `Generator` and `Fuzze
 
 ```python
 # Mode 1: Full pipeline
-builder = Builder(FUTAG_PATH, lib_root)
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
+builder = Builder(lib_root, toolchain=tc)
 builder.auto_build()
 builder.analyze()
-tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 generator = Generator(lib_root, toolchain=tc)
 generator.gen_targets()
 generator.compile_targets(4)
@@ -91,9 +92,10 @@ Builds and analyzes a target library using the Futag-patched Clang toolchain.
 
 ```python
 from futag.preprocessor import Builder
+from futag.toolchain import ToolchainConfig
 
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
 builder = Builder(
-    futag_llvm_package="/path/to/futag-llvm",  # Required: path to compiled toolchain
     library_root="/path/to/library",            # Required: path to library source
     flags="-g -O0",                             # Compiler flags (default: debug + sanitizer + coverage)
     clean=False,                                # Delete futag dirs before starting
@@ -102,7 +104,8 @@ builder = Builder(
     install_path=".futag-install",              # Install directory name
     analysis_path=".futag-analysis",            # Analysis output directory name
     processes=4,                                # Parallel build workers
-    build_ex_params=""                          # Extra build params (e.g., "--with-openssl")
+    build_ex_params="",                         # Extra build params (e.g., "--with-openssl")
+    toolchain=tc,
 )
 
 builder.auto_build()  # Auto-detect build system (configure/cmake/makefile/meson)
@@ -119,13 +122,15 @@ Analyzes a consumer program to extract library usage contexts.
 
 ```python
 from futag.preprocessor import ConsumerBuilder
+from futag.toolchain import ToolchainConfig
 
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
 consumer_builder = ConsumerBuilder(
-    futag_llvm_package="/path/to/futag-llvm",
     library_root="/path/to/library",
     consumer_root="/path/to/consumer",      # Required: consumer program source
     clean=False,
     processes=4,
+    toolchain=tc,
 )
 
 consumer_builder.auto_build()

@@ -15,11 +15,10 @@ Typical usage::
     from futag.generator import Generator
     from futag.toolchain import ToolchainConfig
 
-    builder = Builder(futag_llvm_path, library_root, clean=True)
+    tc = ToolchainConfig.from_futag_llvm(futag_llvm_path)
+    builder = Builder(library_root, clean=True, toolchain=tc)
     builder.auto_build()
     builder.analyze()
-
-    tc = ToolchainConfig.from_futag_llvm(futag_llvm_path)
     generator = Generator(library_root, toolchain=tc)
     generator.gen_targets()
     generator.compile_targets(workers=4)

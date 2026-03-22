@@ -12,7 +12,7 @@ See [analysis-schema.json](analysis-schema.json) for the formal JSON Schema spec
 
 | Mode | What you need | Example |
 |------|---------------|---------|
-| Full pipeline | futag-llvm toolchain | `Builder(FUTAG_PATH, lib_root)` → `Generator(lib_root, toolchain=tc)` |
+| Full pipeline | futag-llvm toolchain | `Builder(lib_root, toolchain=tc)` → `Generator(lib_root, toolchain=tc)` |
 | Pre-built JSON + system clang | analysis JSON + any clang | `Generator(library_root=lib_root, json_file="analysis.json", toolchain=ToolchainConfig.from_system())` |
 | Generation only | analysis JSON only | `Generator(library_root=lib_root, json_file="analysis.json")` → produces `.c`/`.cpp` source files |
 

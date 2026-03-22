@@ -111,12 +111,12 @@ src/futag/
 ```python
 from futag.preprocessor import *
 from futag.generator import *
-
-builder = Builder(FUTAG_PATH, library_root, clean=True)
-builder.auto_build()
-builder.analyze()
+from futag.toolchain import ToolchainConfig
 
 tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
+builder = Builder(library_root, clean=True, toolchain=tc)
+builder.auto_build()
+builder.analyze()
 generator = Generator(library_root, toolchain=tc)
 generator.gen_targets(anonymous=False, max_wrappers=10)
 generator.compile_targets(4)  # parallel workers

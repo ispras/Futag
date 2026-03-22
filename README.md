@@ -171,20 +171,22 @@ from futag.toolchain import ToolchainConfig
 FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
 lib_path = "path/to/library/source/code"
 
+# --- Создание toolchain ---
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
+
 # --- Сборка и анализ библиотеки ---
 build_test = Builder(
-    FUTAG_PATH,
     lib_path,
     clean=True, # удалить все папки сгенерированные Futag-ом перед сборкой
     # intercept=True, # запуск компиляции с инструментом "intercept" для анализа compile_command.json
     # processes=4, # количество задач при сборке
     # build_ex_params="--with-openssl --with-mhash" # дополнительные параметры при сборке библиотеки
+    toolchain=tc,
 )
 build_test.auto_build()
 build_test.analyze()
 
 # --- Генерация и компиляция драйверов ---
-tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 generator = Generator(
     lib_path, # путь к директории содержащей исходные кода исследуемого ПО
     # target_type=AFLPLUSPLUS,
@@ -217,9 +219,9 @@ FUTAG_PATH = "/home/futag/Futag/futag-llvm"
 library_root = "json-c-json-c-0.16-20220414"
 consumer_root = "libstorj-1.0.3"
 consumber_builder = ConsumerBuilder(
-   FUTAG_PATH, # путь к директории "futag-llvm"
    library_root, # путь к директории содержащей исходные кода тестируемой библиотеки
    consumer_root, # путь к директории содержащей исходные кода потребительской программы
+   toolchain=tc,
   #  clean=True,
   #  processes=16,
 )
