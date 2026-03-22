@@ -14,7 +14,7 @@
 Есть возможность объединить шаги [4] и [6], но scan-build не собирает с флагами "-fprofile-instr-generate -fcoverage-mapping", соответственно в собранной цели будет отсутстовать инструментация, позволяющая собирать информацию о покрытии.
 
 ## Как написать python-скрипт работы с Futag
-Полную документацию python-модуля в составе Futag можно посмотреть [по ссылке](https://github.com/ispras/Futag/tree/main/src/python/futag-package).
+Полную документацию python-модуля в составе Futag можно посмотреть [по ссылке](https://github.com/ispras/Futag/tree/main/futag-package).
 
 Класс Builder принимает следующие параметры:
 ```python

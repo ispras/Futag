@@ -15,7 +15,7 @@
     **************************************************
 ```
 This python package is for building library, generating and compiling fuzz-drivers of functions.
-* Package url: https://github.com/ispras/Futag/tree/main/src/python/futag-package
+* Package url: https://github.com/ispras/Futag/tree/main/futag-package
 * Bug Tracker = https://github.com/ispras/Futag/issues
 ## 1. Install
 
