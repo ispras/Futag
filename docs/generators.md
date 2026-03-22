@@ -84,8 +84,7 @@ Each returns a dict with three keys:
 
 ```python
 # Create generator
-gen = Generator(futag_llvm_package="/path/to/futag-llvm",
-                library_root="/path/to/library")
+gen = Generator("/path/to/library")
 
 # Generate fuzz targets
 gen.gen_targets(anonymous=False, max_wrappers=10, max_functions=10000)

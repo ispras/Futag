@@ -140,7 +140,7 @@ The fuzz-drivers of libjson will be generated in futag-fuzz-drivers inside the l
 
 ```bash
 class Generator(builtins.object)
- |  Generator(futag_llvm_package: str, library_root: str, target_type: int = 0, json_file: str = '.futag-analysis/futag-analysis-result.json', output_path='futag-fuzz-drivers', build_path='.futag-build', install_path='.futag-install')
+ |  Generator(library_root: str, target_type: int = 0, json_file: str = '.futag-analysis/futag-analysis-result.json', output_path='futag-fuzz-drivers', build_path='.futag-build', install_path='.futag-install', toolchain=None)
  |  
  |  Futag Generator
  |  
@@ -207,7 +207,7 @@ f.fuzz()
 
 ```bash
 class Fuzzer(builtins.object)
- |  Fuzzer(futag_llvm_package: str, fuzz_driver_path: str = 'futag-fuzz-drivers', debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False)
+ |  Fuzzer(fuzz_driver_path: str = 'futag-fuzz-drivers', debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, toolchain=None)
  |  
  |  Futag Fuzzer
  |  

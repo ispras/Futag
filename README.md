@@ -189,10 +189,11 @@ from futag.generator import *
 FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
 lib_path = "path/to/library/source/code"
 
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 generator = Generator(
-    FUTAG_PATH, # путь к директории "futag-llvm"
     lib_path, # путь к директории содержащей исходные кода исследуемого ПО
-    # target_type=AFLPLUSPLUS, 
+    # target_type=AFLPLUSPLUS,
+    toolchain=tc,
 )
 
 # Генерация фаззинг-оберток 
@@ -232,8 +233,8 @@ consumber_builder.auto_build()
 consumber_builder.analyze()
 
 context_generator = ContextGenerator(
-    FUTAG_PATH, 
-    library_root, 
+    library_root,
+    toolchain=tc,
 )
 
 context_generator.gen_context() # генерация фаззинг-оберток для контекстов

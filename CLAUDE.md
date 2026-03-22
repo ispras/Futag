@@ -116,7 +116,8 @@ builder = Builder(FUTAG_PATH, library_root, clean=True)
 builder.auto_build()
 builder.analyze()
 
-generator = Generator(FUTAG_PATH, library_root)
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
+generator = Generator(library_root, toolchain=tc)
 generator.gen_targets(anonymous=False, max_wrappers=10)
 generator.compile_targets(4)  # parallel workers
 ```

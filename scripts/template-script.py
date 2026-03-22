@@ -7,6 +7,7 @@ Pattern 3 (lines 45-53): Context-based fuzz target generation from consumer usag
 """
 from futag.preprocessor import *
 from futag.generator import *
+from futag.toolchain import ToolchainConfig
 
 # =============================================================================
 # Pattern 1: Build, analyze, and generate fuzz targets for a library
@@ -27,9 +28,10 @@ test_build = Builder(
 test_build.auto_build()
 test_build.analyze()
 
+tc = ToolchainConfig.from_futag_llvm("../futag-llvm/")
 generator = Generator(
-    "../futag-llvm/",
     "json-c",
+    toolchain=tc,
 )
 generator.gen_targets()
 generator.compile_targets(
@@ -59,9 +61,10 @@ consumer_builder.analyze()
 # Pattern 3: Generate fuzz targets from consumer usage contexts
 # =============================================================================
 
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 context_generator = ContextGenerator(
-    FUTAG_PATH,
     library_root,
+    toolchain=tc,
 )
 
 context_generator.gen_context()            # Generate fuzz wrappers for contexts

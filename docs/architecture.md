@@ -135,8 +135,9 @@ The Python package supports three usage modes via `ToolchainConfig`:
 ```python
 from futag.toolchain import ToolchainConfig
 
-# Mode 1: Full pipeline (existing workflow, unchanged)
-generator = Generator(FUTAG_PATH, library_root)
+# Mode 1: Full pipeline
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
+generator = Generator(library_root, toolchain=tc)
 
 # Mode 2: Pre-built JSON + system clang
 tc = ToolchainConfig.from_system()
