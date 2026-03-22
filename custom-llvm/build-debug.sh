@@ -18,7 +18,7 @@ echo "*             a tool of ISP RAS                *"
 echo "************************************************"
 echo ""
 
-futag_src="$(pwd)/../src"
+futag_src="$(pwd)/../analyzers"
 futag_install_folder="$(pwd)/../futag-llvm"
 vendors="$(pwd)/../vendors"
 custom_llvm="$(pwd)/../custom-llvm/llvm-project"
@@ -35,17 +35,17 @@ ASTMatchFindercpp="ASTMatchFinder.cpp"
 Checkerstd="Checkers.td"
 CheckerCMakeLists="CMakeLists.txt"
 
-cp -r $futag_src/clang/include/clang/$ASTMatchFinderh $custom_llvm/clang/include/clang/ASTMatchers/ASTMatchFinder.h
-cp -r $futag_src/clang/lib/clang/$ASTMatchFindercpp $custom_llvm/clang/lib/ASTMatchers/ASTMatchFinder.cpp
+cp -r $futag_src/clang-patches/include/clang/$ASTMatchFinderh $custom_llvm/clang/include/clang/ASTMatchers/ASTMatchFinder.h
+cp -r $futag_src/clang-patches/lib/clang/$ASTMatchFindercpp $custom_llvm/clang/lib/ASTMatchers/ASTMatchFinder.cpp
 
-cp -r $futag_src/clang/include/Futag $custom_llvm/clang/include/
-cp $futag_src/clang/lib/$clanglibCMakeLists $custom_llvm/clang/lib/CMakeLists.txt
-cp -r $futag_src/clang/lib/Futag $custom_llvm/clang/lib/
+cp -r $futag_src/clang-patches/include/Futag $custom_llvm/clang/include/
+cp $futag_src/clang-patches/lib/$clanglibCMakeLists $custom_llvm/clang/lib/CMakeLists.txt
+cp -r $futag_src/clang-patches/lib/Futag $custom_llvm/clang/lib/
 
 # copy clang Checker
-cp $futag_src/Checkers/include/$Checkerstd $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/Checkers.td
-cp $futag_src/Checkers/lib/*.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
-cp -r $futag_src/Checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
+cp $futag_src/checkers/include/$Checkerstd $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/Checkers.td
+cp $futag_src/checkers/lib/*.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
+cp -r $futag_src/checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
 
 cmake  -G "Unix Makefiles"  -DLLVM_BUILD_TESTS=OFF  -DLLVM_ENABLE_ZLIB=ON  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$futag_install_folder  -DCMAKE_EXPORT_COMPILE_COMMANDS=1  -DCLANG_INCLUDE_DOCS="OFF"  -DLLVM_BUILD_LLVM_DYLIB="ON"  -DLLVM_ENABLE_BINDINGS="OFF"  -DLLVM_ENABLE_PROJECTS='clang;'  -DLLVM_ENABLE_WARNINGS="OFF"  -DLLVM_INCLUDE_BENCHMARKS="OFF"  -DLLVM_INCLUDE_DOCS="OFF"  -DLLVM_INCLUDE_EXAMPLES="OFF"  -DLLVM_INCLUDE_TESTS="OFF"  -DLLVM_LINK_LLVM_DYLIB="ON"  -DLLVM_TARGETS_TO_BUILD="host" -DLLVM_ENABLE_RUNTIMES="compiler-rt;lld"  $custom_llvm/llvm
 
@@ -59,7 +59,7 @@ mkdir $futag_install_folder/python-package
 cp -r $(pwd)/../futag-package/dist/*.tar.gz $futag_install_folder/python-package
 cp -r $(pwd)/../futag-package/requirements.txt $futag_install_folder/python-package
 cp -r $(pwd)/../scripts/*.py $futag_install_folder/python-package
-cp -r $futag_src/svres-tmpl $futag_install_folder/
+cp -r $(pwd)/../src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
 cp $custom_prepare/INFO $futag_install_folder/

@@ -18,7 +18,7 @@ echo "*             a tool of ISP RAS                *"
 echo "************************************************"
 echo ""
 
-futag_src="$(pwd)/../src"
+futag_src="$(pwd)/../analyzers"
 futag_install_folder="$(pwd)/../futag-llvm"
 vendors="$(pwd)/../vendors"
 custom_llvm="$(pwd)/../custom-llvm/llvm-project"
@@ -54,18 +54,18 @@ ASTMatchFindercpp="ASTMatchFinder$version.cpp"
 Checkerstd="Checkers$version.td"
 CheckerCMakeLists="CMakeLists$version.txt"
 
-cp -r $futag_src/clang/include/clang/$ASTMatchFinderh $custom_llvm/clang/include/clang/ASTMatchers/ASTMatchFinder.h
-cp -r $futag_src/clang/lib/clang/$ASTMatchFindercpp $custom_llvm/clang/lib/ASTMatchers/ASTMatchFinder.cpp
+cp -r $futag_src/clang-patches/include/clang/$ASTMatchFinderh $custom_llvm/clang/include/clang/ASTMatchers/ASTMatchFinder.h
+cp -r $futag_src/clang-patches/lib/clang/$ASTMatchFindercpp $custom_llvm/clang/lib/ASTMatchers/ASTMatchFinder.cpp
 
-cp -r $futag_src/clang/include/Futag $custom_llvm/clang/include/
-cp $futag_src/clang/lib/$clanglibCMakeLists $custom_llvm/clang/lib/CMakeLists.txt
-cp -r $futag_src/clang/lib/Futag $custom_llvm/clang/lib/
+cp -r $futag_src/clang-patches/include/Futag $custom_llvm/clang/include/
+cp $futag_src/clang-patches/lib/$clanglibCMakeLists $custom_llvm/clang/lib/CMakeLists.txt
+cp -r $futag_src/clang-patches/lib/Futag $custom_llvm/clang/lib/
 
 # copy clang Checker
-cp $futag_src/Checkers/include/$Checkerstd $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/Checkers.td
-cp $futag_src/Checkers/lib/FutagAnalyzer.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
-cp $futag_src/Checkers/lib/FutagContextConsumer.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
-cp -r $futag_src/Checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
+cp $futag_src/checkers/include/$Checkerstd $custom_llvm/clang/include/clang/StaticAnalyzer/Checkers/Checkers.td
+cp $futag_src/checkers/lib/FutagAnalyzer.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
+cp $futag_src/checkers/lib/FutagContextConsumer.cpp $custom_llvm/clang/lib/StaticAnalyzer/Checkers/
+cp -r $futag_src/checkers/lib/$CheckerCMakeLists $custom_llvm/clang/lib/StaticAnalyzer/Checkers/CMakeLists.txt
 
 # # copy clang Plugin
 # cp -r $futag_src/Plugins/* $custom_llvm/clang/
@@ -114,7 +114,7 @@ fi
 mkdir $futag_install_folder/python-package
 cp -r $(pwd)/../futag-package/dist/*.tar.gz $futag_install_folder/python-package
 cp -r $(pwd)/../futag-package/requirements.txt $futag_install_folder/python-package
-cp -r $futag_src/svres-tmpl $futag_install_folder/
+cp -r $(pwd)/../src/svres-tmpl $futag_install_folder/
 cp -r ../*.md $futag_install_folder/
 cp -r ../LICENSE $futag_install_folder/
 cp $custom_prepare/INFO $futag_install_folder/
