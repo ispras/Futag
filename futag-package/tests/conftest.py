@@ -172,7 +172,9 @@ def tmp_futag_package(tmp_path):
     bin_dir.mkdir(parents=True)
 
     # Create placeholder binaries
-    for name in ["clang", "clang++", "llvm-config", "scan-build", "intercept-build"]:
+    for name in ["clang", "clang++", "llvm-config", "scan-build",
+                  "intercept-build", "llvm-profdata", "llvm-cov",
+                  "llvm-symbolizer"]:
         (bin_dir / name).touch()
         (bin_dir / name).chmod(0o755)
 
