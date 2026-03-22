@@ -21,8 +21,8 @@ echo ""
 futag_src="$(pwd)/../analyzers"
 futag_install_folder="$(pwd)/../futag-llvm"
 vendors="$(pwd)/../vendors"
-custom_llvm="$(pwd)/../custom-llvm/llvm-project"
-custom_prepare="$(pwd)/../custom-llvm"
+custom_llvm="$(pwd)/../build-llvm/llvm-project"
+custom_prepare="$(pwd)/../build-llvm"
 build_folder="$(pwd)"
 
 fuzz_introspector=$futag_install_folder/fuzz-introspector-1.0.0

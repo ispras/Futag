@@ -17,7 +17,7 @@ RUN apt install -y libncurses5 libtinfo5 gcc-multilib g++ make gdb binutils binu
 USER futag
 WORKDIR /home/futag/
 RUN git clone --depth 1 https://github.com/ispras/Futag.git
-WORKDIR /home/futag/Futag/custom-llvm
+WORKDIR /home/futag/Futag/build-llvm
 RUN ./prepare.sh 1
 WORKDIR /home/futag/Futag/build
 RUN ./build.sh

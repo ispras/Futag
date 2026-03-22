@@ -21,8 +21,8 @@ echo ""
 futag_src="$(pwd)/../analyzers"
 futag_install_folder="$(pwd)/../futag-llvm"
 vendors="$(pwd)/../vendors"
-custom_llvm="$(pwd)/../custom-llvm/llvm-project"
-custom_prepare="$(pwd)/../custom-llvm"
+custom_llvm="$(pwd)/../build-llvm/llvm-project"
+custom_prepare="$(pwd)/../build-llvm"
 
 #copy source code to llvm-project
 cp -r $vendors/json-3.10.5/single_include/nlohmann $custom_llvm/clang/include/

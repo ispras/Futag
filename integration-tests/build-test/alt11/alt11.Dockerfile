@@ -14,7 +14,7 @@ RUN pwd
 RUN git clone https://github.com/ispras/Futag.git
 WORKDIR /home/futag/Futag/
 RUN git checkout llvm18
-WORKDIR /home/futag/Futag/custom-llvm
+WORKDIR /home/futag/Futag/build-llvm
 RUN ./prepare.sh 2
 WORKDIR /home/futag/Futag/build
 RUN ./build.sh
