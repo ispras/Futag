@@ -58,7 +58,7 @@ GDB_TIMEOUT = 10
 class BaseFuzzer:
     """Base class containing all shared fuzzing logic."""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "") -> None:
+    def __init__(self, futag_llvm_package: str = "", fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None) -> None:
         """Initialize the BaseFuzzer with fuzzing configuration.
 
         Args:
@@ -75,13 +75,18 @@ class BaseFuzzer:
             leak: Detect memory leaks, default False.
             introspect: Integrate with fuzz-introspector, default False.
             source_path: Path to source code for coverage reports, default "".
+            toolchain: ToolchainConfig instance. If None, constructed from futag_llvm_package.
         """
         self.futag_llvm_package = futag_llvm_package
         self.fuzz_driver_path = fuzz_driver_path
         self.source_path = source_path
 
-        if Path(self.futag_llvm_package).exists():
-            self.futag_llvm_package = Path(self.futag_llvm_package).absolute()
+        from futag.toolchain import ToolchainConfig
+        if toolchain is not None:
+            self.toolchain = toolchain
+        elif futag_llvm_package:
+            self.toolchain = ToolchainConfig.from_futag_llvm(futag_llvm_package)
+            self.futag_llvm_package = Path(futag_llvm_package).absolute()
         else:
             sys.exit(INVALID_FUTAG_PATH)
 
@@ -639,8 +644,8 @@ class BaseFuzzer:
         """
         my_env = os.environ.copy()
         my_env["LLVM_PROFILE_FILE"] = object_file + ".profraw"
-        llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
-        llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
+        llvm_profdata = self.toolchain.llvm_profdata
+        llvm_cov = self.toolchain.llvm_cov
 
         ## Merge profraw file
         llvm_profdata_command = [
@@ -714,8 +719,8 @@ class BaseFuzzer:
         for o in object_list:
             object_files += ["-object", o]
 
-        llvm_profdata = self.futag_llvm_package / "bin/llvm-profdata"
-        llvm_cov = self.futag_llvm_package / "bin/llvm-cov"
+        llvm_profdata = self.toolchain.llvm_profdata
+        llvm_cov = self.toolchain.llvm_cov
 
         llvm_profdata_command = [
             llvm_profdata.as_posix(),
@@ -774,7 +779,10 @@ class BaseFuzzer:
         into the svres template, writes the final futag.svres file, and
         removes the intermediate files.
         """
-        template_file = self.futag_llvm_package / "svres-tmpl/svres.tmpl"
+        template_file = self.toolchain.svres_template
+        if template_file is None:
+            logger.warning("svres template not available, skipping svres finalization")
+            return
         warning_info_text = ""
         warning_info_path = Path.cwd().absolute() / "warning_info.svres"
         warning_info_ex_text = ""
@@ -803,7 +811,7 @@ class BaseFuzzer:
         Args:
             extra_param: Extra params for fuzzing. Defaults to "".
         """
-        symbolizer = self.futag_llvm_package / "bin/llvm-symbolizer"
+        symbolizer = self.toolchain.llvm_symbolizer
         generated_functions = [
             x for x in (self.fuzz_driver_path / "succeeded").iterdir() if x.is_dir()]
         for func_dir in generated_functions:
@@ -893,7 +901,7 @@ class BaseFuzzer:
 class Fuzzer(BaseFuzzer):
     """Futag Fuzzer"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "") -> None:
+    def __init__(self, futag_llvm_package: str = "", fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None) -> None:
         """Initialize the Fuzzer.
 
         Args:
@@ -910,6 +918,7 @@ class Fuzzer(BaseFuzzer):
             leak: Detect memory leaks, default False.
             introspect: Integrate with fuzz-introspector, default False.
             source_path: Path to source code for coverage reports, default "".
+            toolchain: ToolchainConfig instance. If None, constructed from futag_llvm_package.
         """
         super().__init__(
             futag_llvm_package=futag_llvm_package,
@@ -925,6 +934,7 @@ class Fuzzer(BaseFuzzer):
             leak=leak,
             introspect=introspect,
             source_path=source_path,
+            toolchain=toolchain,
         )
 
     def _get_corpus_args(self, target_path) -> list:
@@ -935,7 +945,7 @@ class Fuzzer(BaseFuzzer):
 class NatchFuzzer(BaseFuzzer):
     """Futag Fuzzer for Natch"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False) -> None:
+    def __init__(self, futag_llvm_package: str = "", fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, toolchain=None) -> None:
         """Initialize the NatchFuzzer.
 
         Args:
@@ -966,6 +976,7 @@ class NatchFuzzer(BaseFuzzer):
             leak=leak,
             introspect=introspect,
             source_path="",
+            toolchain=toolchain,
         )
 
     def _get_corpus_args(self, target_path) -> list:

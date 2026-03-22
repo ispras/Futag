@@ -35,6 +35,7 @@ class ToolchainConfig:
     llvm_profdata: Optional[Path] = None
     llvm_cov: Optional[Path] = None
     llvm_symbolizer: Optional[Path] = None
+    intercept_build: Optional[Path] = None
     afl_clang_fast: Optional[Path] = None
     afl_clang_fastpp: Optional[Path] = None
     svres_template: Optional[Path] = None
@@ -67,6 +68,7 @@ class ToolchainConfig:
             llvm_profdata=base / "bin" / "llvm-profdata",
             llvm_cov=base / "bin" / "llvm-cov",
             llvm_symbolizer=base / "bin" / "llvm-symbolizer",
+            intercept_build=base / "bin" / "intercept-build",
             afl_clang_fast=(
                 afl_base / "afl-clang-fast"
                 if (afl_base / "afl-clang-fast").exists() else None
@@ -107,6 +109,7 @@ class ToolchainConfig:
             llvm_profdata=find("llvm-profdata"),
             llvm_cov=find("llvm-cov"),
             llvm_symbolizer=find("llvm-symbolizer"),
+            intercept_build=find("intercept-build"),
             afl_clang_fast=find("afl-clang-fast"),
             afl_clang_fastpp=find("afl-clang-fast++"),
         )
