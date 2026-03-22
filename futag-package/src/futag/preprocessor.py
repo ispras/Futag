@@ -137,7 +137,6 @@ class _BaseBuilder:
     def _validate_common(self, futag_llvm_package, library_root, processes, build_ex_params, toolchain=None, log_to_console=True):
         """Validate and set common attributes."""
         setup_console_logging(log_to_console)
-        self.futag_llvm_package = futag_llvm_package
         self.library_root = library_root
 
         try:
@@ -151,12 +150,8 @@ class _BaseBuilder:
         from futag.toolchain import ToolchainConfig
         if toolchain is not None:
             self.toolchain = toolchain
-            self.futag_llvm_package = (
-                toolchain.clang.parent.parent if toolchain.clang else None)
         elif pathlib.Path(futag_llvm_package).absolute().exists() and (pathlib.Path(futag_llvm_package) / "bin/clang").absolute().exists():
             self.toolchain = ToolchainConfig.from_futag_llvm(futag_llvm_package)
-            self.futag_llvm_package = pathlib.Path(
-                futag_llvm_package).absolute()
         else:
             sys.exit(INVALID_FUTAG_PATH + futag_llvm_package)
 
