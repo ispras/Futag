@@ -31,6 +31,7 @@ class ToolchainConfig:
 
     clang: Optional[Path] = None
     clangpp: Optional[Path] = None
+    llvm_config: Optional[Path] = None
     scan_build: Optional[Path] = None
     llvm_profdata: Optional[Path] = None
     llvm_cov: Optional[Path] = None
@@ -64,6 +65,7 @@ class ToolchainConfig:
         return cls(
             clang=base / "bin" / "clang",
             clangpp=base / "bin" / "clang++",
+            llvm_config=base / "bin" / "llvm-config",
             scan_build=base / "bin" / "scan-build",
             llvm_profdata=base / "bin" / "llvm-profdata",
             llvm_cov=base / "bin" / "llvm-cov",
@@ -105,6 +107,7 @@ class ToolchainConfig:
         return cls(
             clang=clang,
             clangpp=clangpp,
+            llvm_config=find("llvm-config"),
             scan_build=find("scan-build"),
             llvm_profdata=find("llvm-profdata"),
             llvm_cov=find("llvm-cov"),

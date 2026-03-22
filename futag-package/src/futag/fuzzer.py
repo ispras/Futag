@@ -26,6 +26,7 @@ from subprocess import Popen, PIPE, call, run
 import logging
 
 from futag.sysmsg import *
+from futag import setup_console_logging
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +59,10 @@ GDB_TIMEOUT = 10
 class BaseFuzzer:
     """Base class containing all shared fuzzing logic."""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None) -> None:
+    def __init__(self, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None, log_to_console: bool = True) -> None:
         """Initialize the BaseFuzzer with fuzzing configuration.
 
         Args:
-            futag_llvm_package: Path to the Futag LLVM package (with binaries, scripts, etc).
             fuzz_driver_path: Location of fuzz-drivers, default "futag-fuzz-drivers".
             debug: Print debug information while fuzzing, default False.
             gdb: Debug crashes with GDB, default False.
@@ -75,20 +75,18 @@ class BaseFuzzer:
             leak: Detect memory leaks, default False.
             introspect: Integrate with fuzz-introspector, default False.
             source_path: Path to source code for coverage reports, default "".
-            toolchain: ToolchainConfig instance. If None, constructed from futag_llvm_package.
+            toolchain: ToolchainConfig instance. If None, uses generation-only mode.
+            log_to_console: Show log messages in the console, default True.
         """
-        self.futag_llvm_package = futag_llvm_package
+        setup_console_logging(log_to_console)
         self.fuzz_driver_path = fuzz_driver_path
         self.source_path = source_path
 
         from futag.toolchain import ToolchainConfig
         if toolchain is not None:
             self.toolchain = toolchain
-        elif futag_llvm_package:
-            self.toolchain = ToolchainConfig.from_futag_llvm(futag_llvm_package)
-            self.futag_llvm_package = Path(futag_llvm_package).absolute()
         else:
-            sys.exit(INVALID_FUTAG_PATH)
+            self.toolchain = ToolchainConfig.for_generation_only()
 
         if Path(self.fuzz_driver_path).exists():
             self.fuzz_driver_path = Path(self.fuzz_driver_path).absolute()
@@ -901,11 +899,10 @@ class BaseFuzzer:
 class Fuzzer(BaseFuzzer):
     """Futag Fuzzer"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None) -> None:
+    def __init__(self, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None, log_to_console: bool = True) -> None:
         """Initialize the Fuzzer.
 
         Args:
-            futag_llvm_package: Path to the Futag LLVM package (with binaries, scripts, etc).
             fuzz_driver_path: Location of fuzz-drivers, default "futag-fuzz-drivers".
             debug: Print debug information while fuzzing, default False.
             gdb: Debug crashes with GDB, default False.
@@ -918,10 +915,10 @@ class Fuzzer(BaseFuzzer):
             leak: Detect memory leaks, default False.
             introspect: Integrate with fuzz-introspector, default False.
             source_path: Path to source code for coverage reports, default "".
-            toolchain: ToolchainConfig instance. If None, constructed from futag_llvm_package.
+            toolchain: ToolchainConfig instance. If None, uses generation-only mode.
+            log_to_console: Show log messages in the console, default True.
         """
         super().__init__(
-            futag_llvm_package=futag_llvm_package,
             fuzz_driver_path=fuzz_driver_path,
             debug=debug,
             gdb=gdb,
@@ -935,6 +932,7 @@ class Fuzzer(BaseFuzzer):
             introspect=introspect,
             source_path=source_path,
             toolchain=toolchain,
+            log_to_console=log_to_console,
         )
 
     def _get_corpus_args(self, target_path) -> list:
@@ -945,11 +943,10 @@ class Fuzzer(BaseFuzzer):
 class NatchFuzzer(BaseFuzzer):
     """Futag Fuzzer for Natch"""
 
-    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, toolchain=None) -> None:
+    def __init__(self, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, toolchain=None, log_to_console: bool = True) -> None:
         """Initialize the NatchFuzzer.
 
         Args:
-            futag_llvm_package: Path to the Futag LLVM package (with binaries, scripts, etc).
             fuzz_driver_path: Location of fuzz-drivers, default "futag-fuzz-drivers".
             debug: Print debug information while fuzzing, default False.
             gdb: Debug crashes with GDB, default False.
@@ -961,9 +958,9 @@ class NatchFuzzer(BaseFuzzer):
             coverage: Show coverage of fuzzing, default False.
             leak: Detect memory leaks, default False.
             introspect: Integrate with fuzz-introspector, default False.
+            log_to_console: Show log messages in the console, default True.
         """
         super().__init__(
-            futag_llvm_package=futag_llvm_package,
             fuzz_driver_path=fuzz_driver_path,
             debug=debug,
             gdb=gdb,
@@ -977,6 +974,7 @@ class NatchFuzzer(BaseFuzzer):
             introspect=introspect,
             source_path="",
             toolchain=toolchain,
+            log_to_console=log_to_console,
         )
 
     def _get_corpus_args(self, target_path) -> list:
