@@ -176,13 +176,16 @@ This script creates the Futag/build directory and copies Futag/build-llvm/build.
 ```
 
 ### 4.1. Automatic generation of fuzzing wrappers when usage contexts are absent
-- Run the build, check and analysis when no usage contexts exist:
 
 ```python
 from futag.preprocessor import *
+from futag.generator import *
+from futag.toolchain import ToolchainConfig
 
 FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
 lib_path = "path/to/library/source/code"
+
+# --- Build and analyze the library ---
 build_test = Builder(
     FUTAG_PATH,
     lib_path,
@@ -193,17 +196,8 @@ build_test = Builder(
 )
 build_test.auto_build()
 build_test.analyze()
-```
 
-- Generate and compile drivers:
-
-```python
-from futag.generator import *
-from futag.toolchain import ToolchainConfig
-
-FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
-lib_path = "path/to/library/source/code"
-
+# --- Generate and compile drivers ---
 tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 generator = Generator(
     lib_path, # path to the directory containing the target software source code
@@ -211,12 +205,10 @@ generator = Generator(
     toolchain=tc,
 )
 
-# Generate fuzzing wrappers
 generator.gen_targets(
     anonymous=False, # option to generate wrappers for non-public functions
-    max_wrappers=10 # limit the number of generated wrappers per function
+    max_wrappers=10, # limit the number of generated wrappers per function
 )
-# Compile fuzz drivers
 generator.compile_targets(
     4, # number of build jobs
     # keep_failed=True, # keep failed targets

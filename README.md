@@ -162,13 +162,16 @@ graph TD
 ```
 
 ## 3.1. Автоматическая генерация фаззинг-оберток в условии отсутствия контекстов использования
-- Запуск сборки, проверки и анализа в условии отсутствия контекстов использования
 
 ```python
 from futag.preprocessor import *
+from futag.generator import *
+from futag.toolchain import ToolchainConfig
 
 FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
 lib_path = "path/to/library/source/code"
+
+# --- Сборка и анализ библиотеки ---
 build_test = Builder(
     FUTAG_PATH,
     lib_path,
@@ -179,17 +182,8 @@ build_test = Builder(
 )
 build_test.auto_build()
 build_test.analyze()
-```
 
-- Генерация и компиляция драйверов
-
-```python
-from futag.generator import *
-from futag.toolchain import ToolchainConfig
-
-FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
-lib_path = "path/to/library/source/code"
-
+# --- Генерация и компиляция драйверов ---
 tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 generator = Generator(
     lib_path, # путь к директории содержащей исходные кода исследуемого ПО
@@ -197,12 +191,10 @@ generator = Generator(
     toolchain=tc,
 )
 
-# Генерация фаззинг-оберток 
 generator.gen_targets(
-    anonymous=False # опция для генерации фаззинг-обертки для функций, которые не имеют публичный доступ
-    max_wrappers= 10 # опция для органичения количества сгенерированных фаззинг-оберток для одной функции
+    anonymous=False, # опция для генерации фаззинг-обертки для функций, которые не имеют публичный доступ
+    max_wrappers=10, # опция для органичения количества сгенерированных фаззинг-оберток для одной функции
 )
-# Compile fuzz drivers
 generator.compile_targets(
     4, # количество задач при сборке
     # keep_failed=True, # сохранить не скомпилированные цели
