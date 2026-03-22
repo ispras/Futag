@@ -11,21 +11,21 @@
 ### Building the LLVM toolchain
 
 ```bash
-cd custom-llvm && ./prepare.sh
+cd build-llvm && ./prepare.sh
 cd ../build && ./build.sh
 ```
 
 ### Installing the Python package (development mode)
 
 ```bash
-cd src/python/futag-package
+cd futag-package
 pip install -e ".[test]"
 ```
 
 ### Running tests
 
 ```bash
-cd src/python/futag-package
+cd futag-package
 python -m pytest tests/ -v
 ```
 

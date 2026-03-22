@@ -42,7 +42,7 @@ graph TD
     end
 
     subgraph "Layer 1: Build Infrastructure"
-        D["custom-llvm / build.sh — Download and patch LLVM 14/18/19"]
+        D["build-llvm / build.sh — Download and patch LLVM 14/18/19"]
     end
 
     D -->|"futag-llvm toolchain"| E
@@ -106,7 +106,7 @@ Thank you for acknowledging the authors' work when you use FUTAG or report bugs 
 
 # 3. Installation
 ## 3.1. Using the Docker container
-You can try building FUTAG using the provided Dockerfiles for Ubuntu: https://github.com/ispras/Futag/tree/main/product-tests/build-test
+You can try building FUTAG using the provided Dockerfiles for Ubuntu: https://github.com/ispras/Futag/tree/main/integration-tests/build-test
 
 ## 3.2. Using a prepackaged release
 - Download the latest release (for example, futag-llvm.3.0.1.tar.xz) from https://github.com/ispras/Futag/releases/tag/v3.0.1 and extract it. The tool will be installed to the futag-llvm directory.
@@ -145,12 +145,12 @@ On Ubuntu you may also need to install:
 ```bash
   ~$ git clone https://github.com/ispras/Futag
 ```
-- Prepare the "custom-llvm" directory by running the script:
+- Prepare the "build-llvm" directory by running the script:
 
 ```bash
-  ~/Futag/custom-llvm$ ./prepare.sh
+  ~/Futag/build-llvm$ ./prepare.sh
 ```
-This script creates the Futag/build directory and copies Futag/custom-llvm/build.sh into it.
+This script creates the Futag/build directory and copies Futag/build-llvm/build.sh into it.
 
 - Run the copied build script in "Futag/build":
 
@@ -258,13 +258,13 @@ context_generator.compile_targets( # compile generated fuzzing wrappers
 ```
 
 If multiple fuzzing wrappers are generated for a function, the target function's subdirectory will contain numbered subdirectories (appended to the function name).
-Python package documentation is available at: https://github.com/ispras/Futag/tree/main/src/python/futag-package
+Python package documentation is available at: https://github.com/ispras/Futag/tree/main/futag-package
 
-More information about using FUTAG is available at: https://github.com/ispras/Futag/blob/main/How-to-work-with-Futag.md
+More information about using FUTAG is available at: https://github.com/ispras/Futag/blob/main/docs/how-to-work-with-futag.md
 
-A template for run scripts can be found here: https://github.com/ispras/Futag/blob/main/src/python/template-script.py
+A template for run scripts can be found here: https://github.com/ispras/Futag/blob/main/scripts/template-script.py
 
-A test repository was created at https://github.com/thientc/Futag-tests to test FUTAG on various libraries (json-c, php, FreeImage, etc.). You can try testing using the Docker container at https://github.com/ispras/Futag/tree/main/product-tests/libraries-test.
+A test repository was created at https://github.com/thientc/Futag-tests to test FUTAG on various libraries (json-c, php, FreeImage, etc.). You can try testing using the Docker container at https://github.com/ispras/Futag/tree/main/integration-tests/libraries-test.
 
 ## Documentation
 

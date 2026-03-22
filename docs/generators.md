@@ -45,7 +45,7 @@ succeeded/ and failed/ directories with compiled fuzz drivers
 
 ## BaseGenerator (ABC)
 
-**File:** `src/python/futag-package/src/futag/base_generator.py`
+**File:** `futag-package/src/futag/base_generator.py`
 
 The abstract base class containing all shared infrastructure. Subclasses only need to implement 10 type-specific generation methods.
 
@@ -96,7 +96,7 @@ gen.compile_targets(workers=4, keep_failed=True, coverage=True)
 
 ## GeneratorState
 
-**File:** `src/python/futag-package/src/futag/generator_state.py`
+**File:** `futag-package/src/futag/generator_state.py`
 
 Dataclass encapsulating all mutable state during recursive target generation. Replaces the previous pattern of 13+ instance variables with manual save/restore.
 
@@ -111,7 +111,7 @@ state.reset()               # Clear all state for new function
 
 ### Generator (Standard)
 
-**File:** `src/python/futag-package/src/futag/generator.py`
+**File:** `futag-package/src/futag/generator.py`
 
 Uses raw `memcpy()` from a byte buffer (`uint8_t *futag_pos`). Supports both C and C++ targets.
 
@@ -124,7 +124,7 @@ futag_pos += sizeof(int);
 
 ### FuzzDataProviderGenerator
 
-**File:** `src/python/futag-package/src/futag/fdp_generator.py`
+**File:** `futag-package/src/futag/fdp_generator.py`
 
 Uses libFuzzer's `FuzzedDataProvider` API for type-safe data consumption. C++ only.
 
@@ -138,7 +138,7 @@ const char* param2 = s_fdp.c_str();
 
 ### BlobStamperGenerator
 
-**File:** `src/python/futag-package/src/futag/blob_stamper_generator.py`
+**File:** `futag-package/src/futag/blob_stamper_generator.py`
 
 Inherits from `FuzzDataProviderGenerator`. Same type generation logic but supports both C and C++ targets.
 
