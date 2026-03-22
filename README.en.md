@@ -199,6 +199,7 @@ build_test.analyze()
 
 ```python
 from futag.generator import *
+from futag.toolchain import ToolchainConfig
 
 FUTAG_PATH = "/home/futag/Futag-tests/futag-llvm/"
 lib_path = "path/to/library/source/code"
@@ -231,8 +232,9 @@ By default, successfully compiled fuzzing wrappers for target functions are plac
 
 ```python
 from futag.preprocessor import *
-from futag.generator import * 
-from futag.fuzzer import * 
+from futag.generator import *
+from futag.fuzzer import *
+from futag.toolchain import ToolchainConfig
 
 FUTAG_PATH = "/home/futag/Futag/futag-llvm"
 library_root = "json-c-json-c-0.16-20220414"
@@ -247,6 +249,7 @@ consumber_builder = ConsumerBuilder(
 consumber_builder.auto_build()
 consumber_builder.analyze()
 
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 context_generator = ContextGenerator(
     library_root,
     toolchain=tc,
