@@ -65,7 +65,7 @@ cp -r ../LICENSE $futag_install_folder/
 cp $custom_prepare/INFO $futag_install_folder/
 git rev-parse HEAD >> $futag_install_folder/INFO
 
-cd ../product-tests
+cd ../integration-tests
 XZ_OPT='-T12 -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm
 
 echo ""

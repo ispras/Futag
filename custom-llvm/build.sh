@@ -91,7 +91,7 @@ cp -r ../LICENSE $futag_install_folder/
 
 cp $custom_prepare/buildAFLplusplus.sh $futag_install_folder/
 
-cd ../product-tests
+cd ../integration-tests
 
 XZ_OPT='-T'$(($(nproc)/2))' -9' tar cJf futag-llvm$version.latest.tar.xz ../futag-llvm
 
