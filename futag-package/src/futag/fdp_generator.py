@@ -25,7 +25,7 @@ from futag.base_generator import BaseGenerator
 class FuzzDataProviderGenerator(BaseGenerator):
     """Generator using libFuzzer's FuzzedDataProvider API for type-safe data consumption."""
 
-    def __init__(self, futag_llvm_package="", library_root="", target_type=LIBFUZZER,
+    def __init__(self, futag_llvm_package, library_root, target_type=LIBFUZZER,
                  json_file=ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH,
                  build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter=".",
                  toolchain=None) -> None:

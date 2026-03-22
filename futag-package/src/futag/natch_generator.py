@@ -39,7 +39,7 @@ class NatchGenerator(Generator):
     - Iterates over target_functions parsed from Natch JSON
     """
 
-    def __init__(self, futag_llvm_package: str = "", library_root: str = "",
+    def __init__(self, futag_llvm_package: str, library_root: str,
                  json_file: str = "", target_type: int = LIBFUZZER,
                  output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH,
                  install_path=INSTALL_PATH, toolchain=None):

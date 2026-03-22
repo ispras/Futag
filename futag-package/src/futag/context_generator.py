@@ -38,7 +38,7 @@ class ContextGenerator(Generator):
     code (call sequences, variable bindings, etc.).
     """
 
-    def __init__(self, futag_llvm_package: str = "", library_root: str = "",
+    def __init__(self, futag_llvm_package: str, library_root: str,
                  target_type: int = LIBFUZZER,
                  db_json_file: str = ANALYSIS_FILE_PATH,
                  context_json_file: str = CONTEXT_FILE_PATH,

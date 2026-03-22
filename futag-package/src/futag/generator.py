@@ -36,7 +36,7 @@ from futag.generator_state import GeneratorState
 class Generator(BaseGenerator):
     """Standard Futag Generator using raw memcpy buffer consumption."""
 
-    def __init__(self, futag_llvm_package="", library_root="", alter_compiler="",
+    def __init__(self, futag_llvm_package, library_root, alter_compiler="",
                  target_type=LIBFUZZER, json_file=ANALYSIS_FILE_PATH,
                  output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH,
                  install_path=INSTALL_PATH, delimiter=".", exclude_headers=None,

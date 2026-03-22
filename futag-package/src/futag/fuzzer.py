@@ -58,7 +58,7 @@ GDB_TIMEOUT = 10
 class BaseFuzzer:
     """Base class containing all shared fuzzing logic."""
 
-    def __init__(self, futag_llvm_package: str = "", fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None) -> None:
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None) -> None:
         """Initialize the BaseFuzzer with fuzzing configuration.
 
         Args:
@@ -901,7 +901,7 @@ class BaseFuzzer:
 class Fuzzer(BaseFuzzer):
     """Futag Fuzzer"""
 
-    def __init__(self, futag_llvm_package: str = "", fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None) -> None:
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, source_path: str = "", toolchain=None) -> None:
         """Initialize the Fuzzer.
 
         Args:
@@ -945,7 +945,7 @@ class Fuzzer(BaseFuzzer):
 class NatchFuzzer(BaseFuzzer):
     """Futag Fuzzer for Natch"""
 
-    def __init__(self, futag_llvm_package: str = "", fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, toolchain=None) -> None:
+    def __init__(self, futag_llvm_package: str, fuzz_driver_path: str = FUZZ_DRIVER_PATH, debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, toolchain=None) -> None:
         """Initialize the NatchFuzzer.
 
         Args:

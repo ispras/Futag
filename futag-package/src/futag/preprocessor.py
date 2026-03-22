@@ -194,7 +194,7 @@ class _BaseBuilder:
 class Builder(_BaseBuilder):
     """Futag Builder Class"""
 
-    def __init__(self, futag_llvm_package: str = "", library_root: str = "", flags: str = "", clean: bool = False, intercept: bool = True, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS, toolchain=None):
+    def __init__(self, futag_llvm_package: str, library_root: str, flags: str = "", clean: bool = False, intercept: bool = True, build_path: str = BUILD_PATH, install_path: str = INSTALL_PATH, analysis_path: str = ANALYSIS_PATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS, toolchain=None):
         """Constructor of class Builder
 
         Args:
@@ -751,7 +751,7 @@ class Builder(_BaseBuilder):
 class ConsumerBuilder(_BaseBuilder):
     """Futag Builder Class for Consumer programs"""
 
-    def __init__(self, futag_llvm_package: str = "", library_root: str = "", consumer_root: str = "", flags: str = "", clean: bool = False, build_path: str = BUILD_PATH, consumer_report_path: str = CONSUMER_REPORT_PATH, db_filepath: str = FOR_CONSUMER_FILEPATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS, toolchain=None):
+    def __init__(self, futag_llvm_package: str, library_root: str, consumer_root: str, flags: str = "", clean: bool = False, build_path: str = BUILD_PATH, consumer_report_path: str = CONSUMER_REPORT_PATH, db_filepath: str = FOR_CONSUMER_FILEPATH, processes: int = 4, build_ex_params=BUILD_EX_PARAMS, toolchain=None):
         """Constructor of class Consumer Builder
 
         Args:

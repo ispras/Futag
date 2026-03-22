@@ -115,5 +115,10 @@ class TestToolchainIntegration:
         """New API: pass toolchain explicitly."""
         from futag.toolchain import ToolchainConfig
         tc = ToolchainConfig.from_futag_llvm(tmp_futag_package)
-        gen = Generator(library_root=tmp_library_root, toolchain=tc)
+        gen = Generator(tmp_futag_package, tmp_library_root, toolchain=tc)
         assert gen.toolchain is tc
+
+    def test_generation_only_mode(self, tmp_library_root):
+        """Generation-only: empty futag_llvm_package, no toolchain."""
+        gen = Generator("", tmp_library_root)
+        assert gen.toolchain.clang is None

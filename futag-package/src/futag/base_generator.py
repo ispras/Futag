@@ -400,7 +400,7 @@ class BaseGenerator(ABC):
     #  Constructor                                                        #
     # ------------------------------------------------------------------ #
 
-    def __init__(self, futag_llvm_package: str = "", library_root: str = "", target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str = ".", toolchain=None):
+    def __init__(self, futag_llvm_package: str, library_root: str, target_type: int = LIBFUZZER, json_file: str = ANALYSIS_FILE_PATH, output_path=FUZZ_DRIVER_PATH, build_path=BUILD_PATH, install_path=INSTALL_PATH, delimiter: str = ".", toolchain=None):
         """ Constructor of BaseGenerator class.
 
         Args:
