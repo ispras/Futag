@@ -146,11 +146,10 @@ class Generator(builtins.object)
  |  
  |  Methods defined here:
  |  
- |  __init__(self, futag_llvm_package: str, library_root: str, target_type: int = 0, json_file: str = '.futag-analysis/futag-analysis-result.json', output_path='futag-fuzz-drivers', build_path='.futag-build', install_path='.futag-install')
+ |  __init__(self, library_root: str, target_type: int = 0, json_file: str = '.futag-analysis/futag-analysis-result.json', output_path='futag-fuzz-drivers', build_path='.futag-build', install_path='.futag-install', toolchain=None)
  |      Constructor of Generator class.
- |      
+ |
  |      Args:
- |          futag_llvm_package (str): path to the futag-llvm package (with binaries, scripts, etc.).
  |          library_root (str): path to the library root.
  |          target_type (int, optional): format of fuzz-drivers (LIBFUZZER or AFLPLUSPLUS). Defaults to LIBFUZZER.
  |          json_file (str, optional): path to the futag-analysis-result.json file. Defaults to ANALYSIS_FILE_PATH.
@@ -213,11 +212,9 @@ class Fuzzer(builtins.object)
  |  
  |  Methods defined here:
  |  
- |  __init__(self, futag_llvm_package: str, fuzz_driver_path: str = 'futag-fuzz-drivers', debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False)
+ |  __init__(self, fuzz_driver_path: str = 'futag-fuzz-drivers', debug: bool = False, gdb: bool = False, svres: bool = False, fork: int = 1, totaltime: int = 300, timeout: int = 10, memlimit: int = 2048, coverage: bool = False, leak: bool = False, introspect: bool = False, toolchain=None)
  |      Parameters
  |      ----------
- |      futag_llvm_package: str
- |          path to the futag llvm package (with binaries, scripts, etc)
  |      fuzz_driver_path: str
  |          location of fuzz-drivers, default "futag-fuzz-drivers"
  |      debug: bool = False
