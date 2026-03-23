@@ -775,6 +775,8 @@ class ContextGenerator(Generator):
                 "    //end of generation random array of dynamic file sizes\n")
 
         f.write("    uint8_t * futag_pos = Fuzz_Data;\n")
+        if self.harness_preamble:
+            f.write(self.harness_preamble)
 
         for line in self.state.gen_lines:
             f.write("    " + line)

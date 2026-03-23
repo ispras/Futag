@@ -429,6 +429,8 @@ class NatchGenerator(Generator):
 
             f.write("    size_t Fuzz_Size_remain = Fuzz_Size;;\n")
             f.write("    uint8_t * futag_pos = Fuzz_Data;\n")
+            if self.harness_preamble:
+                f.write(self.harness_preamble)
             for line in self.state.gen_lines:
                 f.write("    " + line)
 
@@ -801,6 +803,8 @@ class NatchGenerator(Generator):
 
             f.write("    size_t Fuzz_Size_remain = Fuzz_Size;\n")
             f.write("    uint8_t * futag_pos = Fuzz_Data;\n")
+            if self.harness_preamble:
+                f.write(self.harness_preamble)
             for line in self.state.gen_lines:
                 f.write("    " + line)
 
