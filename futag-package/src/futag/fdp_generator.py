@@ -158,17 +158,16 @@ class FuzzDataProviderGenerator(BaseGenerator):
         }
 
     def _gen_enum(self, enum_record, param_name, gen_type_info, compiler_info, anonymous=False) -> dict:
-        """Declare and assign value for an enum type."""
-        if anonymous:
-            enum_name = enum_record["name"]
-        else:
-            enum_name = enum_record["qname"]
-
-        enum_name = gen_type_info["type_name"]
+        """Declare and assign value for an enum type using PickValueInArray."""
+        enum_type = gen_type_info["type_name"]
+        # Template parameters cannot use the 'enum' keyword in C++
+        template_type = enum_type.removeprefix("enum ").strip()
+        enum_values = [v["field_name"] for v in enum_record["enum_values"]]
+        values_list = "{" + ", ".join(enum_values) + "}"
         return {
             "gen_lines": [
                 "//GEN_ENUM\n",
-                "auto " + param_name + " = provider.ConsumeEnum<" + enum_name + ">()"
+                enum_type + " " + param_name + " = provider.PickValueInArray<" + template_type + ">(" + values_list + ");\n",
             ],
             "gen_free": [],
             "buffer_size": ["sizeof(unsigned int)"]

@@ -810,8 +810,17 @@ class BaseFuzzer:
             extra_param: Extra params for fuzzing. Defaults to "".
         """
         symbolizer = self.toolchain.llvm_symbolizer
-        generated_functions = [
-            x for x in (self.fuzz_driver_path / "succeeded").iterdir() if x.is_dir()]
+        succeeded_path = self.fuzz_driver_path / "succeeded"
+        if not succeeded_path.exists():
+            logger.error(
+                "Directory '%s' not found. "
+                "Ensure compile_targets() ran successfully and that "
+                "fuzz_driver_path points to the fuzz-drivers directory "
+                "(not the toolchain path).",
+                succeeded_path,
+            )
+            return
+        generated_functions = [x for x in succeeded_path.iterdir() if x.is_dir()]
         for func_dir in generated_functions:
             self.backtraces = []
             fuzz_driver_dirs = [x for x in func_dir.iterdir() if x.is_dir()]
