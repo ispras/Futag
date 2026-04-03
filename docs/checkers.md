@@ -50,7 +50,7 @@ Consumer Source Code + futag-4consumer.json
 
 ## Checker Registration
 
-Checkers are defined in `src/Checkers/include/Checkers.td` using Clang's TableGen format:
+Checkers are defined in `analyzers/checkers/include/Checkers.td` using Clang's TableGen format:
 
 ```tablegen
 let ParentPackage = Futag in {
@@ -78,7 +78,7 @@ scan-build -enable-checker futag.FutagAnalyzer \
 
 ## FutagAnalyzer
 
-**Source:** `src/Checkers/lib/FutagAnalyzer.cpp` (+ LLVM14/18 variants)
+**Source:** `analyzers/checkers/lib/FutagAnalyzer.cpp` (+ LLVM14/18 variants)
 
 ### Class Hierarchy
 
@@ -157,7 +157,7 @@ The checker hooks into Clang's `ASTDecl` callback, receiving the entire translat
 
 ## FutagConsumerAnalyzer
 
-**Source:** `src/Checkers/lib/FutagConsumerAnalyzer.cpp` (+ LLVM14/18 variants)
+**Source:** `analyzers/checkers/lib/FutagConsumerAnalyzer.cpp` (+ LLVM14/18 variants)
 
 ### Purpose
 
@@ -243,7 +243,7 @@ Each context file (`_funcname_varname_blocks.json`) contains:
 
 ## Type System
 
-**Source:** `src/clang/include/Futag/Basic.h`, `src/clang/lib/Futag/Basic.cpp`
+**Source:** `analyzers/clang-patches/include/Futag/Basic.h`, `analyzers/clang-patches/lib/Futag/Basic.cpp`
 
 ### Type Classification
 
@@ -296,7 +296,7 @@ The Python `sysmsg.py` defines matching constants:
 
 ## AST Matching Infrastructure
 
-### FutagAnalyzer Matchers (`src/clang/include/Futag/MatchFinder.h`)
+### FutagAnalyzer Matchers (`analyzers/clang-patches/include/Futag/MatchFinder.h`)
 
 | Callback Class | Pattern Matched | Purpose |
 |----------------|-----------------|---------|
@@ -305,7 +305,7 @@ The Python `sysmsg.py` defines matching constants:
 | `FutagMatchVarDeclArgCallBack` | Variable declaration matching | Tracks variable initializations |
 | `FutagMatchBinOperatorArgCallBack` | Assignment operator matching | Tracks variable assignments |
 
-### FutagConsumerAnalyzer Matchers (`src/clang/include/Futag/ConsumerFinder.h`)
+### FutagConsumerAnalyzer Matchers (`analyzers/clang-patches/include/Futag/ConsumerFinder.h`)
 
 | Callback Class | Pattern Matched | Purpose |
 |----------------|-----------------|---------|
@@ -368,7 +368,7 @@ The base file always matches the LLVM 18 version. The `build.sh` script selects 
 Checkers are compiled into Clang's `clangStaticAnalyzerCheckers` library:
 
 ```cmake
-# src/Checkers/lib/CMakeLists.txt
+# analyzers/checkers/lib/CMakeLists.txt
 add_clang_library(clangStaticAnalyzerCheckers
     ...
     FutagAnalyzer.cpp
@@ -382,7 +382,7 @@ add_clang_library(clangStaticAnalyzerCheckers
 Supporting code is built as `FutagLib`:
 
 ```cmake
-# src/clang/lib/Futag/CMakeLists.txt
+# analyzers/clang-patches/lib/Futag/CMakeLists.txt
 add_clang_library(FutagLib
     Basic.cpp
     MatchFinder.cpp

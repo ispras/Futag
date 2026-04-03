@@ -9,65 +9,43 @@ static analysis checkers and generates fuzz targets in LibFuzzer or AFLplusplus 
 
 ```
 +---------------------------------------------------------------+
-|                      Layer 3: Build Infrastructure             |
-|         custom-llvm/prepare.sh  -->  build/build.sh            |
-|   (download LLVM sources, patch Futag checkers, compile)       |
+|                      Layer 1: Build Infrastructure            |
+|         build-llvm/prepare.sh  -->  build/build.sh            |
+|   (download LLVM sources, patch Futag checkers, compile)      |
 +---------------------------------------------------------------+
                             |
                     futag-llvm/ toolchain
                             |
 +---------------------------------------------------------------+
-|                Layer 1: C++ Clang Checkers                     |
-|          src/Checkers/        src/clang/                       |
-|  (StaticAnalyzer plugins: extract function signatures,         |
-|   types, and usage patterns from library source code)          |
+|                Layer 2: C++ Clang Checkers                    |
+|          analyzers/checkers/  analyzers/clang-patches/         |
+|  (StaticAnalyzer plugins: extract function signatures,        |
+|   types, and usage patterns from library source code)         |
 +---------------------------------------------------------------+
                             |
                    JSON analysis data
                             |
 +---------------------------------------------------------------+
-|              Layer 2: Python Orchestration                      |
-|           src/python/futag-package/src/futag/                  |
-|                                                                |
-|  preprocessor.py --> generator.py --> fuzzer.py                 |
-|  (build & analyze)  (gen targets)   (run fuzzing)              |
+|              Layer 3: Python Orchestration                    |
+|           futag-package/src/futag/                            |
+|                                                               |
+|  preprocessor.py --> generator.py --> fuzzer.py               |
+|  (build & analyze)  (gen targets)   (run fuzzing)             |
 +---------------------------------------------------------------+
 ```
 
-### Layer 1: C++ Clang Checkers
+### Layer 1: Build Infrastructure (optional, one-time)
 
-Located in `src/Checkers/` and `src/clang/`, these are static analysis plugins that
-run inside Clang's StaticAnalyzer framework. They extract function signatures, type
-information, and usage patterns from the target library's source code and serialize
-the results as JSON.
+Located in `build-llvm/` and `build/`, shell scripts that:
 
-For detailed documentation, see [docs/checkers.md](checkers.md).
-
-### Layer 2: Python Orchestration
-
-Located in `src/python/futag-package/src/futag/`, this layer provides the user-facing
-Python API that drives the full pipeline:
-
-- **preprocessor.py** -- `Builder` builds and analyzes target libraries;
-  `ConsumerBuilder` handles library+consumer pairs
-- **generator.py** -- `Generator` produces fuzz targets from analysis JSON;
-  `ContextGenerator` uses consumer usage contexts
-- **fuzzer.py** -- `BaseFuzzer`, `Fuzzer`, and `NatchFuzzer` execute generated
-  targets with configurable timeouts, memory limits, and sanitizers
-- **sysmsg.py** -- Constants and error messages (LIBFUZZER, AFLPLUSPLUS engine
-  identifiers, paths)
-
-For detailed documentation, see [docs/generators.md](generators.md) and
-[docs/python-api.md](python-api.md).
-
-### Layer 3: Build Infrastructure
-
-Located in `custom-llvm/` and `build/`, shell scripts that:
-
-1. Download LLVM sources (`custom-llvm/prepare.sh`)
+1. Download LLVM sources (`build-llvm/prepare.sh`)
 2. Patch in Futag's checkers and Clang modifications
 3. Build the complete toolchain via CMake (`build/build.sh`)
 4. Optionally build AFLplusplus support (`futag-llvm/buildAFLplusplus.sh`)
+
+**Note:** This layer is only needed for the full pipeline workflow. The Python
+package can also work with pre-built analysis JSON and system-installed clang,
+or in generation-only mode. See [Usage Modes](#usage-modes) below.
 
 ## Data Flow
 
@@ -78,7 +56,7 @@ Located in `custom-llvm/` and `build/`, shell scripts that:
      v                  v                      |
  +----------+    +-------------+               |
  | .c / .h  |--->| scan-build  |               |
- | files     |   | (checkers)  |               |
+ | files    |    | (checkers)  |               |
  +----------+    +------+------+               |
                         |                      |
                   JSON analysis                |
@@ -117,36 +95,94 @@ Located in `custom-llvm/` and `build/`, shell scripts that:
                                      crashes / coverage
 ```
 
+### Layer 2: C++ Clang Checkers
+
+Located in `analyzers/checkers/` and `analyzers/clang-patches/`, these are static analysis plugins that
+run inside Clang's StaticAnalyzer framework. They extract function signatures, type
+information, and usage patterns from the target library's source code and serialize
+the results as JSON.
+
+For detailed documentation, see [docs/checkers.md](checkers.md).
+
+### Layer 3: Python Orchestration
+
+Located in `futag-package/src/futag/`, this layer provides the user-facing
+Python API that drives the full pipeline:
+
+- **preprocessor.py** -- `Builder` builds and analyzes target libraries;
+  `ConsumerBuilder` handles library+consumer pairs
+- **generator.py** -- `Generator` produces fuzz targets from analysis JSON;
+  `ContextGenerator` uses consumer usage contexts
+- **fuzzer.py** -- `BaseFuzzer`, `Fuzzer`, and `NatchFuzzer` execute generated
+  targets with configurable timeouts, memory limits, and sanitizers
+- **sysmsg.py** -- Constants and error messages (LIBFUZZER, AFLPLUSPLUS engine
+  identifiers, paths)
+
+For detailed documentation, see [docs/generators.md](generators.md) and
+[docs/python-api.md](python-api.md).
+
+
+## Usage Modes
+
+The Python package supports three usage modes via `ToolchainConfig`:
+
+| Mode | Requires | Use case |
+|------|----------|----------|
+| Full pipeline | futag-llvm toolchain | First-time setup, complete workflow |
+| Pre-built JSON + system clang | Any clang + analysis JSON | CodeQL or other backend, CI/CD |
+| Generation only | Just the analysis JSON file | Produce source files, compile elsewhere |
+
+```python
+from futag.toolchain import ToolchainConfig
+
+# Mode 1: Full pipeline
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
+generator = Generator(library_root, toolchain=tc)
+
+# Mode 2: Pre-built JSON + system clang
+tc = ToolchainConfig.from_system()
+generator = Generator(library_root=lib_root, json_file="analysis.json", toolchain=tc)
+
+# Mode 3: Generation only (no compiler needed)
+generator = Generator(library_root=lib_root, json_file="analysis.json")
+generator.gen_targets()  # produces .c/.cpp source files
+```
+
+The JSON interface between analysis backends and generators is formally specified
+in [analysis-schema.json](analysis-schema.json). For instructions on producing
+compatible JSON from alternative tools, see [analysis-backend.md](analysis-backend.md).
+
 ## Key Components
 
 | Component | Location | Documentation |
 |-----------|----------|---------------|
-| Clang Checkers | `src/Checkers/`, `src/clang/` | [docs/checkers.md](checkers.md) |
-| Generator Classes | `src/python/futag-package/src/futag/` | [docs/generators.md](generators.md) |
-| Python API | `src/python/futag-package/` | [docs/python-api.md](python-api.md) |
-| Build Scripts | `custom-llvm/`, `build/` | [README.en.md](../README.en.md) |
+| Clang Checkers | `analyzers/checkers/`, `analyzers/clang-patches/` | [docs/checkers.md](checkers.md) |
+| Generator Classes | `futag-package/src/futag/` | [docs/generators.md](generators.md) |
+| Python API | `futag-package/` | [docs/python-api.md](python-api.md) |
+| Build Scripts | `build-llvm/`, `build/` | [README.en.md](../README.en.md) |
+| JSON Schema | `docs/analysis-schema.json` | [docs/analysis-backend.md](analysis-backend.md) |
 
 ## Directory Structure
 
 ```
 Futag/
-    build/                  # Build scripts for compiling the LLVM toolchain
-    custom-llvm/            # Scripts to download and patch LLVM sources
+    analyzers/              # C++ analysis layer
+        checkers/           # Clang StaticAnalyzer checker sources
+        clang-patches/      # Clang modifications for Futag
+    build-llvm/             # Scripts to download and patch LLVM sources
     docs/                   # Detailed documentation
         checkers.md         # Clang checker documentation
         generators.md       # Generator class documentation
         python-api.md       # Python API reference
     examples/               # Example scripts and configurations
-    product-tests/          # Dockerized tests
+    futag-package/          # Python package (pip-installable)
+        src/futag/          # Core Python modules
+        tests/              # Unit tests
+    integration-tests/      # Dockerized tests
         build-test/         # Build validation (Ubuntu 20.04/22.04/24.04, Alt 11/12)
         libraries-test/     # End-to-end tests against real libraries
         package-test/       # Python package tests
-    src/
-        Checkers/           # C++ Clang StaticAnalyzer checker sources
-        clang/              # Clang modifications for Futag
-        python/
-            futag-package/  # Python package (pip-installable)
-                src/futag/  # Core Python modules
+    scripts/                # Standalone utility scripts
     vendors/
         json/               # nlohmann/json (C++ JSON library for checkers)
     workshop/               # Library-specific tutorials
@@ -182,5 +218,5 @@ The base (unsuffixed) file should always match the latest supported LLVM version
 
 For build instructions and setup, see [README.en.md](../README.en.md).
 
-For a complete workflow example, see `src/python/template-script.py` and the
+For a complete workflow example, see `scripts/template-script.py` and the
 `workshop/` directory for library-specific tutorials.

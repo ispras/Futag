@@ -5,14 +5,17 @@
 ```python
 from futag.preprocessor import Builder
 from futag.generator import Generator
+from futag.toolchain import ToolchainConfig
 
 # Step 1: Build and analyze the library
-builder = Builder("/path/to/futag-llvm", "/path/to/library", clean=True)
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
+builder = Builder("/path/to/library", clean=True, toolchain=tc)
 builder.auto_build()
 builder.analyze()
 
 # Step 2: Generate fuzz targets
-generator = Generator("/path/to/futag-llvm", "/path/to/library")
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
+generator = Generator("/path/to/library", toolchain=tc)
 generator.gen_targets(anonymous=False, max_wrappers=10)
 generator.compile_targets(workers=4, keep_failed=True)
 ```
@@ -27,8 +30,57 @@ generator.compile_targets(workers=4, keep_failed=True)
 | `futag.blob_stamper_generator` | `BlobStamperGenerator` | BlobStamper-based targets |
 | `futag.fuzzer` | `Fuzzer`, `NatchFuzzer` | Execute fuzz targets |
 | `futag.base_generator` | `BaseGenerator` (ABC) | Shared generator infrastructure |
+| `futag.toolchain` | `ToolchainConfig` | External tool path configuration |
 | `futag.generator_state` | `GeneratorState` | State management dataclass |
 | `futag.sysmsg` | (constants) | Constants and error messages |
+
+---
+
+## ToolchainConfig
+
+Centralizes all external tool paths. Supports three factory methods for different usage modes.
+
+```python
+from futag.toolchain import ToolchainConfig
+
+# From a compiled futag-llvm directory (existing workflow)
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
+
+# From system-installed tools (discovered via PATH)
+tc = ToolchainConfig.from_system()
+
+# Generation only — no tools needed, gen_targets() produces source files
+tc = ToolchainConfig.for_generation_only()
+```
+
+All classes accept an optional `toolchain` parameter. For `Generator` and `Fuzzer` classes, if omitted, a generation-only config is used (no compiler). For `Builder`, it is constructed from `futag_llvm_package`.
+
+### Usage Modes
+
+```python
+# Mode 1: Full pipeline
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
+builder = Builder(lib_root, toolchain=tc)
+builder.auto_build()
+builder.analyze()
+generator = Generator(lib_root, toolchain=tc)
+generator.gen_targets()
+generator.compile_targets(4)
+
+# Mode 2: Pre-built JSON + system clang
+tc = ToolchainConfig.from_system()
+generator = Generator(library_root=lib_root,
+                      json_file="/path/to/analysis.json",
+                      toolchain=tc)
+generator.gen_targets()
+generator.compile_targets(4)
+
+# Mode 3: Generation only (no compiler needed)
+generator = Generator(library_root=lib_root,
+                      json_file="/path/to/analysis.json")
+generator.gen_targets()
+# produces .c/.cpp source files in futag-fuzz-drivers/
+```
 
 ---
 
@@ -40,9 +92,10 @@ Builds and analyzes a target library using the Futag-patched Clang toolchain.
 
 ```python
 from futag.preprocessor import Builder
+from futag.toolchain import ToolchainConfig
 
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
 builder = Builder(
-    futag_llvm_package="/path/to/futag-llvm",  # Required: path to compiled toolchain
     library_root="/path/to/library",            # Required: path to library source
     flags="-g -O0",                             # Compiler flags (default: debug + sanitizer + coverage)
     clean=False,                                # Delete futag dirs before starting
@@ -51,7 +104,8 @@ builder = Builder(
     install_path=".futag-install",              # Install directory name
     analysis_path=".futag-analysis",            # Analysis output directory name
     processes=4,                                # Parallel build workers
-    build_ex_params=""                          # Extra build params (e.g., "--with-openssl")
+    build_ex_params="",                         # Extra build params (e.g., "--with-openssl")
+    toolchain=tc,
 )
 
 builder.auto_build()  # Auto-detect build system (configure/cmake/makefile/meson)
@@ -68,13 +122,15 @@ Analyzes a consumer program to extract library usage contexts.
 
 ```python
 from futag.preprocessor import ConsumerBuilder
+from futag.toolchain import ToolchainConfig
 
+tc = ToolchainConfig.from_futag_llvm("/path/to/futag-llvm")
 consumer_builder = ConsumerBuilder(
-    futag_llvm_package="/path/to/futag-llvm",
     library_root="/path/to/library",
     consumer_root="/path/to/consumer",      # Required: consumer program source
     clean=False,
     processes=4,
+    toolchain=tc,
 )
 
 consumer_builder.auto_build()
@@ -93,7 +149,6 @@ Generates fuzz targets using raw `memcpy()` buffer consumption. Supports both C 
 from futag.generator import Generator
 
 generator = Generator(
-    futag_llvm_package="/path/to/futag-llvm",
     library_root="/path/to/library",
     alter_compiler="",                          # Override compiler path
     target_type=0,                              # 0=LIBFUZZER, 1=AFLPLUSPLUS
@@ -132,7 +187,6 @@ Uses libFuzzer's `FuzzedDataProvider` API. C++ only, type-safe data consumption.
 from futag.fdp_generator import FuzzDataProviderGenerator
 
 generator = FuzzDataProviderGenerator(
-    futag_llvm_package="/path/to/futag-llvm",
     library_root="/path/to/library",
 )
 generator.gen_targets(anonymous=False, max_wrappers=100)
@@ -147,7 +201,6 @@ Uses LibBlobStamper. Inherits FDP's type generation but supports both C and C++.
 from futag.blob_stamper_generator import BlobStamperGenerator
 
 generator = BlobStamperGenerator(
-    futag_llvm_package="/path/to/futag-llvm",
     library_root="/path/to/library",
 )
 ```
@@ -160,7 +213,6 @@ Generates fuzz targets from consumer program usage contexts.
 from futag.generator import ContextGenerator
 
 ctx_gen = ContextGenerator(
-    futag_llvm_package="/path/to/futag-llvm",
     library_root="/path/to/library",
     db_json_file=".futag-analysis/futag-analysis-result.json",
     context_json_file=".futag-consumer/futag-contexts.json",
@@ -179,7 +231,6 @@ Generates fuzz targets from Natch crash trace data.
 from futag.generator import NatchGenerator
 
 natch_gen = NatchGenerator(
-    futag_llvm_package="/path/to/futag-llvm",
     library_root="/path/to/library",
     json_file="/path/to/natch-output.json",  # Required: Natch JSON file
 )
@@ -236,7 +287,6 @@ Executes generated fuzz targets and collects crashes.
 from futag.fuzzer import Fuzzer
 
 fuzzer = Fuzzer(
-    futag_llvm_package="/path/to/futag-llvm",
     fuzz_driver_path="futag-fuzz-drivers",   # Directory with compiled fuzz targets
     debug=False,       # Print debug info
     gdb=False,         # Debug crashes with GDB
@@ -261,7 +311,6 @@ Same as Fuzzer but adds Natch corpus path support.
 from futag.fuzzer import NatchFuzzer
 
 fuzzer = NatchFuzzer(
-    futag_llvm_package="/path/to/futag-llvm",
     fuzz_driver_path="futag-fuzz-drivers",
     totaltime=60,
     debug=True,

@@ -1,14 +1,16 @@
 # Futag-tests (https://github.com/thientc/Futag-tests): testing repository for Futag.
 # This file is distributed under the GPL v3 license (https://www.gnu.org/licenses/gpl-3.0.en.html).
 
-from futag.generator import * 
+from futag.generator import *
+from futag.toolchain import ToolchainConfig
 
 FUTAG_PATH = "/home/futag/Futag/futag-llvm"
 lib_path = "."
 
+tc = ToolchainConfig.from_futag_llvm(FUTAG_PATH)
 generator = Generator(
-    FUTAG_PATH,
     lib_path,
+    toolchain=tc,
     json_file='/home/futag/libvirt/futag-analysis/futag-analysis-result.json',
     build_path='/home/futag/RPM/BUILD/libvirt-10.7.0/x86_64-alt-linux', #for compile_command.json with cmake
     install_path='/home/futag/RPM/BUILD/libvirt-10.7.0/x86_64-alt-linux', #for compile_command.json with cmake,
